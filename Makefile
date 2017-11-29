@@ -1,6 +1,6 @@
 # also update debian/changelog
 KVMVER=2.9.1
-KVMPKGREL=2~pve4
+KVMPKGREL=3~pve4
 
 KVMPACKAGE = pve-qemu-kvm
 KVMSRC = qemu
@@ -39,7 +39,7 @@ $(DEB): | submodule
 
 .PHONY: upload
 upload: $(DEBS)
-	tar cf - ${DEBS} | ssh repoman@repo.proxmox.com upload --product pve --dist stretch
+	tar cf - ${DEBS} | ssh repoman@repo.proxmox.com upload --product pve --dist jessie
 
 .PHONY: distclean
 distclean: clean
