@@ -1,3 +1,9 @@
+pve-qemu-kvm (2.9.1-6~pve4) stable; urgency=medium
+
+  * merge patches for SPEC_CTRL MSR, spec-ctrl CPUID bit and -IBRS CPU models
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 16 Jan 2018 09:59:03 +0100
+
 pve-qemu-kvm (2.9.1-5~pve4) stable; urgency=medium
 
   * block/gluster: glfs_lseek() workaround
