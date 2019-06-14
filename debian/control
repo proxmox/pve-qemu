@@ -9,6 +9,7 @@ Build-Depends: autotools-dev,
                libacl1-dev,
                libaio-dev,
                libcap-dev,
+               libfdt-dev,
                libgnutls28-dev,
                libiscsi-dev (>= 1.12.0),
                libjemalloc-dev,
@@ -27,7 +28,6 @@ Build-Depends: autotools-dev,
                texinfo,
                uuid-dev,
                xfslibs-dev,
-	       libfdt-dev,
 Standards-Version: 3.7.2
 
 Package: pve-qemu-kvm
@@ -53,17 +53,15 @@ Conflicts: kvm,
            pve-qemu-kvm-2.6.18,
            qemu,
            qemu-kvm,
+           qemu-system-arm,
            qemu-system-common,
            qemu-system-x86,
-           qemu-system-arm,
            qemu-utils,
-Provides: qemu-system-x86,
-          qemu-system-arm,
-          qemu-utils,
+Provides: qemu-system-arm, qemu-system-x86, qemu-utils
 Replaces: pve-kvm,
           pve-qemu-kvm-2.6.18,
-          qemu-system-x86,
           qemu-system-arm,
+          qemu-system-x86,
           qemu-utils,
 Description: Full virtualization on x86 hardware
  Using KVM, one can run multiple virtual PCs, each running unmodified Linux or
@@ -73,6 +71,6 @@ Description: Full virtualization on x86 hardware
 Package: pve-qemu-kvm-dbg
 Architecture: any
 Section: debug
-Depends: pve-qemu-kvm (= ${binary:Version}),
+Depends: pve-qemu-kvm (= ${binary:Version})
 Description: pve qemu debugging symbols
  This package contains the debugging symbols for pve-qemu-kvm.
