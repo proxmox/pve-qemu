@@ -1,3 +1,21 @@
+pve-qemu-kvm (5.2.0-7) buster; urgency=medium
+
+  * backport various bug fixes, mostly security related:
+    - e1000: fail early for evil descriptor
+    - ide: atapi: check logical block address and read size (CVE-2020-29443)
+    - vhost-vsock: detach the virqueue element in case of error
+    - hw/scsi/scsi-disk: MODE_PAGE_ALLS not allowed in MODE SELECT commands
+    - mptsas: Remove unused MPTSASState 'pending' field (CVE-2021-3392)
+    - uas: add stream number sanity checks.
+    - usb: limit combined packets to 1 MiB (CVE-2021-3527)
+    - usb/redir: avoid dynamic stack allocation (CVE-2021-3527)
+    - e1000: fix tx re-entrancy problem
+    - virtio-net: fix use after unmap/free for sg
+    - e1000: switch to use qemu_receive_packet() for loopback
+    - net: introduce qemu_receive_packet()
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 30 Mar 2022 12:29:03 +0200
+
 pve-qemu-kvm (5.2.0-6) pve; urgency=medium
 
   * improve the alloc-track and Proxmox Backup Server special block driver when
