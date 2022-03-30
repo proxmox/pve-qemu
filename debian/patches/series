@@ -1,3 +1,15 @@
+cve-cherry-picks/0001-net-introduce-qemu_receive_packet.patch
+cve-cherry-picks/0002-e1000-switch-to-use-qemu_receive_packet-for-loopback.patch
+cve-cherry-picks/0003-virtio-net-fix-use-after-unmap-free-for-sg.patch
+cve-cherry-picks/0004-e1000-fix-tx-re-entrancy-problem.patch
+cve-cherry-picks/0005-usb-redir-avoid-dynamic-stack-allocation-CVE-2021-35.patch
+cve-cherry-picks/0006-usb-limit-combined-packets-to-1-MiB-CVE-2021-3527.patch
+cve-cherry-picks/0007-uas-add-stream-number-sanity-checks.patch
+cve-cherry-picks/0008-mptsas-Remove-unused-MPTSASState-pending-field-CVE-2.patch
+cve-cherry-picks/0009-hw-scsi-scsi-disk-MODE_PAGE_ALLS-not-allowed-in-MODE.patch
+cve-cherry-picks/0010-vhost-vsock-detach-the-virqueue-element-in-case-of-e.patch
+cve-cherry-picks/0011-ide-atapi-check-logical-block-address-and-read-size-.patch
+cve-cherry-picks/0012-e1000-fail-early-for-evil-descriptor.patch
 extra/0001-Revert-qemu-img-convert-Don-t-pre-zero-images.patch
 extra/0002-docs-don-t-install-man-page-if-guest-agent-is-disabl.patch
 extra/0003-migration-only-check-page-size-match-if-RAM-postcopy.patch
