@@ -1,3 +1,11 @@
+pve-qemu-kvm (5.2.0-8) buster; urgency=medium
+
+  * backport "virtio-net: fix map leaking on error during receive" to address
+    small regression caused by backporting "virtio-net: fix use after
+    unmap/free for sg" in the previous version bump
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 28 Jun 2022 10:09:13 +0200
+
 pve-qemu-kvm (5.2.0-7) buster; urgency=medium
 
   * backport various bug fixes, mostly security related:
