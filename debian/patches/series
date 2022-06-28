@@ -10,6 +10,7 @@ cve-cherry-picks/0009-hw-scsi-scsi-disk-MODE_PAGE_ALLS-not-allowed-in-MODE.patch
 cve-cherry-picks/0010-vhost-vsock-detach-the-virqueue-element-in-case-of-e.patch
 cve-cherry-picks/0011-ide-atapi-check-logical-block-address-and-read-size-.patch
 cve-cherry-picks/0012-e1000-fail-early-for-evil-descriptor.patch
+cve-cherry-picks/0013-virtio-net-fix-map-leaking-on-error-during-receive.patch
 extra/0001-Revert-qemu-img-convert-Don-t-pre-zero-images.patch
 extra/0002-docs-don-t-install-man-page-if-guest-agent-is-disabl.patch
 extra/0003-migration-only-check-page-size-match-if-RAM-postcopy.patch
