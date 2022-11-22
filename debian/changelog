@@ -1,3 +1,9 @@
+pve-qemu-kvm (7.1.0-4) bullseye; urgency=medium
+
+  * cherry-pick "block/block-backend: blk_set_enable_write_cache is IO_CODE"
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 22 Nov 2022 09:21:06 +0100
+
 pve-qemu-kvm (7.1.0-3) bullseye; urgency=medium
 
   * init: daemonize: defuse PID file resolve error to a warning at max, fixing
