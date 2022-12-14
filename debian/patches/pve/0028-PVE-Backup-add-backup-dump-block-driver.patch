@@ -192,7 +192,7 @@ index 0000000000..04718a94e2
 +    return bs;
 +}
 diff --git a/block/backup.c b/block/backup.c
-index b6fa9e8a69..789f8b7799 100644
+index 9b0151c5be..6e8f6e67b3 100644
 --- a/block/backup.c
 +++ b/block/backup.c
 @@ -29,28 +29,6 @@
@@ -240,7 +240,7 @@ index b6fa9e8a69..789f8b7799 100644
      if (perf->max_chunk && perf->max_chunk < cluster_size) {
          error_setg(errp, "Required max-chunk (%" PRIi64 ") is less than backup "
 diff --git a/block/meson.build b/block/meson.build
-index 3a0b84bc11..7f22e7f177 100644
+index 4feae20e37..0d7023fc82 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -4,6 +4,7 @@ block_ss.add(files(
@@ -252,7 +252,7 @@ index 3a0b84bc11..7f22e7f177 100644
    'blkdebug.c',
    'blklogwrites.c',
 diff --git a/include/block/block_int-common.h b/include/block/block_int-common.h
-index 8947abab76..f272d0d8dc 100644
+index 31ae91e56e..37b64bcd93 100644
 --- a/include/block/block_int-common.h
 +++ b/include/block/block_int-common.h
 @@ -26,6 +26,7 @@
@@ -305,16 +305,16 @@ index 8947abab76..f272d0d8dc 100644
      BDRV_TRACKED_READ,
      BDRV_TRACKED_WRITE,
 diff --git a/job.c b/job.c
-index 075c6f3a20..e5699ad200 100644
+index 72d57f0934..93e22d180b 100644
 --- a/job.c
 +++ b/job.c
-@@ -276,7 +276,8 @@ static bool job_started(Job *job)
-     return job->co;
+@@ -330,7 +330,8 @@ static bool job_started_locked(Job *job)
  }
  
--static bool job_should_pause(Job *job)
-+bool job_should_pause(Job *job);
-+bool job_should_pause(Job *job)
+ /* Called with job_mutex held. */
+-static bool job_should_pause_locked(Job *job)
++bool job_should_pause_locked(Job *job);
++bool job_should_pause_locked(Job *job)
  {
      return job->pause_count > 0;
  }

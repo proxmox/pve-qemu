@@ -19,7 +19,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 38 insertions(+), 18 deletions(-)
 
 diff --git a/migration/qemu-file.c b/migration/qemu-file.c
-index 4f400c2e52..21e8998867 100644
+index 2d5f74ffc2..9fd97e6fe1 100644
 --- a/migration/qemu-file.c
 +++ b/migration/qemu-file.c
 @@ -31,8 +31,8 @@
@@ -43,7 +43,7 @@ index 4f400c2e52..21e8998867 100644
  
      DECLARE_BITMAP(may_free, MAX_IOV_SIZE);
      struct iovec iov[MAX_IOV_SIZE];
-@@ -106,7 +107,9 @@ bool qemu_file_mode_is_not_valid(const char *mode)
+@@ -127,7 +128,9 @@ bool qemu_file_mode_is_not_valid(const char *mode)
      return false;
  }
  
@@ -54,7 +54,7 @@ index 4f400c2e52..21e8998867 100644
  {
      QEMUFile *f;
  
-@@ -115,6 +118,8 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
+@@ -136,6 +139,8 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
      object_ref(ioc);
      f->ioc = ioc;
      f->is_writable = is_writable;
@@ -63,7 +63,7 @@ index 4f400c2e52..21e8998867 100644
  
      return f;
  }
-@@ -125,17 +130,27 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
+@@ -146,17 +151,27 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
   */
  QEMUFile *qemu_file_get_return_path(QEMUFile *f)
  {
@@ -94,7 +94,7 @@ index 4f400c2e52..21e8998867 100644
  }
  
  void qemu_file_set_hooks(QEMUFile *f, const QEMUFileHooks *hooks)
-@@ -393,7 +408,7 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
+@@ -414,7 +429,7 @@ static ssize_t qemu_fill_buffer(QEMUFile *f)
      do {
          len = qio_channel_read(f->ioc,
                                 (char *)f->buf + pending,
@@ -103,7 +103,7 @@ index 4f400c2e52..21e8998867 100644
                                 &local_error);
          if (len == QIO_CHANNEL_ERR_BLOCK) {
              if (qemu_in_coroutine()) {
-@@ -443,6 +458,8 @@ int qemu_fclose(QEMUFile *f)
+@@ -464,6 +479,8 @@ int qemu_fclose(QEMUFile *f)
      }
      g_clear_pointer(&f->ioc, object_unref);
  
@@ -112,7 +112,7 @@ index 4f400c2e52..21e8998867 100644
      /* If any error was spotted before closing, we should report it
       * instead of the close() return value.
       */
-@@ -497,7 +514,7 @@ static void add_buf_to_iovec(QEMUFile *f, size_t len)
+@@ -518,7 +535,7 @@ static void add_buf_to_iovec(QEMUFile *f, size_t len)
  {
      if (!add_to_iovec(f, f->buf + f->buf_index, len, false)) {
          f->buf_index += len;
@@ -121,7 +121,7 @@ index 4f400c2e52..21e8998867 100644
              qemu_fflush(f);
          }
      }
-@@ -523,7 +540,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
+@@ -544,7 +561,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
      }
  
      while (size > 0) {
@@ -130,7 +130,7 @@ index 4f400c2e52..21e8998867 100644
          if (l > size) {
              l = size;
          }
-@@ -570,8 +587,8 @@ size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset)
+@@ -591,8 +608,8 @@ size_t qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t size, size_t offset)
      size_t index;
  
      assert(!qemu_file_is_writable(f));
@@ -141,7 +141,7 @@ index 4f400c2e52..21e8998867 100644
  
      /* The 1st byte to read from */
      index = f->buf_index + offset;
-@@ -621,7 +638,7 @@ size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
+@@ -642,7 +659,7 @@ size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
          size_t res;
          uint8_t *src;
  
@@ -150,7 +150,7 @@ index 4f400c2e52..21e8998867 100644
          if (res == 0) {
              return done;
          }
-@@ -655,7 +672,7 @@ size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
+@@ -676,7 +693,7 @@ size_t qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size)
   */
  size_t qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size)
  {
@@ -159,7 +159,7 @@ index 4f400c2e52..21e8998867 100644
          size_t res;
          uint8_t *src = NULL;
  
-@@ -680,7 +697,7 @@ int qemu_peek_byte(QEMUFile *f, int offset)
+@@ -701,7 +718,7 @@ int qemu_peek_byte(QEMUFile *f, int offset)
      int index = f->buf_index + offset;
  
      assert(!qemu_file_is_writable(f));
@@ -168,7 +168,7 @@ index 4f400c2e52..21e8998867 100644
  
      if (index >= f->buf_size) {
          qemu_fill_buffer(f);
-@@ -832,7 +849,7 @@ static int qemu_compress_data(z_stream *stream, uint8_t *dest, size_t dest_len,
+@@ -853,7 +870,7 @@ static int qemu_compress_data(z_stream *stream, uint8_t *dest, size_t dest_len,
  ssize_t qemu_put_compression_data(QEMUFile *f, z_stream *stream,
                                    const uint8_t *p, size_t size)
  {
@@ -192,7 +192,7 @@ index fa13d04d78..914f1a63a8 100644
  int qemu_fclose(QEMUFile *f);
  
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index b3692739a0..e65a5e3482 100644
+index 05d394c0e2..bafe6ae5eb 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
 @@ -367,7 +367,7 @@ void qmp_savevm_start(bool has_statefile, const char *statefile, Error **errp)

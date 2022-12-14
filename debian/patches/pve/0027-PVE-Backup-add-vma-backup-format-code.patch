@@ -20,7 +20,7 @@ Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
  create mode 100644 vma.h
 
 diff --git a/block/meson.build b/block/meson.build
-index ad40c10b6a..3a0b84bc11 100644
+index 020a89ae07..4feae20e37 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -46,6 +46,8 @@ block_ss.add(files(
@@ -30,13 +30,13 @@ index ad40c10b6a..3a0b84bc11 100644
 +block_ss.add(files('../vma-writer.c'), libuuid)
 +
  softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
+ softmmu_ss.add(files('block-ram-registrar.c'))
  
- if get_option('qcow1').allowed()
 diff --git a/meson.build b/meson.build
-index d5230eadd6..ffff66c0cc 100644
+index 5c6b5a1c75..e8cf7e3d78 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1462,6 +1462,8 @@ keyutils = dependency('libkeyutils', required: false,
+@@ -1525,6 +1525,8 @@ keyutils = dependency('libkeyutils', required: false,
  
  has_gettid = cc.has_function('gettid')
  
@@ -45,7 +45,7 @@ index d5230eadd6..ffff66c0cc 100644
  # libselinux
  selinux = dependency('libselinux',
                       required: get_option('selinux'),
-@@ -3607,6 +3609,9 @@ if have_tools
+@@ -3596,6 +3598,9 @@ if have_tools
                 dependencies: [blockdev, qemuutil, gnutls, selinux],
                 install: true)
  

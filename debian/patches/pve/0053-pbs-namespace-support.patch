@@ -13,7 +13,7 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  5 files changed, 47 insertions(+), 9 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 4c799f00d9..0502f42be6 100644
+index c7468e5d3b..57b2457f1e 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
 @@ -1041,6 +1041,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
@@ -25,7 +25,7 @@ index 4c799f00d9..0502f42be6 100644
          false, 0, // PBS backup-time
          false, false, // PBS use-dirty-bitmap
 diff --git a/block/pbs.c b/block/pbs.c
-index c5eb4d5bad..7471e2ef9d 100644
+index ce9a870885..9192f3e41b 100644
 --- a/block/pbs.c
 +++ b/block/pbs.c
 @@ -14,6 +14,7 @@
@@ -170,7 +170,7 @@ index 2f834cf42e..f03d9bab8d 100644
          fprintf(stderr, "restore failed: %s\n", pbs_error);
          return -1;
 diff --git a/pve-backup.c b/pve-backup.c
-index 9f6c04a512..f6a5f8c785 100644
+index 4b5134ed27..262e7d3894 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -10,6 +10,8 @@
@@ -182,7 +182,7 @@ index 9f6c04a512..f6a5f8c785 100644
  /* PVE backup state and related function */
  
  /*
-@@ -535,6 +537,7 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -531,6 +533,7 @@ UuidInfo coroutine_fn *qmp_backup(
      bool has_key_password, const char *key_password,
      bool has_master_keyfile, const char *master_keyfile,
      bool has_fingerprint, const char *fingerprint,
@@ -190,7 +190,7 @@ index 9f6c04a512..f6a5f8c785 100644
      bool has_backup_id, const char *backup_id,
      bool has_backup_time, int64_t backup_time,
      bool has_use_dirty_bitmap, bool use_dirty_bitmap,
-@@ -674,8 +677,9 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -670,8 +673,9 @@ UuidInfo coroutine_fn *qmp_backup(
          firewall_name = "fw.conf";
  
          char *pbs_err = NULL;
@@ -202,7 +202,7 @@ index 9f6c04a512..f6a5f8c785 100644
              backup_time,
              dump_cb_block_size,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index fc8a125451..cc2ead0b75 100644
+index d8c7331090..889726fc26 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -817,6 +817,8 @@
@@ -222,7 +222,7 @@ index fc8a125451..cc2ead0b75 100644
                                      '*backup-id': 'str',
                                      '*backup-time': 'int',
                                      '*use-dirty-bitmap': 'bool',
-@@ -3282,7 +3285,7 @@
+@@ -3290,7 +3293,7 @@
  { 'struct': 'BlockdevOptionsPbs',
    'data': { 'repository': 'str', 'snapshot': 'str', 'archive': 'str',
              '*keyfile': 'str', '*password': 'str', '*fingerprint': 'str',

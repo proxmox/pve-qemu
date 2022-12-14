@@ -5,7 +5,7 @@ Subject: [PATCH] PVE: [Up] qemu-img dd: add -n skip_create
 
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: fix getopt-string + add documentation]
-Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  docs/tools/qemu-img.rst | 11 ++++++++++-
  qemu-img-cmds.hx        |  4 ++--
@@ -13,7 +13,7 @@ Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
  3 files changed, 26 insertions(+), 12 deletions(-)
 
 diff --git a/docs/tools/qemu-img.rst b/docs/tools/qemu-img.rst
-index 85a6e05b35..699229eef6 100644
+index 15aeddc6d8..5e713e231d 100644
 --- a/docs/tools/qemu-img.rst
 +++ b/docs/tools/qemu-img.rst
 @@ -208,6 +208,10 @@ Parameters to convert subcommand:
@@ -65,19 +65,19 @@ index d1616c045a..b5b0bb4467 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index 14594d44b6..c6b4a5567d 100644
+index c1306385a8..59c403373b 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -4951,7 +4951,7 @@ static int img_dd(int argc, char **argv)
+@@ -4954,7 +4954,7 @@ static int img_dd(int argc, char **argv)
      const char *fmt = NULL;
      int64_t size = 0, readsize = 0;
-     int64_t block_count = 0, out_pos, in_pos;
+     int64_t out_pos, in_pos;
 -    bool force_share = false;
 +    bool force_share = false, skip_create = false;
      struct DdInfo dd = {
          .flags = 0,
          .count = 0,
-@@ -4989,7 +4989,7 @@ static int img_dd(int argc, char **argv)
+@@ -4992,7 +4992,7 @@ static int img_dd(int argc, char **argv)
          { 0, 0, 0, 0 }
      };
  
@@ -86,7 +86,7 @@ index 14594d44b6..c6b4a5567d 100644
          if (c == EOF) {
              break;
          }
-@@ -5009,6 +5009,9 @@ static int img_dd(int argc, char **argv)
+@@ -5012,6 +5012,9 @@ static int img_dd(int argc, char **argv)
          case 'h':
              help();
              break;
@@ -96,7 +96,7 @@ index 14594d44b6..c6b4a5567d 100644
          case 'U':
              force_share = true;
              break;
-@@ -5139,13 +5142,15 @@ static int img_dd(int argc, char **argv)
+@@ -5142,13 +5145,15 @@ static int img_dd(int argc, char **argv)
                                  size - in.bsz * in.offset, &error_abort);
          }
  

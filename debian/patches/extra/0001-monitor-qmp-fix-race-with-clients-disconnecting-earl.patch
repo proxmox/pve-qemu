@@ -48,7 +48,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  6 files changed, 59 insertions(+), 5 deletions(-)
 
 diff --git a/include/monitor/monitor.h b/include/monitor/monitor.h
-index a4b40e8391..d64ae8f34e 100644
+index 737e750670..38804b8595 100644
 --- a/include/monitor/monitor.h
 +++ b/include/monitor/monitor.h
 @@ -16,6 +16,7 @@ extern QemuOptsList qemu_mon_opts;
@@ -60,7 +60,7 @@ index a4b40e8391..d64ae8f34e 100644
  void monitor_init_globals(void);
  void monitor_init_globals_core(void);
 diff --git a/monitor/monitor-internal.h b/monitor/monitor-internal.h
-index caa2e90ef2..e1596f79ab 100644
+index a2cdbbf646..b531bd50e7 100644
 --- a/monitor/monitor-internal.h
 +++ b/monitor/monitor-internal.h
 @@ -152,6 +152,13 @@ typedef struct {

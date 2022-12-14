@@ -20,7 +20,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 block/pbs.c
 
 diff --git a/block/meson.build b/block/meson.build
-index 2783b77e9c..a26a69434e 100644
+index e995ae72b9..7ef2fa72d5 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -53,6 +53,9 @@ block_ss.add(files(
@@ -32,7 +32,7 @@ index 2783b77e9c..a26a69434e 100644
 +
  
  softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
- 
+ softmmu_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/pbs.c b/block/pbs.c
 new file mode 100644
 index 0000000000..9d1f1f39d4
@@ -316,18 +316,18 @@ index 0000000000..9d1f1f39d4
 +
 +block_init(bdrv_pbs_init);
 diff --git a/configure b/configure
-index 72ab03f11a..7203c270ec 100755
+index 26c7bc5154..c587e986c7 100755
 --- a/configure
 +++ b/configure
-@@ -309,6 +309,7 @@ linux_user=""
+@@ -285,6 +285,7 @@ linux_user=""
  bsd_user=""
  pie=""
  coroutine=""
 +pbs_bdrv="yes"
  plugins="$default_feature"
  meson=""
- meson_args=""
-@@ -902,6 +903,10 @@ for opt do
+ ninja=""
+@@ -864,6 +865,10 @@ for opt do
    --enable-uuid|--disable-uuid)
        echo "$0: $opt is obsolete, UUID support is always built" >&2
    ;;
@@ -338,7 +338,7 @@ index 72ab03f11a..7203c270ec 100755
    --with-git=*) git="$optarg"
    ;;
    --with-git-submodules=*)
-@@ -1087,6 +1092,7 @@ cat << EOF
+@@ -1049,6 +1054,7 @@ cat << EOF
    debug-info      debugging information
    safe-stack      SafeStack Stack Smash Protection. Depends on
                    clang/llvm >= 3.7 and requires coroutine backend ucontext.
@@ -346,7 +346,7 @@ index 72ab03f11a..7203c270ec 100755
  
  NOTE: The object files are built at the place where configure is launched
  EOF
-@@ -2463,6 +2469,9 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
+@@ -2372,6 +2378,9 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
  if test "$modules" = "yes"; then
    echo "CONFIG_MODULES=y" >> $config_host_mak
  fi
@@ -357,10 +357,10 @@ index 72ab03f11a..7203c270ec 100755
  # XXX: suppress that
  if [ "$bsd" = "yes" ] ; then
 diff --git a/meson.build b/meson.build
-index f48d2e0457..be4785e2f6 100644
+index 63ea813a9a..f7f5b3f253 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -3986,7 +3986,7 @@ summary_info += {'bzip2 support':     libbzip2}
+@@ -3978,7 +3978,7 @@ summary_info += {'bzip2 support':     libbzip2}
  summary_info += {'lzfse support':     liblzfse}
  summary_info += {'zstd support':      zstd}
  summary_info += {'NUMA host support': numa}
@@ -370,18 +370,18 @@ index f48d2e0457..be4785e2f6 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libudev':           libudev}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 4120052690..96bc696aaa 100644
+index 5ac6276dc1..45b63dfe26 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3099,6 +3099,7 @@
-             'luks', 'nbd', 'nfs', 'null-aio', 'null-co', 'nvme', 'parallels',
-             'preallocate', 'qcow', 'qcow2', 'qed', 'quorum', 'raw', 'rbd',
+@@ -3103,6 +3103,7 @@
+             'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
+             'raw', 'rbd',
              { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
 +            'pbs',
-             'ssh', 'throttle', 'vdi', 'vhdx', 'vmdk', 'vpc', 'vvfat' ] }
- 
- ##
-@@ -3171,6 +3172,17 @@
+             'ssh', 'throttle', 'vdi', 'vhdx',
+             { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
+             { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
+@@ -3179,6 +3180,17 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -399,11 +399,11 @@ index 4120052690..96bc696aaa 100644
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -4455,6 +4467,7 @@
+@@ -4531,6 +4543,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',
 +      'pbs':        'BlockdevOptionsPbs',
        'nvme':       'BlockdevOptionsNVMe',
-       'parallels':  'BlockdevOptionsGenericFormat',
-       'preallocate':'BlockdevOptionsPreallocate',
+       'nvme-io_uring': { 'type': 'BlockdevOptionsNvmeIoUring',
+                          'if': 'CONFIG_BLKIO' },

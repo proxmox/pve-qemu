@@ -7,8 +7,9 @@ Signed-off-by: Dietmar Maurer <dietmar@proxmox.com>
 [PVE-Backup: avoid coroutines to fix AIO freeze, cleanups]
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[add new force parameter to job_cancel_sync calls]
-Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+[FE: add new force parameter to job_cancel_sync calls
+     adapt for new job lock mechanism replacing AioContext locks]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build              |   5 +
  block/monitor/block-hmp-cmds.c |  33 ++
@@ -20,17 +21,17 @@ Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |  44 ++
  proxmox-backup-client.c        | 176 ++++++
  proxmox-backup-client.h        |  59 ++
- pve-backup.c                   | 959 +++++++++++++++++++++++++++++++++
+ pve-backup.c                   | 956 +++++++++++++++++++++++++++++++++
  qapi/block-core.json           | 109 ++++
  qapi/common.json               |  13 +
  qapi/machine.json              |  15 +-
- 14 files changed, 1448 insertions(+), 13 deletions(-)
+ 14 files changed, 1445 insertions(+), 13 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
 
 diff --git a/block/meson.build b/block/meson.build
-index 7f22e7f177..2783b77e9c 100644
+index 0d7023fc82..e995ae72b9 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -48,6 +48,11 @@ block_ss.add(files(
@@ -44,9 +45,9 @@ index 7f22e7f177..2783b77e9c 100644
 +
  
  softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
- 
+ softmmu_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index bfb3c043a0..89ca64444d 100644
+index b6135e9bfe..477044c54a 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
 @@ -1015,3 +1015,36 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
@@ -87,7 +88,7 @@ index bfb3c043a0..89ca64444d 100644
 +    hmp_handle_error(mon, error);
 +}
 diff --git a/blockdev.c b/blockdev.c
-index ce62a9b439..1600b24eab 100644
+index 756e980889..bc8d67b290 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -36,6 +36,7 @@
@@ -99,10 +100,10 @@ index ce62a9b439..1600b24eab 100644
  #include "monitor/monitor.h"
  #include "qemu/error-report.h"
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
-index 97b88eaaad..92a8867afb 100644
+index 489c524e9e..bc1d46d845 100644
 --- a/hmp-commands-info.hx
 +++ b/hmp-commands-info.hx
-@@ -484,6 +484,20 @@ SRST
+@@ -486,6 +486,20 @@ SRST
      Show the current VM UUID.
  ERST
  
@@ -124,7 +125,7 @@ index 97b88eaaad..92a8867afb 100644
      {
          .name       = "usernet",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index bbcc73e942..97f24942b3 100644
+index 039be0033d..fcf9461295 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
 @@ -101,6 +101,35 @@ ERST
@@ -164,10 +165,10 @@ index bbcc73e942..97f24942b3 100644
  
      {
 diff --git a/include/monitor/hmp.h b/include/monitor/hmp.h
-index 55067beff1..5a98d2d927 100644
+index 440f86aba8..350527e599 100644
 --- a/include/monitor/hmp.h
 +++ b/include/monitor/hmp.h
-@@ -30,6 +30,7 @@ void hmp_info_savevm(Monitor *mon, const QDict *qdict);
+@@ -31,6 +31,7 @@ void hmp_info_savevm(Monitor *mon, const QDict *qdict);
  void hmp_info_migrate(Monitor *mon, const QDict *qdict);
  void hmp_info_migrate_capabilities(Monitor *mon, const QDict *qdict);
  void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict);
@@ -175,7 +176,7 @@ index 55067beff1..5a98d2d927 100644
  void hmp_info_cpus(Monitor *mon, const QDict *qdict);
  void hmp_info_vnc(Monitor *mon, const QDict *qdict);
  void hmp_info_spice(Monitor *mon, const QDict *qdict);
-@@ -73,6 +74,8 @@ void hmp_x_colo_lost_heartbeat(Monitor *mon, const QDict *qdict);
+@@ -74,6 +75,8 @@ void hmp_x_colo_lost_heartbeat(Monitor *mon, const QDict *qdict);
  void hmp_set_password(Monitor *mon, const QDict *qdict);
  void hmp_expire_password(Monitor *mon, const QDict *qdict);
  void hmp_change(Monitor *mon, const QDict *qdict);
@@ -185,10 +186,10 @@ index 55067beff1..5a98d2d927 100644
  void hmp_device_add(Monitor *mon, const QDict *qdict);
  void hmp_device_del(Monitor *mon, const QDict *qdict);
 diff --git a/meson.build b/meson.build
-index ffff66c0cc..0bc2fb5b10 100644
+index e8cf7e3d78..782756162c 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1463,6 +1463,7 @@ keyutils = dependency('libkeyutils', required: false,
+@@ -1526,6 +1526,7 @@ keyutils = dependency('libkeyutils', required: false,
  has_gettid = cc.has_function('gettid')
  
  libuuid = cc.find_library('uuid', required: true)
@@ -197,10 +198,10 @@ index ffff66c0cc..0bc2fb5b10 100644
  # libselinux
  selinux = dependency('libselinux',
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 1507180990..1168773da7 100644
+index cfebfd1db5..a40b25e906 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
-@@ -197,6 +197,50 @@ void hmp_info_mice(Monitor *mon, const QDict *qdict)
+@@ -199,6 +199,50 @@ void hmp_info_mice(Monitor *mon, const QDict *qdict)
      qapi_free_MouseInfoList(mice_list);
  }
  
@@ -248,9 +249,9 @@ index 1507180990..1168773da7 100644
 +    qapi_free_BackupStatus(info);
 +}
 +
- static char *SocketAddress_to_str(SocketAddress *addr)
+ void hmp_info_migrate(Monitor *mon, const QDict *qdict)
  {
-     switch (addr->type) {
+     MigrationInfo *info;
 diff --git a/proxmox-backup-client.c b/proxmox-backup-client.c
 new file mode 100644
 index 0000000000..a8f6653a81
@@ -500,10 +501,10 @@ index 0000000000..1dda8b7d8f
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..88f5ee133f
+index 0000000000..3d28975eaa
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,959 @@
+@@ -0,0 +1,956 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -581,14 +582,16 @@ index 0000000000..88f5ee133f
 +lookup_active_block_job(PVEBackupDevInfo *di)
 +{
 +    if (!di->completed && di->bs) {
-+        for (BlockJob *job = block_job_next(NULL); job; job = block_job_next(job)) {
-+            if (job->job.driver->job_type != JOB_TYPE_BACKUP) {
-+                continue;
-+            }
++        WITH_JOB_LOCK_GUARD() {
++            for (BlockJob *job = block_job_next_locked(NULL); job; job = block_job_next_locked(job)) {
++                if (job->job.driver->job_type != JOB_TYPE_BACKUP) {
++                    continue;
++                }
 +
-+            BackupBlockJob *bjob = container_of(job, BackupBlockJob, common);
-+            if (bjob && bjob->source_bs == di->bs) {
-+                return job;
++                BackupBlockJob *bjob = container_of(job, BackupBlockJob, common);
++                if (bjob && bjob->source_bs == di->bs) {
++                    return job;
++                }
 +            }
 +        }
 +    }
@@ -858,10 +861,7 @@ index 0000000000..88f5ee133f
 +        qemu_mutex_unlock(&backup_state.backup_mutex);
 +
 +        if (next_job) {
-+            AioContext *aio_context = next_job->job.aio_context;
-+            aio_context_acquire(aio_context);
 +            job_cancel_sync(&next_job->job, true);
-+            aio_context_release(aio_context);
 +        } else {
 +            break;
 +        }
@@ -923,7 +923,7 @@ index 0000000000..88f5ee133f
 +    goto out;
 +}
 +
-+bool job_should_pause(Job *job);
++bool job_should_pause_locked(Job *job);
 +
 +static void pvebackup_run_next_job(void)
 +{
@@ -941,18 +941,16 @@ index 0000000000..88f5ee133f
 +        if (job) {
 +            qemu_mutex_unlock(&backup_state.backup_mutex);
 +
-+            AioContext *aio_context = job->job.aio_context;
-+            aio_context_acquire(aio_context);
-+
-+            if (job_should_pause(&job->job)) {
-+                bool error_or_canceled = pvebackup_error_or_canceled();
-+                if (error_or_canceled) {
-+                    job_cancel_sync(&job->job, true);
-+                } else {
-+                    job_resume(&job->job);
++            WITH_JOB_LOCK_GUARD() {
++                if (job_should_pause_locked(&job->job)) {
++                    bool error_or_canceled = pvebackup_error_or_canceled();
++                    if (error_or_canceled) {
++                        job_cancel_sync_locked(&job->job, true);
++                    } else {
++                        job_resume_locked(&job->job);
++                    }
 +                }
 +            }
-+            aio_context_release(aio_context);
 +            return;
 +        }
 +    }
@@ -1464,7 +1462,7 @@ index 0000000000..88f5ee133f
 +    return info;
 +}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index ddac91e8f6..90ad07b7ee 100644
+index 9e902b96bb..c3b6b93472 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -740,6 +740,115 @@
@@ -1605,7 +1603,7 @@ index 356db3f670..aae8a3b682 100644
 +##
 +{ 'struct': 'UuidInfo', 'data': {'UUID': 'str'} }
 diff --git a/qapi/machine.json b/qapi/machine.json
-index d868e4d31d..a63d9a078d 100644
+index f4fb1b2c9c..0d6ee836ed 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
 @@ -4,6 +4,8 @@

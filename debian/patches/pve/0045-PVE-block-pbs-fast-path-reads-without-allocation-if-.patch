@@ -17,7 +17,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 14 insertions(+), 3 deletions(-)
 
 diff --git a/block/pbs.c b/block/pbs.c
-index 0b05ea9080..c5eb4d5bad 100644
+index 9d1f1f39d4..ce9a870885 100644
 --- a/block/pbs.c
 +++ b/block/pbs.c
 @@ -200,7 +200,16 @@ static coroutine_fn int pbs_co_preadv(BlockDriverState *bs,

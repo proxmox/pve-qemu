@@ -21,10 +21,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 5 insertions(+), 4 deletions(-)
 
 diff --git a/softmmu/vl.c b/softmmu/vl.c
-index 706bd7cff7..3381c56af7 100644
+index 5115221efe..5f7f6ca981 100644
 --- a/softmmu/vl.c
 +++ b/softmmu/vl.c
-@@ -2438,10 +2438,11 @@ static void qemu_maybe_daemonize(const char *pid_file)
+@@ -2460,10 +2460,11 @@ static void qemu_maybe_daemonize(const char *pid_file)
  
          pid_file_realpath = g_malloc0(PATH_MAX);
          if (!realpath(pid_file, pid_file_realpath)) {

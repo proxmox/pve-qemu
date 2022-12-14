@@ -19,7 +19,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  3 files changed, 54 insertions(+), 13 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 45da74d7a0..ea7b665aa2 100644
+index 556af25861..a09f722fea 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
 @@ -1042,7 +1042,9 @@ void hmp_backup(Monitor *mon, const QDict *qdict)
@@ -34,7 +34,7 @@ index 45da74d7a0..ea7b665aa2 100644
          false, NULL, false, NULL, !!devlist,
          devlist, qdict_haskey(qdict, "speed"), speed, &error);
 diff --git a/pve-backup.c b/pve-backup.c
-index 1c49cd178d..c15abefdda 100644
+index abd7062afe..e113ab61b9 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -8,6 +8,7 @@
@@ -53,7 +53,7 @@ index 1c49cd178d..c15abefdda 100644
      uint8_t dev_id;
      bool completed;
      char targetfile[PATH_MAX];
-@@ -135,10 +137,13 @@ pvebackup_co_dump_pbs_cb(
+@@ -137,10 +139,13 @@ pvebackup_co_dump_pbs_cb(
      PVEBackupDevInfo *di = opaque;
  
      assert(backup_state.pbs);
@@ -67,7 +67,7 @@ index 1c49cd178d..c15abefdda 100644
      qemu_co_mutex_lock(&backup_state.dump_callback_mutex);
  
      // avoid deadlock if job is cancelled
-@@ -147,17 +152,29 @@ pvebackup_co_dump_pbs_cb(
+@@ -149,17 +154,29 @@ pvebackup_co_dump_pbs_cb(
          return -1;
      }
  
@@ -105,7 +105,7 @@ index 1c49cd178d..c15abefdda 100644
      return size;
  }
  
-@@ -178,6 +195,7 @@ pvebackup_co_dump_vma_cb(
+@@ -180,6 +197,7 @@ pvebackup_co_dump_vma_cb(
      int ret = -1;
  
      assert(backup_state.vmaw);
@@ -113,7 +113,7 @@ index 1c49cd178d..c15abefdda 100644
  
      uint64_t remaining = size;
  
-@@ -204,9 +222,7 @@ pvebackup_co_dump_vma_cb(
+@@ -206,9 +224,7 @@ pvebackup_co_dump_vma_cb(
          qemu_co_mutex_unlock(&backup_state.dump_callback_mutex);
  
          ++cluster_num;
@@ -124,7 +124,7 @@ index 1c49cd178d..c15abefdda 100644
          if (ret < 0) {
              Error *local_err = NULL;
              vma_writer_error_propagate(backup_state.vmaw, &local_err);
-@@ -569,6 +585,10 @@ typedef struct QmpBackupTask {
+@@ -566,6 +582,10 @@ typedef struct QmpBackupTask {
      const char *firewall_file;
      bool has_devlist;
      const char *devlist;
@@ -135,7 +135,7 @@ index 1c49cd178d..c15abefdda 100644
      bool has_speed;
      int64_t speed;
      Error **errp;
-@@ -692,6 +712,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -689,6 +709,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
  
          bool use_dirty_bitmap = task->has_use_dirty_bitmap && task->use_dirty_bitmap;
  
@@ -143,7 +143,7 @@ index 1c49cd178d..c15abefdda 100644
          char *pbs_err = NULL;
          pbs = proxmox_backup_new(
              task->backup_file,
-@@ -701,8 +722,10 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -698,8 +719,10 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              task->has_password ? task->password : NULL,
              task->has_keyfile ? task->keyfile : NULL,
              task->has_key_password ? task->key_password : NULL,
@@ -155,7 +155,7 @@ index 1c49cd178d..c15abefdda 100644
  
          if (!pbs) {
              error_set(task->errp, ERROR_CLASS_GENERIC_ERROR,
-@@ -721,6 +744,8 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -718,6 +741,8 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
              l = g_list_next(l);
  
@@ -164,7 +164,7 @@ index 1c49cd178d..c15abefdda 100644
              const char *devname = bdrv_get_device_name(di->bs);
  
              BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(di->bs, PBS_BITMAP_NAME);
-@@ -941,6 +966,8 @@ UuidInfo *qmp_backup(
+@@ -938,6 +963,8 @@ UuidInfo *qmp_backup(
      bool has_backup_id, const char *backup_id,
      bool has_backup_time, int64_t backup_time,
      bool has_use_dirty_bitmap, bool use_dirty_bitmap,
@@ -173,7 +173,7 @@ index 1c49cd178d..c15abefdda 100644
      bool has_format, BackupFormat format,
      bool has_config_file, const char *config_file,
      bool has_firewall_file, const char *firewall_file,
-@@ -951,6 +978,8 @@ UuidInfo *qmp_backup(
+@@ -948,6 +975,8 @@ UuidInfo *qmp_backup(
          .backup_file = backup_file,
          .has_password = has_password,
          .password = password,
@@ -182,7 +182,7 @@ index 1c49cd178d..c15abefdda 100644
          .has_key_password = has_key_password,
          .key_password = key_password,
          .has_fingerprint = has_fingerprint,
-@@ -961,6 +990,10 @@ UuidInfo *qmp_backup(
+@@ -958,6 +987,10 @@ UuidInfo *qmp_backup(
          .backup_time = backup_time,
          .has_use_dirty_bitmap = has_use_dirty_bitmap,
          .use_dirty_bitmap = use_dirty_bitmap,
@@ -194,7 +194,7 @@ index 1c49cd178d..c15abefdda 100644
          .format = format,
          .has_config_file = has_config_file,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 3ad9eb5d1a..4120052690 100644
+index 992e6c1e3f..5ac6276dc1 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -818,6 +818,10 @@

@@ -12,17 +12,19 @@ because a subsequent backup_cancel QMP call (as happens in PVE when
 the backup QMP command fails) would try to call proxmox_backup_abort()
 and run into a segfault.
 
-Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+[FE: adapt for new job lock mechanism replacing AioContext locks]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  pve-backup.c | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index f6a5f8c785..5bed6f4014 100644
+index 262e7d3894..fde3554133 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -506,6 +506,11 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -503,6 +503,11 @@ static void create_backup_jobs_bh(void *opaque) {
      }
  
      if (*errp) {
@@ -34,22 +36,21 @@ index f6a5f8c785..5bed6f4014 100644
          l = backup_state.di_list;
          while (l) {
              PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
-@@ -516,12 +521,12 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -513,11 +518,11 @@ static void create_backup_jobs_bh(void *opaque) {
                  di->target = NULL;
              }
  
 -            if (di->job) {
 +            if (!canceled && di->job) {
-                 AioContext *ctx = di->job->job.aio_context;
-                 aio_context_acquire(ctx);
-                 job_cancel_sync(&di->job->job, true);
--                job_unref(&di->job->job);
-                 aio_context_release(ctx);
+                 WITH_JOB_LOCK_GUARD() {
+                     job_cancel_sync_locked(&di->job->job, true);
+-                    job_unref_locked(&di->job->job);
+                 }
 +                canceled = true;
              }
          }
      }
-@@ -947,6 +952,7 @@ err:
+@@ -943,6 +948,7 @@ err:
  
      if (pbs) {
          proxmox_backup_disconnect(pbs);

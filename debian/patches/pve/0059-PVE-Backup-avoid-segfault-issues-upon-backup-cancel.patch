@@ -30,17 +30,19 @@ checking against JOB_STATUS_CONCLUDED or JOB_STATUS_NULL to decide if
 it's still necessary and possible to cancel, but the approach with
 using the first non-completed job seemed more robust.
 
-Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+[FE: adapt for new job lock mechanism replacing AioContext locks]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- pve-backup.c | 61 +++++++++++++++++++++++++++++++++-------------------
- 1 file changed, 39 insertions(+), 22 deletions(-)
+ pve-backup.c | 57 ++++++++++++++++++++++++++++++++++------------------
+ 1 file changed, 38 insertions(+), 19 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 0c34428713..2e22030eec 100644
+index 0cf30e1ced..4067018dbe 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -355,15 +355,42 @@ static void pvebackup_complete_cb(void *opaque, int ret)
+@@ -354,12 +354,41 @@ static void pvebackup_complete_cb(void *opaque, int ret)
  
  /*
   * job_cancel(_sync) does not like to be called from coroutines, so defer to
@@ -51,10 +53,7 @@ index 0c34428713..2e22030eec 100644
  static void job_cancel_bh(void *opaque) {
      CoCtxData *data = (CoCtxData*)opaque;
 -    Job *job = (Job*)data->data;
--    AioContext *job_ctx = job->aio_context;
--    aio_context_acquire(job_ctx);
 -    job_cancel_sync(job, true);
--    aio_context_release(job_ctx);
 +
 +    /*
 +     * Be careful to pick a valid job to cancel:
@@ -70,16 +69,15 @@ index 0c34428713..2e22030eec 100644
 +            BlockJob *bj = ((PVEBackupDevInfo *)bdi->data)->job;
 +            if (bj) {
 +                Job *job = &bj->job;
-+                if (!job_is_completed(job)) {
-+                    AioContext *job_ctx = job->aio_context;
-+                    aio_context_acquire(job_ctx);
-+                    job_cancel_sync(job, true);
-+                    aio_context_release(job_ctx);
-+                    /*
-+                     * It's enough to cancel one job in the transaction, the
-+                     * rest will follow automatically.
-+                     */
-+                    break;
++                WITH_JOB_LOCK_GUARD() {
++                    if (!job_is_completed_locked(job)) {
++                        job_cancel_sync_locked(job, true);
++                        /*
++                         * It's enough to cancel one job in the transaction, the
++                         * rest will follow automatically.
++                         */
++                        break;
++                    }
 +                }
 +            }
 +        }
@@ -89,7 +87,7 @@ index 0c34428713..2e22030eec 100644
      aio_co_enter(data->ctx, data->co);
  }
  
-@@ -384,22 +411,12 @@ void coroutine_fn qmp_backup_cancel(Error **errp)
+@@ -380,22 +409,12 @@ void coroutine_fn qmp_backup_cancel(Error **errp)
          proxmox_backup_abort(backup_state.pbs, "backup canceled");
      }
  

@@ -8,12 +8,12 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build |   1 +
- block/zeroinit.c  | 196 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 197 insertions(+)
+ block/zeroinit.c  | 198 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 199 insertions(+)
  create mode 100644 block/zeroinit.c
 
 diff --git a/block/meson.build b/block/meson.build
-index 60bc305597..ad40c10b6a 100644
+index b7c68b83a3..020a89ae07 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -43,6 +43,7 @@ block_ss.add(files(
@@ -26,10 +26,10 @@ index 60bc305597..ad40c10b6a 100644
  softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
 diff --git a/block/zeroinit.c b/block/zeroinit.c
 new file mode 100644
-index 0000000000..20ee611f22
+index 0000000000..b60e1b84dc
 --- /dev/null
 +++ b/block/zeroinit.c
-@@ -0,0 +1,196 @@
+@@ -0,0 +1,198 @@
 +/*
 + * Filter to fake a zero-initialized block device.
 + *
@@ -109,7 +109,9 @@ index 0000000000..20ee611f22
 +
 +    /* Open the raw file */
 +    bs->file = bdrv_open_child(qemu_opt_get(opts, "x-next"), options, "next",
-+                               bs, &child_of_bds, BDRV_CHILD_FILTERED, false, &local_err);
++                               bs, &child_of_bds,
++                               BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY,
++                               false, &local_err);
 +    if (local_err) {
 +        ret = -EINVAL;
 +        error_propagate(errp, local_err);

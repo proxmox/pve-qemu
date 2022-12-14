@@ -14,10 +14,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  2 files changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/meson.build b/meson.build
-index be4785e2f6..3fc7c8d435 100644
+index f7f5b3f253..283b0e356e 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1463,6 +1463,7 @@ keyutils = dependency('libkeyutils', required: false,
+@@ -1526,6 +1526,7 @@ keyutils = dependency('libkeyutils', required: false,
  has_gettid = cc.has_function('gettid')
  
  libuuid = cc.find_library('uuid', required: true)
@@ -25,7 +25,7 @@ index be4785e2f6..3fc7c8d435 100644
  libproxmox_backup_qemu = cc.find_library('proxmox_backup_qemu', required: true)
  
  # libselinux
-@@ -3105,6 +3106,7 @@ if have_block
+@@ -3096,6 +3097,7 @@ if have_block
    # os-posix.c contains POSIX-specific functions used by qemu-storage-daemon,
    # os-win32.c does not
    blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
@@ -34,7 +34,7 @@ index be4785e2f6..3fc7c8d435 100644
  endif
  
 diff --git a/os-posix.c b/os-posix.c
-index 321fc4bd13..b1870d2690 100644
+index 4858650c3e..c5cb12226a 100644
 --- a/os-posix.c
 +++ b/os-posix.c
 @@ -28,6 +28,8 @@
@@ -46,7 +46,7 @@ index 321fc4bd13..b1870d2690 100644
  
  /* Needed early for CONFIG_BSD etc. */
  #include "net/slirp.h"
-@@ -281,9 +283,10 @@ void os_setup_post(void)
+@@ -287,9 +289,10 @@ void os_setup_post(void)
  
          dup2(fd, 0);
          dup2(fd, 1);

@@ -12,14 +12,15 @@ transaction, so drives will still be backed up one after the other.
 
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[add new force parameter to job_cancel_sync calls]
-Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+[FE: add new force parameter to job_cancel_sync calls
+     adapt for new job lock mechanism replacing AioContext locks]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- pve-backup.c | 167 +++++++++++++++------------------------------------
- 1 file changed, 49 insertions(+), 118 deletions(-)
+ pve-backup.c | 163 ++++++++++++++++-----------------------------------
+ 1 file changed, 50 insertions(+), 113 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index f90abaa50a..63c686463f 100644
+index c85b2ecd83..b5fb844434 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -52,6 +52,7 @@ static struct PVEBackupState {
@@ -30,7 +31,7 @@ index f90abaa50a..63c686463f 100644
      QemuMutex backup_mutex;
      CoMutex dump_callback_mutex;
  } backup_state;
-@@ -71,32 +72,12 @@ typedef struct PVEBackupDevInfo {
+@@ -71,34 +72,12 @@ typedef struct PVEBackupDevInfo {
      size_t size;
      uint64_t block_size;
      uint8_t dev_id;
@@ -47,14 +48,16 @@ index f90abaa50a..63c686463f 100644
 -lookup_active_block_job(PVEBackupDevInfo *di)
 -{
 -    if (!di->completed && di->bs) {
--        for (BlockJob *job = block_job_next(NULL); job; job = block_job_next(job)) {
--            if (job->job.driver->job_type != JOB_TYPE_BACKUP) {
--                continue;
--            }
+-        WITH_JOB_LOCK_GUARD() {
+-            for (BlockJob *job = block_job_next_locked(NULL); job; job = block_job_next_locked(job)) {
+-                if (job->job.driver->job_type != JOB_TYPE_BACKUP) {
+-                    continue;
+-                }
 -
--            BackupBlockJob *bjob = container_of(job, BackupBlockJob, common);
--            if (bjob && bjob->source_bs == di->bs) {
--                return job;
+-                BackupBlockJob *bjob = container_of(job, BackupBlockJob, common);
+-                if (bjob && bjob->source_bs == di->bs) {
+-                    return job;
+-                }
 -            }
 -        }
 -    }
@@ -64,7 +67,7 @@ index f90abaa50a..63c686463f 100644
  static void pvebackup_propagate_error(Error *err)
  {
      qemu_mutex_lock(&backup_state.stat.lock);
-@@ -272,18 +253,6 @@ static void coroutine_fn pvebackup_co_cleanup(void *unused)
+@@ -274,18 +253,6 @@ static void coroutine_fn pvebackup_co_cleanup(void *unused)
              if (local_err != NULL) {
                  pvebackup_propagate_error(local_err);
              }
@@ -83,7 +86,7 @@ index f90abaa50a..63c686463f 100644
          }
  
          proxmox_backup_disconnect(backup_state.pbs);
-@@ -322,8 +291,6 @@ static void pvebackup_complete_cb(void *opaque, int ret)
+@@ -324,8 +291,6 @@ static void pvebackup_complete_cb(void *opaque, int ret)
  
      qemu_mutex_lock(&backup_state.backup_mutex);
  
@@ -92,7 +95,7 @@ index f90abaa50a..63c686463f 100644
      if (ret < 0) {
          Error *local_err = NULL;
          error_setg(&local_err, "job failed with err %d - %s", ret, strerror(-ret));
-@@ -336,20 +303,17 @@ static void pvebackup_complete_cb(void *opaque, int ret)
+@@ -338,20 +303,17 @@ static void pvebackup_complete_cb(void *opaque, int ret)
  
      block_on_coroutine_fn(pvebackup_complete_stream, di);
  
@@ -119,7 +122,7 @@ index f90abaa50a..63c686463f 100644
  }
  
  static void pvebackup_cancel(void)
-@@ -371,36 +335,28 @@ static void pvebackup_cancel(void)
+@@ -373,32 +335,28 @@ static void pvebackup_cancel(void)
          proxmox_backup_abort(backup_state.pbs, "backup canceled");
      }
  
@@ -128,13 +131,6 @@ index f90abaa50a..63c686463f 100644
 -    for(;;) {
 -
 -        BlockJob *next_job = NULL;
--
--        qemu_mutex_lock(&backup_state.backup_mutex);
--
--        GList *l = backup_state.di_list;
--        while (l) {
--            PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
--            l = g_list_next(l);
 +    /* it's enough to cancel one job in the transaction, the rest will follow
 +     * automatically */
 +    GList *bdi = g_list_first(backup_state.di_list);
@@ -142,15 +138,23 @@ index f90abaa50a..63c686463f 100644
 +        ((PVEBackupDevInfo *)bdi->data)->job :
 +        NULL;
  
+-        qemu_mutex_lock(&backup_state.backup_mutex);
+-
+-        GList *l = backup_state.di_list;
+-        while (l) {
+-            PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
+-            l = g_list_next(l);
+-
 -            BlockJob *job = lookup_active_block_job(di);
 -            if (job != NULL) {
 -                next_job = job;
 -                break;
 -            }
--        }
 +    /* ref the job before releasing the mutex, just to be safe */
 +    if (cancel_job) {
-+        job_ref(&cancel_job->job);
++        WITH_JOB_LOCK_GUARD() {
++            job_ref_locked(&cancel_job->job);
+         }
 +    }
  
 -        qemu_mutex_unlock(&backup_state.backup_mutex);
@@ -159,27 +163,21 @@ index f90abaa50a..63c686463f 100644
 +    qemu_mutex_unlock(&backup_state.backup_mutex);
  
 -        if (next_job) {
--            AioContext *aio_context = next_job->job.aio_context;
--            aio_context_acquire(aio_context);
 -            job_cancel_sync(&next_job->job, true);
--            aio_context_release(aio_context);
 -        } else {
 -            break;
--        }
 +    if (cancel_job) {
-+        AioContext *aio_context = cancel_job->job.aio_context;
-+        aio_context_acquire(aio_context);
-+        job_cancel_sync(&cancel_job->job, true);
-+        job_unref(&cancel_job->job);
-+        aio_context_release(aio_context);
++        WITH_JOB_LOCK_GUARD() {
++            job_cancel_sync_locked(&cancel_job->job, true);
++            job_unref_locked(&cancel_job->job);
+         }
      }
  }
- 
-@@ -459,51 +415,19 @@ static int coroutine_fn pvebackup_co_add_config(
+@@ -458,49 +416,19 @@ static int coroutine_fn pvebackup_co_add_config(
      goto out;
  }
  
--bool job_should_pause(Job *job);
+-bool job_should_pause_locked(Job *job);
 -
 -static void pvebackup_run_next_job(void)
 -{
@@ -197,18 +195,16 @@ index f90abaa50a..63c686463f 100644
 -        if (job) {
 -            qemu_mutex_unlock(&backup_state.backup_mutex);
 -
--            AioContext *aio_context = job->job.aio_context;
--            aio_context_acquire(aio_context);
--
--            if (job_should_pause(&job->job)) {
--                bool error_or_canceled = pvebackup_error_or_canceled();
--                if (error_or_canceled) {
--                    job_cancel_sync(&job->job, true);
--                } else {
--                    job_resume(&job->job);
+-            WITH_JOB_LOCK_GUARD() {
+-                if (job_should_pause_locked(&job->job)) {
+-                    bool error_or_canceled = pvebackup_error_or_canceled();
+-                    if (error_or_canceled) {
+-                        job_cancel_sync_locked(&job->job, true);
+-                    } else {
+-                        job_resume_locked(&job->job);
+-                    }
 -                }
 -            }
--            aio_context_release(aio_context);
 -            return;
 -        }
 -    }
@@ -234,7 +230,7 @@ index f90abaa50a..63c686463f 100644
      BackupPerf perf = { .max_workers = 16 };
  
      /* create and start all jobs (paused state) */
-@@ -526,7 +450,7 @@ static bool create_backup_jobs(void) {
+@@ -523,7 +451,7 @@ static bool create_backup_jobs(void) {
          BlockJob *job = backup_job_create(
              NULL, di->bs, di->target, backup_state.speed, sync_mode, di->bitmap,
              bitmap_mode, false, NULL, &perf, BLOCKDEV_ON_ERROR_REPORT, BLOCKDEV_ON_ERROR_REPORT,
@@ -243,7 +239,7 @@ index f90abaa50a..63c686463f 100644
  
          aio_context_release(aio_context);
  
-@@ -538,7 +462,8 @@ static bool create_backup_jobs(void) {
+@@ -535,7 +463,8 @@ static bool create_backup_jobs(void) {
              pvebackup_propagate_error(create_job_err);
              break;
          }
@@ -253,18 +249,20 @@ index f90abaa50a..63c686463f 100644
  
          bdrv_unref(di->target);
          di->target = NULL;
-@@ -556,6 +481,10 @@ static bool create_backup_jobs(void) {
+@@ -553,6 +482,12 @@ static bool create_backup_jobs(void) {
                  bdrv_unref(di->target);
                  di->target = NULL;
              }
 +
 +            if (di->job) {
-+                job_unref(&di->job->job);
++                WITH_JOB_LOCK_GUARD() {
++                    job_unref_locked(&di->job->job);
++                }
 +            }
          }
      }
  
-@@ -946,10 +875,6 @@ err:
+@@ -943,10 +878,6 @@ err:
          PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
          l = g_list_next(l);
  
@@ -275,7 +273,7 @@ index f90abaa50a..63c686463f 100644
          if (di->target) {
              bdrv_unref(di->target);
          }
-@@ -1038,9 +963,15 @@ UuidInfo *qmp_backup(
+@@ -1035,9 +966,15 @@ UuidInfo *qmp_backup(
      block_on_coroutine_fn(pvebackup_co_prepare, &task);
  
      if (*errp == NULL) {

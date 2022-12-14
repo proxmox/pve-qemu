@@ -14,62 +14,59 @@ freed. With unlucky timings it seems possible that:
    di_list
 5. qmp_backup_cancel will pick a job that's already been freed
 
-Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+[FE: adapt for new job lock mechanism replacing AioContext locks]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- pve-backup.c | 25 ++++++++++++++++++++-----
- 1 file changed, 20 insertions(+), 5 deletions(-)
+ pve-backup.c | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 5bed6f4014..0c34428713 100644
+index fde3554133..0cf30e1ced 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -316,6 +316,14 @@ static void coroutine_fn pvebackup_co_complete_stream(void *opaque)
+@@ -316,6 +316,13 @@ static void coroutine_fn pvebackup_co_complete_stream(void *opaque)
          }
      }
  
 +    if (di->job) {
-+        AioContext *ctx = di->job->job.aio_context;
-+        aio_context_acquire(ctx);
-+        job_unref(&di->job->job);
-+        di->job = NULL;
-+        aio_context_release(ctx);
++        WITH_JOB_LOCK_GUARD() {
++            job_unref_locked(&di->job->job);
++            di->job = NULL;
++        }
 +    }
 +
      // remove self from job list
      backup_state.di_list = g_list_remove(backup_state.di_list, di);
  
-@@ -491,9 +499,12 @@ static void create_backup_jobs_bh(void *opaque) {
-             bitmap_mode, false, NULL, &perf, BLOCKDEV_ON_ERROR_REPORT, BLOCKDEV_ON_ERROR_REPORT,
-             JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn, &local_err);
+@@ -491,6 +498,11 @@ static void create_backup_jobs_bh(void *opaque) {
+         aio_context_release(aio_context);
  
--        aio_context_release(aio_context);
--
          di->job = job;
 +        if (job) {
-+            job_ref(&job->job);
++            WITH_JOB_LOCK_GUARD() {
++                job_ref_locked(&job->job);
++            }
 +        }
-+
-+        aio_context_release(aio_context);
  
          if (!job || local_err) {
              error_setg(errp, "backup_job_create failed: %s",
-@@ -521,12 +532,16 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -518,11 +530,15 @@ static void create_backup_jobs_bh(void *opaque) {
                  di->target = NULL;
              }
  
 -            if (!canceled && di->job) {
 +            if (di->job) {
-                 AioContext *ctx = di->job->job.aio_context;
-                 aio_context_acquire(ctx);
--                job_cancel_sync(&di->job->job, true);
-+                if (!canceled) {
-+                    job_cancel_sync(&di->job->job, true);
-+                    canceled = true;
-+                }
-+                job_unref(&di->job->job);
-+                di->job = NULL;
-                 aio_context_release(ctx);
+                 WITH_JOB_LOCK_GUARD() {
+-                    job_cancel_sync_locked(&di->job->job, true);
++                    if (!canceled) {
++                        job_cancel_sync_locked(&di->job->job, true);
++                        canceled = true;
++                    }
++                    job_unref_locked(&di->job->job);
++                    di->job = NULL;
+                 }
 -                canceled = true;
              }
          }

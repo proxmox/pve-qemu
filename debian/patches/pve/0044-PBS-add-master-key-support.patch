@@ -19,7 +19,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  3 files changed, 11 insertions(+)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index ef45552e3b..4c799f00d9 100644
+index 71ed202491..c7468e5d3b 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
 @@ -1039,6 +1039,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
@@ -31,10 +31,10 @@ index ef45552e3b..4c799f00d9 100644
          false, NULL, // PBS backup-id
          false, 0, // PBS backup-time
 diff --git a/pve-backup.c b/pve-backup.c
-index 323014744c..9f6c04a512 100644
+index 109498eaf9..4b5134ed27 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -533,6 +533,7 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -529,6 +529,7 @@ UuidInfo coroutine_fn *qmp_backup(
      bool has_password, const char *password,
      bool has_keyfile, const char *keyfile,
      bool has_key_password, const char *key_password,
@@ -42,7 +42,7 @@ index 323014744c..9f6c04a512 100644
      bool has_fingerprint, const char *fingerprint,
      bool has_backup_id, const char *backup_id,
      bool has_backup_time, int64_t backup_time,
-@@ -681,6 +682,7 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -677,6 +678,7 @@ UuidInfo coroutine_fn *qmp_backup(
              has_password ? password : NULL,
              has_keyfile ? keyfile : NULL,
              has_key_password ? key_password : NULL,
@@ -50,7 +50,7 @@ index 323014744c..9f6c04a512 100644
              has_compress ? compress : true,
              has_encrypt ? encrypt : has_keyfile,
              has_fingerprint ? fingerprint : NULL,
-@@ -1044,5 +1046,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1040,5 +1042,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->pbs_dirty_bitmap_savevm = true;
      ret->pbs_dirty_bitmap_migration = true;
      ret->query_bitmap_info = true;
@@ -58,7 +58,7 @@ index 323014744c..9f6c04a512 100644
      return ret;
  }
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index ca1966f54b..fc8a125451 100644
+index 4e8c35a3a2..d8c7331090 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -813,6 +813,8 @@

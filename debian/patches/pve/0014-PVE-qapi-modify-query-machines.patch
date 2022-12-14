@@ -30,7 +30,7 @@ index 4f4ab30f8c..76fff60a6b 100644
              info->default_cpu_type = g_strdup(mc->default_cpu_type);
              info->has_default_cpu_type = true;
 diff --git a/qapi/machine.json b/qapi/machine.json
-index 8b4be9b718..555458f785 100644
+index 10e77a9af3..9156103c8f 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
 @@ -138,6 +138,8 @@

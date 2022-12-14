@@ -32,7 +32,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  5 files changed, 77 insertions(+), 196 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index ea7b665aa2..ef45552e3b 100644
+index a09f722fea..71ed202491 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
 @@ -1016,7 +1016,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
@@ -54,7 +54,7 @@ index ea7b665aa2..ef45552e3b 100644
      Error *error = NULL;
  
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index 97f24942b3..7a2be816da 100644
+index fcf9461295..5fdb198ca4 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
 @@ -111,6 +111,7 @@ ERST
@@ -116,10 +116,10 @@ index 4ce7bc0b5e..0923037dec 100644
  static void proxmox_backup_schedule_wake(void *data) {
      CoCtxData *waker = (CoCtxData *)data;
 diff --git a/pve-backup.c b/pve-backup.c
-index 5fa3cc1352..323014744c 100644
+index fa9c6c4493..109498eaf9 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -357,7 +357,7 @@ static void job_cancel_bh(void *opaque) {
+@@ -354,7 +354,7 @@ static void job_cancel_bh(void *opaque) {
      aio_co_enter(data->ctx, data->co);
  }
  
@@ -128,7 +128,7 @@ index 5fa3cc1352..323014744c 100644
  {
      Error *cancel_err = NULL;
      error_setg(&cancel_err, "backup canceled");
-@@ -394,11 +394,6 @@ static void coroutine_fn pvebackup_co_cancel(void *opaque)
+@@ -391,11 +391,6 @@ static void coroutine_fn pvebackup_co_cancel(void *opaque)
      qemu_co_mutex_unlock(&backup_state.backup_mutex);
  }
  
@@ -140,7 +140,7 @@ index 5fa3cc1352..323014744c 100644
  // assumes the caller holds backup_mutex
  static int coroutine_fn pvebackup_co_add_config(
      const char *file,
-@@ -533,50 +528,27 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -529,50 +524,27 @@ static void create_backup_jobs_bh(void *opaque) {
      aio_co_enter(data->ctx, data->co);
  }
  
@@ -207,7 +207,7 @@ index 5fa3cc1352..323014744c 100644
      BlockBackend *blk;
      BlockDriverState *bs = NULL;
      const char *backup_dir = NULL;
-@@ -593,17 +565,17 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -589,17 +561,17 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      const char *firewall_name = "qemu-server.fw";
  
      if (backup_state.di_list) {
@@ -230,7 +230,7 @@ index 5fa3cc1352..323014744c 100644
  
          gchar **d = devs;
          while (d && *d) {
-@@ -611,14 +583,14 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -607,14 +579,14 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              if (blk) {
                  bs = blk_bs(blk);
                  if (!bdrv_is_inserted(bs)) {
@@ -247,7 +247,7 @@ index 5fa3cc1352..323014744c 100644
                            "Device '%s' not found", *d);
                  goto err;
              }
-@@ -641,7 +613,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -637,7 +609,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      }
  
      if (!di_list) {
@@ -256,7 +256,7 @@ index 5fa3cc1352..323014744c 100644
          goto err;
      }
  
-@@ -651,13 +623,13 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -647,13 +619,13 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      while (l) {
          PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
          l = g_list_next(l);
@@ -272,7 +272,7 @@ index 5fa3cc1352..323014744c 100644
              goto err;
          }
          di->size = size;
-@@ -684,47 +656,44 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -680,47 +652,44 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      }
  
      if (format == BACKUP_FORMAT_PBS) {
@@ -337,7 +337,7 @@ index 5fa3cc1352..323014744c 100644
          if (connect_result < 0)
              goto err_mutex;
  
-@@ -743,9 +712,9 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -739,9 +708,9 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(di->bs, PBS_BITMAP_NAME);
              bool expect_only_dirty = false;
  
@@ -349,7 +349,7 @@ index 5fa3cc1352..323014744c 100644
                      if (!bitmap) {
                          goto err_mutex;
                      }
-@@ -775,12 +744,12 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -771,12 +740,12 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
                  }
              }
  
@@ -364,7 +364,7 @@ index 5fa3cc1352..323014744c 100644
                  goto err_mutex;
              }
  
-@@ -794,10 +763,10 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -790,10 +759,10 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              backup_state.stat.bitmap_list = g_list_append(backup_state.stat.bitmap_list, info);
          }
      } else if (format == BACKUP_FORMAT_VMA) {
@@ -377,7 +377,7 @@ index 5fa3cc1352..323014744c 100644
              }
              goto err_mutex;
          }
-@@ -808,25 +777,25 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -804,25 +773,25 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
              l = g_list_next(l);
  
@@ -409,7 +409,7 @@ index 5fa3cc1352..323014744c 100644
  
          l = di_list;
          while (l) {
-@@ -840,34 +809,34 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -836,34 +805,34 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              bdrv_img_create(di->targetfile, "raw", NULL, NULL, NULL,
                              di->size, flags, false, &local_err);
              if (local_err) {
@@ -453,7 +453,7 @@ index 5fa3cc1352..323014744c 100644
              goto err_mutex;
          }
      }
-@@ -885,7 +854,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -881,7 +850,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      if (backup_state.stat.backup_file) {
          g_free(backup_state.stat.backup_file);
      }
@@ -462,7 +462,7 @@ index 5fa3cc1352..323014744c 100644
  
      uuid_copy(backup_state.stat.uuid, uuid);
      uuid_unparse_lower(uuid, backup_state.stat.uuid_str);
-@@ -900,7 +869,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -896,7 +865,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
  
      qemu_mutex_unlock(&backup_state.stat.lock);
  
@@ -471,7 +471,7 @@ index 5fa3cc1352..323014744c 100644
  
      backup_state.vmaw = vmaw;
      backup_state.pbs = pbs;
-@@ -910,8 +879,6 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -906,8 +875,6 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      uuid_info = g_malloc0(sizeof(*uuid_info));
      uuid_info->UUID = uuid_str;
  
@@ -480,7 +480,7 @@ index 5fa3cc1352..323014744c 100644
      /* Run create_backup_jobs_bh outside of coroutine (in BH) but keep
      * backup_mutex locked. This is fine, a CoMutex can be held across yield
      * points, and we'll release it as soon as the BH reschedules us.
-@@ -925,7 +892,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -921,7 +888,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      qemu_coroutine_yield();
  
      if (local_err) {
@@ -489,7 +489,7 @@ index 5fa3cc1352..323014744c 100644
          goto err;
      }
  
-@@ -938,7 +905,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -934,7 +901,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      /* start the first job in the transaction */
      job_txn_start_seq(backup_state.txn);
  
@@ -498,7 +498,7 @@ index 5fa3cc1352..323014744c 100644
  
  err_mutex:
      qemu_mutex_unlock(&backup_state.stat.lock);
-@@ -969,7 +936,7 @@ err:
+@@ -965,7 +932,7 @@ err:
      if (vmaw) {
          Error *err = NULL;
          vma_writer_close(vmaw, &err);
@@ -507,7 +507,7 @@ index 5fa3cc1352..323014744c 100644
      }
  
      if (pbs) {
-@@ -980,65 +947,8 @@ err:
+@@ -976,65 +943,8 @@ err:
          rmdir(backup_dir);
      }
  
@@ -575,7 +575,7 @@ index 5fa3cc1352..323014744c 100644
  
  BackupStatus *qmp_query_backup(Error **errp)
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index bd978ea562..ca1966f54b 100644
+index 24f30260c8..4e8c35a3a2 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -842,7 +842,7 @@

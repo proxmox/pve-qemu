@@ -51,7 +51,7 @@ index 0842d00cd2..d012f4d8d3 100644
  softmmu_ss.add(files(
    'block-dirty-bitmap.c',
 diff --git a/migration/migration.c b/migration/migration.c
-index bb8bbddfe4..8109e468eb 100644
+index f485eea5fb..89b287180f 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
 @@ -229,6 +229,7 @@ void migration_object_init(void)
@@ -175,10 +175,10 @@ index 0000000000..29f2b3860d
 +                         NULL);
 +}
 diff --git a/pve-backup.c b/pve-backup.c
-index 6f05796fad..5fa3cc1352 100644
+index 88268bb586..fa9c6c4493 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -1132,6 +1132,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1128,6 +1128,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->pbs_library_version = g_strdup(proxmox_backup_qemu_version());
      ret->pbs_dirty_bitmap = true;
      ret->pbs_dirty_bitmap_savevm = true;
@@ -187,7 +187,7 @@ index 6f05796fad..5fa3cc1352 100644
      return ret;
  }
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index cb17d00fe0..bd978ea562 100644
+index bf559c6d52..24f30260c8 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -879,6 +879,11 @@

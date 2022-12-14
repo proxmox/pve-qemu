@@ -36,7 +36,7 @@ index 76fff60a6b..ec9201fb9a 100644
  
          if (mc->default_cpu_type) {
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index 7b416c9787..8ae15c51aa 100644
+index 90f1dd3aeb..14d60520d9 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
 @@ -230,6 +230,8 @@ struct MachineClass {
@@ -46,10 +46,10 @@ index 7b416c9787..8ae15c51aa 100644
 +    const char *pve_version;
 +
      void (*init)(MachineState *state);
-     void (*reset)(MachineState *state);
+     void (*reset)(MachineState *state, ShutdownCause reason);
      void (*wakeup)(MachineState *state);
 diff --git a/qapi/machine.json b/qapi/machine.json
-index 555458f785..d868e4d31d 100644
+index 9156103c8f..f4fb1b2c9c 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
 @@ -157,6 +157,8 @@
@@ -71,10 +71,10 @@ index 555458f785..d868e4d31d 100644
  ##
  # @query-machines:
 diff --git a/softmmu/vl.c b/softmmu/vl.c
-index 39f149924e..0d233d55f3 100644
+index 9d737e7914..a64eee2fad 100644
 --- a/softmmu/vl.c
 +++ b/softmmu/vl.c
-@@ -1580,6 +1580,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
+@@ -1578,6 +1578,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
  static MachineClass *select_machine(QDict *qdict, Error **errp)
  {
      const char *optarg = qdict_get_try_str(qdict, "type");
@@ -82,7 +82,7 @@ index 39f149924e..0d233d55f3 100644
      GSList *machines = object_class_get_list(TYPE_MACHINE, false);
      MachineClass *machine_class;
      Error *local_err = NULL;
-@@ -1597,6 +1598,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+@@ -1595,6 +1596,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
          }
      }
  
@@ -94,7 +94,7 @@ index 39f149924e..0d233d55f3 100644
      g_slist_free(machines);
      if (local_err) {
          error_append_hint(&local_err, "Use -machine help to list supported machines\n");
-@@ -3187,12 +3193,31 @@ void qemu_init(int argc, char **argv, char **envp)
+@@ -3205,12 +3211,31 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_machine:
                  {
                      bool help;

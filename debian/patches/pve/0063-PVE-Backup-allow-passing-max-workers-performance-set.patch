@@ -31,7 +31,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 23 insertions(+), 8 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 0502f42be6..cc231ec3f2 100644
+index 57b2457f1e..ab0c988ae9 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
 @@ -1049,7 +1049,9 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
@@ -46,7 +46,7 @@ index 0502f42be6..cc231ec3f2 100644
      hmp_handle_error(mon, error);
  }
 diff --git a/pve-backup.c b/pve-backup.c
-index 2e22030eec..e9aa7e0f49 100644
+index 4067018dbe..3ca4f74cb8 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -55,6 +55,7 @@ static struct PVEBackupState {
@@ -57,7 +57,7 @@ index 2e22030eec..e9aa7e0f49 100644
      VmaWriter *vmaw;
      ProxmoxBackupHandle *pbs;
      GList *di_list;
-@@ -492,8 +493,6 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -490,8 +491,6 @@ static void create_backup_jobs_bh(void *opaque) {
      }
      backup_state.txn = job_txn_new_seq();
  
@@ -66,7 +66,7 @@ index 2e22030eec..e9aa7e0f49 100644
      /* create and start all jobs (paused state) */
      GList *l =  backup_state.di_list;
      while (l) {
-@@ -513,8 +512,9 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -511,8 +510,9 @@ static void create_backup_jobs_bh(void *opaque) {
  
          BlockJob *job = backup_job_create(
              NULL, di->bs, di->target, backup_state.speed, sync_mode, di->bitmap,
@@ -76,9 +76,9 @@ index 2e22030eec..e9aa7e0f49 100644
 +            BLOCKDEV_ON_ERROR_REPORT, JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn,
 +            &local_err);
  
-         di->job = job;
-         if (job) {
-@@ -584,7 +584,9 @@ UuidInfo coroutine_fn *qmp_backup(
+         aio_context_release(aio_context);
+ 
+@@ -583,7 +583,9 @@ UuidInfo coroutine_fn *qmp_backup(
      bool has_config_file, const char *config_file,
      bool has_firewall_file, const char *firewall_file,
      bool has_devlist, const char *devlist,
@@ -89,7 +89,7 @@ index 2e22030eec..e9aa7e0f49 100644
  {
      assert(qemu_in_coroutine());
  
-@@ -914,6 +916,11 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -913,6 +915,11 @@ UuidInfo coroutine_fn *qmp_backup(
  
      backup_state.speed = (has_speed && speed > 0) ? speed : 0;
  
@@ -101,7 +101,7 @@ index 2e22030eec..e9aa7e0f49 100644
      backup_state.vmaw = vmaw;
      backup_state.pbs = pbs;
  
-@@ -1089,5 +1096,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1088,5 +1095,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->pbs_dirty_bitmap_migration = true;
      ret->query_bitmap_info = true;
      ret->pbs_masterkey = true;
@@ -109,7 +109,7 @@ index 2e22030eec..e9aa7e0f49 100644
      return ret;
  }
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index cc2ead0b75..e3f62faa81 100644
+index 889726fc26..65795b7204 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -829,6 +829,8 @@

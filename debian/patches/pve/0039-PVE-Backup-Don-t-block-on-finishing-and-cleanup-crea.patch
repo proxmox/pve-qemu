@@ -49,15 +49,15 @@ before.
 
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[add new force parameter to job_cancel_sync calls]
-Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+[FE: add new force parameter to job_cancel_sync calls]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- pve-backup.c         | 217 ++++++++++++++++++++++++++++---------------
+ pve-backup.c         | 212 +++++++++++++++++++++++++++----------------
  qapi/block-core.json |   5 +-
- 2 files changed, 144 insertions(+), 78 deletions(-)
+ 2 files changed, 138 insertions(+), 79 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 63c686463f..6f05796fad 100644
+index b5fb844434..88268bb586 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -33,7 +33,9 @@ const char *PBS_BITMAP_NAME = "pbs-incremental-dirty-bitmap";
@@ -192,7 +192,7 @@ index 63c686463f..6f05796fad 100644
  
      // remove self from job list
      backup_state.di_list = g_list_remove(backup_state.di_list, di);
-@@ -310,21 +321,49 @@ static void pvebackup_complete_cb(void *opaque, int ret)
+@@ -310,21 +321,46 @@ static void pvebackup_complete_cb(void *opaque, int ret)
  
      /* call cleanup if we're the last job */
      if (!g_list_first(backup_state.di_list)) {
@@ -229,10 +229,7 @@ index 63c686463f..6f05796fad 100644
 +static void job_cancel_bh(void *opaque) {
 +    CoCtxData *data = (CoCtxData*)opaque;
 +    Job *job = (Job*)data->data;
-+    AioContext *job_ctx = job->aio_context;
-+    aio_context_acquire(job_ctx);
 +    job_cancel_sync(job, true);
-+    aio_context_release(job_ctx);
 +    aio_co_enter(data->ctx, data->co);
 +}
  
@@ -247,13 +244,15 @@ index 63c686463f..6f05796fad 100644
  
      if (backup_state.vmaw) {
          /* make sure vma writer does not block anymore */
-@@ -342,27 +381,22 @@ static void pvebackup_cancel(void)
+@@ -342,28 +378,22 @@ static void pvebackup_cancel(void)
          ((PVEBackupDevInfo *)bdi->data)->job :
          NULL;
  
 -    /* ref the job before releasing the mutex, just to be safe */
      if (cancel_job) {
--        job_ref(&cancel_job->job);
+-        WITH_JOB_LOCK_GUARD() {
+-            job_ref_locked(&cancel_job->job);
+-        }
 +        CoCtxData data = {
 +            .ctx = qemu_get_current_aio_context(),
 +            .co = qemu_coroutine_self(),
@@ -268,11 +267,10 @@ index 63c686463f..6f05796fad 100644
 -    qemu_mutex_unlock(&backup_state.backup_mutex);
 -
 -    if (cancel_job) {
--        AioContext *aio_context = cancel_job->job.aio_context;
--        aio_context_acquire(aio_context);
--        job_cancel_sync(&cancel_job->job, true);
--        job_unref(&cancel_job->job);
--        aio_context_release(aio_context);
+-        WITH_JOB_LOCK_GUARD() {
+-            job_cancel_sync_locked(&cancel_job->job, true);
+-            job_unref_locked(&cancel_job->job);
+-        }
 -    }
 +    qemu_co_mutex_unlock(&backup_state.backup_mutex);
  }
@@ -284,7 +282,7 @@ index 63c686463f..6f05796fad 100644
  }
  
  // assumes the caller holds backup_mutex
-@@ -415,10 +449,18 @@ static int coroutine_fn pvebackup_co_add_config(
+@@ -416,10 +446,18 @@ static int coroutine_fn pvebackup_co_add_config(
      goto out;
  }
  
@@ -304,7 +302,7 @@ index 63c686463f..6f05796fad 100644
      Error *local_err = NULL;
  
      /* create job transaction to synchronize bitmap commit and cancel all
-@@ -454,24 +496,19 @@ static bool create_backup_jobs(void) {
+@@ -455,24 +493,19 @@ static bool create_backup_jobs(void) {
  
          aio_context_release(aio_context);
  
@@ -334,15 +332,13 @@ index 63c686463f..6f05796fad 100644
          l = backup_state.di_list;
          while (l) {
              PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
-@@ -483,12 +520,17 @@ static bool create_backup_jobs(void) {
-             }
+@@ -485,13 +518,15 @@ static bool create_backup_jobs(void) {
  
              if (di->job) {
-+                AioContext *ctx = di->job->job.aio_context;
-+                aio_context_acquire(ctx);
-+                job_cancel_sync(&di->job->job, true);
-                 job_unref(&di->job->job);
-+                aio_context_release(ctx);
+                 WITH_JOB_LOCK_GUARD() {
++                    job_cancel_sync_locked(&di->job->job, true);
+                     job_unref_locked(&di->job->job);
+                 }
              }
          }
      }
@@ -353,7 +349,7 @@ index 63c686463f..6f05796fad 100644
  }
  
  typedef struct QmpBackupTask {
-@@ -525,11 +567,12 @@ typedef struct QmpBackupTask {
+@@ -528,11 +563,12 @@ typedef struct QmpBackupTask {
      UuidInfo *result;
  } QmpBackupTask;
  
@@ -367,7 +363,7 @@ index 63c686463f..6f05796fad 100644
      QmpBackupTask *task = opaque;
  
      task->result = NULL; // just to be sure
-@@ -550,8 +593,9 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -553,8 +589,9 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      const char *firewall_name = "qemu-server.fw";
  
      if (backup_state.di_list) {
@@ -378,7 +374,7 @@ index 63c686463f..6f05796fad 100644
          return;
      }
  
-@@ -618,6 +662,8 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -621,6 +658,8 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
          }
          di->size = size;
          total += size;
@@ -387,7 +383,7 @@ index 63c686463f..6f05796fad 100644
      }
  
      uuid_generate(uuid);
-@@ -849,6 +895,8 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -852,6 +891,8 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      backup_state.stat.dirty = total - backup_state.stat.reused;
      backup_state.stat.transferred = 0;
      backup_state.stat.zero_bytes = 0;
@@ -396,7 +392,7 @@ index 63c686463f..6f05796fad 100644
  
      qemu_mutex_unlock(&backup_state.stat.lock);
  
-@@ -863,6 +911,33 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -866,6 +907,33 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      uuid_info->UUID = uuid_str;
  
      task->result = uuid_info;
@@ -430,7 +426,7 @@ index 63c686463f..6f05796fad 100644
      return;
  
  err_mutex:
-@@ -885,6 +960,7 @@ err:
+@@ -888,6 +956,7 @@ err:
          g_free(di);
      }
      g_list_free(di_list);
@@ -438,7 +434,7 @@ index 63c686463f..6f05796fad 100644
  
      if (devs) {
          g_strfreev(devs);
-@@ -905,6 +981,8 @@ err:
+@@ -908,6 +977,8 @@ err:
      }
  
      task->result = NULL;
@@ -447,7 +443,7 @@ index 63c686463f..6f05796fad 100644
      return;
  }
  
-@@ -958,24 +1036,8 @@ UuidInfo *qmp_backup(
+@@ -961,24 +1032,8 @@ UuidInfo *qmp_backup(
          .errp = errp,
      };
  
@@ -472,7 +468,7 @@ index 63c686463f..6f05796fad 100644
      return task.result;
  }
  
-@@ -1027,6 +1089,7 @@ BackupStatus *qmp_query_backup(Error **errp)
+@@ -1030,6 +1085,7 @@ BackupStatus *qmp_query_backup(Error **errp)
      info->transferred = backup_state.stat.transferred;
      info->has_reused = true;
      info->reused = backup_state.stat.reused;
@@ -481,7 +477,7 @@ index 63c686463f..6f05796fad 100644
      qemu_mutex_unlock(&backup_state.stat.lock);
  
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 16e184dd28..cb17d00fe0 100644
+index 7fde927621..bf559c6d52 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -770,12 +770,15 @@
