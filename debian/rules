@@ -62,6 +62,7 @@ ${BUILDDIR}/config.status: configure
 	--disable-smartcard \
 	--disable-strip \
 	--disable-xen \
+	--disable-slirp \
 	--enable-curl \
 	--enable-docs \
 	--enable-glusterfs \
