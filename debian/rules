@@ -62,7 +62,6 @@ ${BUILDDIR}/config.status: configure
 	--disable-smartcard \
 	--disable-strip \
 	--disable-xen \
-	--disable-slirp \
 	--enable-curl \
 	--enable-docs \
 	--enable-glusterfs \
@@ -75,6 +74,7 @@ ${BUILDDIR}/config.status: configure
 	--enable-opengl \
 	--enable-rbd \
 	--enable-seccomp \
+	--enable-slirp \
 	--enable-spice \
 	--enable-usb-redir \
 	--enable-virglrenderer \
