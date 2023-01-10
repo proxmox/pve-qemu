@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Chenyi Qiang <chenyi.qiang@intel.com>
+Date: Fri, 16 Dec 2022 14:22:31 +0800
+Subject: [PATCH] virtio-mem: Fix the bitmap index of the section offset
+
+vmem->bitmap indexes the memory region of the virtio-mem backend at a
+granularity of block_size. To calculate the index of target section offset,
+the block_size should be divided instead of the bitmap_size.
+
+Fixes: 2044969f0b ("virtio-mem: Implement RamDiscardManager interface")
+Signed-off-by: Chenyi Qiang <chenyi.qiang@intel.com>
+Message-Id: <20221216062231.11181-1-chenyi.qiang@intel.com>
+Reviewed-by: David Hildenbrand <david@redhat.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Cc: qemu-stable@nongnu.org
+Signed-off-by: David Hildenbrand <david@redhat.com>
+(cherry-picked from commit b11cf32e07a2f7ff0d171b89497381a04c9d07e0)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/virtio/virtio-mem.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/hw/virtio/virtio-mem.c b/hw/virtio/virtio-mem.c
+index ed170def48..e19ee817fe 100644
+--- a/hw/virtio/virtio-mem.c
++++ b/hw/virtio/virtio-mem.c
+@@ -235,7 +235,7 @@ static int virtio_mem_for_each_plugged_section(const VirtIOMEM *vmem,
+     uint64_t offset, size;
+     int ret = 0;
+ 
+-    first_bit = s->offset_within_region / vmem->bitmap_size;
++    first_bit = s->offset_within_region / vmem->block_size;
+     first_bit = find_next_bit(vmem->bitmap, vmem->bitmap_size, first_bit);
+     while (first_bit < vmem->bitmap_size) {
+         MemoryRegionSection tmp = *s;
+@@ -267,7 +267,7 @@ static int virtio_mem_for_each_unplugged_section(const VirtIOMEM *vmem,
+     uint64_t offset, size;
+     int ret = 0;
+ 
+-    first_bit = s->offset_within_region / vmem->bitmap_size;
++    first_bit = s->offset_within_region / vmem->block_size;
+     first_bit = find_next_zero_bit(vmem->bitmap, vmem->bitmap_size, first_bit);
+     while (first_bit < vmem->bitmap_size) {
+         MemoryRegionSection tmp = *s;

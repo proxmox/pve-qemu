@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Chenyi Qiang <chenyi.qiang@intel.com>
+Date: Wed, 28 Dec 2022 17:03:12 +0800
+Subject: [PATCH] virtio-mem: Fix the iterator variable in a vmem->rdl_list
+ loop
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+It should be the variable rdl2 to revert the already-notified listeners.
+
+Fixes: 2044969f0b ("virtio-mem: Implement RamDiscardManager interface")
+Signed-off-by: Chenyi Qiang <chenyi.qiang@intel.com>
+Message-Id: <20221228090312.17276-1-chenyi.qiang@intel.com>
+Cc: qemu-stable@nongnu.org
+Reviewed-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+Signed-off-by: David Hildenbrand <david@redhat.com>
+(cherry-picked from commit 29f1b328e3b767cba2661920a8470738469b9e36)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/virtio/virtio-mem.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/virtio/virtio-mem.c b/hw/virtio/virtio-mem.c
+index e19ee817fe..56db586c89 100644
+--- a/hw/virtio/virtio-mem.c
++++ b/hw/virtio/virtio-mem.c
+@@ -341,7 +341,7 @@ static int virtio_mem_notify_plug(VirtIOMEM *vmem, uint64_t offset,
+     if (ret) {
+         /* Notify all already-notified listeners. */
+         QLIST_FOREACH(rdl2, &vmem->rdl_list, next) {
+-            MemoryRegionSection tmp = *rdl->section;
++            MemoryRegionSection tmp = *rdl2->section;
+ 
+             if (rdl2 == rdl) {
+                 break;
