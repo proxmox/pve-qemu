@@ -1,3 +1,14 @@
+pve-qemu-kvm (7.2.0-2) bullseye; urgency=medium
+
+  * enable slirp again for now, as in qemu-server, user networking is
+    supported (via CLI/API) when no bridge is set on a virtual NIC
+
+  * cherry-pick stable fixes for 7.2. Two for virtio-mem and one for vIOMMU.
+    Both features are not yet exposed in PVE's qemu-server, but there's work
+    going on to change that.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 10 Jan 2023 15:47:48 +0100
+
 pve-qemu-kvm (7.2.0-1) bullseye; urgency=medium
 
   * update to QEMU stable release 7.2.0
