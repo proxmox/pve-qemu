@@ -4,11 +4,13 @@ Date: Mon, 6 Apr 2020 12:16:37 +0200
 Subject: [PATCH] PVE: [Up] qmp: add get_link_status
 
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[FE: add get_link_status to command name exceptions]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  net/net.c        | 27 +++++++++++++++++++++++++++
  qapi/net.json    | 15 +++++++++++++++
- qapi/pragma.json |  1 +
- 3 files changed, 43 insertions(+)
+ qapi/pragma.json |  2 ++
+ 3 files changed, 44 insertions(+)
 
 diff --git a/net/net.c b/net/net.c
 index 840ad9dca5..28e97c5d85 100644
@@ -75,10 +77,18 @@ index 522ac582ed..327d7c5a37 100644
  # @netdev_add:
  #
 diff --git a/qapi/pragma.json b/qapi/pragma.json
-index 7f810b0e97..a2358e303a 100644
+index 7f810b0e97..29233db825 100644
 --- a/qapi/pragma.json
 +++ b/qapi/pragma.json
-@@ -26,6 +26,7 @@
+@@ -15,6 +15,7 @@
+         'device_add',
+         'device_del',
+         'expire_password',
++        'get_link_status',
+         'migrate_cancel',
+         'netdev_add',
+         'netdev_del',
+@@ -26,6 +27,7 @@
          'system_wakeup' ],
      # Commands allowed to return a non-dictionary
      'command-returns-exceptions': [

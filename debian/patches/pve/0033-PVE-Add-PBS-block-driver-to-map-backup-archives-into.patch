@@ -16,7 +16,8 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  configure            |   9 ++
  meson.build          |   2 +-
  qapi/block-core.json |  13 ++
- 5 files changed, 302 insertions(+), 1 deletion(-)
+ qapi/pragma.json     |   1 +
+ 6 files changed, 303 insertions(+), 1 deletion(-)
  create mode 100644 block/pbs.c
 
 diff --git a/block/meson.build b/block/meson.build
@@ -407,3 +408,15 @@ index 5ac6276dc1..45b63dfe26 100644
        'nvme':       'BlockdevOptionsNVMe',
        'nvme-io_uring': { 'type': 'BlockdevOptionsNvmeIoUring',
                           'if': 'CONFIG_BLKIO' },
+diff --git a/qapi/pragma.json b/qapi/pragma.json
+index f2097b9020..5ab1890519 100644
+--- a/qapi/pragma.json
++++ b/qapi/pragma.json
+@@ -47,6 +47,7 @@
+         'BlockInfo',                # query-block
+         'BlockdevAioOptions',       # blockdev-add, -blockdev
+         'BlockdevDriver',           # blockdev-add, query-blockstats, ...
++        'BlockdevOptionsPbs',       # for PBS backwards compat
+         'BlockdevVmdkAdapterType',  # blockdev-create (to match VMDK spec)
+         'BlockdevVmdkSubformat',    # blockdev-create (to match VMDK spec)
+         'ColoCompareProperties',    # object_add, -object

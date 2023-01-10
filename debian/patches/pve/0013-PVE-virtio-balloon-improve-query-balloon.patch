@@ -7,11 +7,14 @@ Actually provide memory information via the query-balloon
 command.
 
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[FE: add BalloonInfo to member name exceptions list]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hw/virtio/virtio-balloon.c | 33 +++++++++++++++++++++++++++++++--
  monitor/hmp-cmds.c         | 30 +++++++++++++++++++++++++++++-
  qapi/machine.json          | 22 +++++++++++++++++++++-
- 3 files changed, 81 insertions(+), 4 deletions(-)
+ qapi/pragma.json           |  1 +
+ 4 files changed, 82 insertions(+), 4 deletions(-)
 
 diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
 index 73ac5eb675..bbfe7eca62 100644
@@ -133,3 +136,15 @@ index b9228a5e46..10e77a9af3 100644
  
  ##
  # @query-balloon:
+diff --git a/qapi/pragma.json b/qapi/pragma.json
+index 29233db825..f2097b9020 100644
+--- a/qapi/pragma.json
++++ b/qapi/pragma.json
+@@ -37,6 +37,7 @@
+     'member-name-exceptions': [     # visible in:
+         'ACPISlotType',             # query-acpi-ospm-status
+         'AcpiTableOptions',         # -acpitable
++        'BalloonInfo',              # query-balloon
+         'BlkdebugEvent',            # blockdev-add, -blockdev
+         'BlkdebugSetStateOptions',  # blockdev-add, -blockdev
+         'BlockDeviceInfo',          # query-block
