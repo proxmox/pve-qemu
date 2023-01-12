@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: "Dr. David Alan Gilbert" <dgilbert@redhat.com>
+Date: Mon, 9 Jan 2023 10:58:09 +0000
+Subject: [PATCH] virtio-rng-pci: fix migration compat for vectors
+
+Fixup the migration compatibility for existing machine types
+so that they do not enable msi-x.
+
+Symptom:
+
+(qemu) qemu: get_pci_config_device: Bad config data: i=0x34 read: 84 device: 98 cmask: ff wmask: 0 w1cmask:0
+qemu: Failed to load PCIDevice:config
+qemu: Failed to load virtio-rng:virtio
+qemu: error while loading state for instance 0x0 of device '0000:00:03.0/virtio-rng'
+qemu: load of migration failed: Invalid argument
+
+Note: This fix will break migration from 7.2->7.2-fixed with this patch
+
+bz: https://bugzilla.redhat.com/show_bug.cgi?id=2155749
+Fixes: 9ea02e8f1 ("virtio-rng-pci: Allow setting nvectors, so we can use MSI-X")
+
+Reviewed-by: Thomas Huth <thuth@redhat.com>
+Acked-by: David Daney <david.daney@fungible.com>
+Signed-off-by: Dr. David Alan Gilbert <dgilbert@redhat.com>
+(picked-up from https://lists.nongnu.org/archive/html/qemu-devel/2023-01/msg01319.html)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/core/machine.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/core/machine.c b/hw/core/machine.c
+index 8d34caa31d..77a0a131d1 100644
+--- a/hw/core/machine.c
++++ b/hw/core/machine.c
+@@ -42,6 +42,7 @@
+ 
+ GlobalProperty hw_compat_7_1[] = {
+     { "virtio-device", "queue_reset", "false" },
++    { "virtio-rng-pci", "vectors", "0" },
+ };
+ const size_t hw_compat_7_1_len = G_N_ELEMENTS(hw_compat_7_1);
+ 
