@@ -1,3 +1,10 @@
+pve-qemu-kvm (7.2.0-3) bullseye; urgency=medium
+
+  * add fix for live-migration with virtio-rng devices, which regressed in
+    QEMU 7.2.0.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 12 Jan 2023 13:13:14 +0100
+
 pve-qemu-kvm (7.2.0-2) bullseye; urgency=medium
 
   * enable slirp again for now, as in qemu-server, user networking is
