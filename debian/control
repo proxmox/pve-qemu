@@ -74,6 +74,7 @@ Conflicts: kvm,
            qemu-system-arm,
            qemu-system-common,
            qemu-system-x86,
+           qemu-system-data,
            qemu-utils,
 Provides: qemu-system-arm, qemu-system-x86, qemu-utils
 Replaces: pve-kvm,
