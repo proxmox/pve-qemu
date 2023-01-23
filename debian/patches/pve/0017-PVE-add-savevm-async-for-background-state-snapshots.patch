@@ -347,7 +347,7 @@ index 0000000000..05d394c0e2
 +        (void)qemu_savevm_state_complete_precopy(snap_state.file, false, false);
 +        ret = qemu_file_get_error(snap_state.file);
 +        if (ret < 0) {
-+                save_snapshot_error("qemu_savevm_state_iterate error %d", ret);
++            save_snapshot_error("qemu_savevm_state_complete_precopy error %d", ret);
 +        }
 +    }
 +
