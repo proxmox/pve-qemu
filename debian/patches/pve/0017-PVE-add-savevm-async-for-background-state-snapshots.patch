@@ -24,7 +24,8 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 [improve aborting]
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 [FE: further improve aborting
-     adapt to removal of QEMUFileOps]
+     adapt to removal of QEMUFileOps
+     improve condition for entering final stage]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hmp-commands-info.hx         |  13 +
@@ -32,13 +33,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   5 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 531 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 532 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  57 ++++
  qapi/migration.json          |  34 +++
  qapi/misc.json               |  32 +++
  qemu-options.hx              |  12 +
  softmmu/vl.c                 |  10 +
- 11 files changed, 730 insertions(+)
+ 11 files changed, 731 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -154,10 +155,10 @@ index 8cac83c06c..0842d00cd2 100644
  ), gnutls)
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..05d394c0e2
+index 0000000000..4a4e91a26d
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,531 @@
+@@ -0,0 +1,532 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -415,7 +416,8 @@ index 0000000000..05d394c0e2
 +
 +        maxlen = blk_getlength(snap_state.target) - 30*1024*1024;
 +
-+        if (pending_size > 400000 && snap_state.bs_pos + pending_size < maxlen) {
++        /* Note that there is no progress for pend_postcopy when iterating */
++        if (pending_size - pend_postcopy > 400000 && snap_state.bs_pos + pending_size < maxlen) {
 +            ret = qemu_savevm_state_iterate(snap_state.file, false);
 +            if (ret < 0) {
 +                save_snapshot_error("qemu_savevm_state_iterate error %d", ret);
