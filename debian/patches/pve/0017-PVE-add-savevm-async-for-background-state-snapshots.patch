@@ -33,13 +33,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   5 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 532 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 538 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  57 ++++
  qapi/migration.json          |  34 +++
  qapi/misc.json               |  32 +++
  qemu-options.hx              |  12 +
  softmmu/vl.c                 |  10 +
- 11 files changed, 731 insertions(+)
+ 11 files changed, 737 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -155,10 +155,10 @@ index 8cac83c06c..0842d00cd2 100644
  ), gnutls)
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..4a4e91a26d
+index 0000000000..dc30558713
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,532 @@
+@@ -0,0 +1,538 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -414,7 +414,13 @@ index 0000000000..4a4e91a26d
 +
 +        pending_size = pend_precopy + pend_compatible + pend_postcopy;
 +
-+        maxlen = blk_getlength(snap_state.target) - 30*1024*1024;
++        /*
++         * A guest reaching this cutoff is dirtying lots of RAM. It should be
++         * large enough so that the guest can't dirty this much between the
++         * check and the guest actually being stopped, but it should be small
++         * enough to avoid long downtimes for non-hibernation snapshots.
++         */
++        maxlen = blk_getlength(snap_state.target) - 100*1024*1024;
 +
 +        /* Note that there is no progress for pend_postcopy when iterating */
 +        if (pending_size - pend_postcopy > 400000 && snap_state.bs_pos + pending_size < maxlen) {
