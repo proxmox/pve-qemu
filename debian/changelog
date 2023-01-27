@@ -1,3 +1,10 @@
+pve-qemu-kvm (7.2.0-4) bullseye; urgency=medium
+
+  * backport fix for a 7.2 regression when using VirtIO disk with
+    detect-zeroes=unmap
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 27 Jan 2023 09:37:49 +0100
+
 pve-qemu-kvm (7.2.0-3) bullseye; urgency=medium
 
   * add fix for live-migration with virtio-rng devices, which regressed in
