@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Thu, 26 Jan 2023 15:13:58 -0500
+Subject: [PATCH] block: fix detect-zeroes= with BDRV_REQ_REGISTERED_BUF
+
+When a write request is converted into a write zeroes request by the
+detect-zeroes= feature, it is no longer associated with an I/O buffer.
+The BDRV_REQ_REGISTERED_BUF flag doesn't make sense without an I/O
+buffer and must be cleared because bdrv_co_do_pwrite_zeroes() fails with
+-EINVAL when it's set.
+
+Fiona Ebner <f.ebner@proxmox.com> bisected and diagnosed this QEMU 7.2
+regression where writes containing zeroes to a blockdev with
+discard=unmap,detect-zeroes=unmap fail.
+
+Buglink: https://gitlab.com/qemu-project/qemu/-/issues/1404
+Fixes: e8b6535533be ("block: add BDRV_REQ_REGISTERED_BUF request flag")
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+---
+ block/io.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/block/io.c b/block/io.c
+index b9424024f9..bbaa0d1b2d 100644
+--- a/block/io.c
++++ b/block/io.c
+@@ -2087,6 +2087,9 @@ static int coroutine_fn bdrv_aligned_pwritev(BdrvChild *child,
+         if (bs->detect_zeroes == BLOCKDEV_DETECT_ZEROES_OPTIONS_UNMAP) {
+             flags |= BDRV_REQ_MAY_UNMAP;
+         }
++
++        /* Can't use optimization hint with bufferless zero write */
++        flags &= ~BDRV_REQ_REGISTERED_BUF;
+     }
+ 
+     if (ret < 0) {
