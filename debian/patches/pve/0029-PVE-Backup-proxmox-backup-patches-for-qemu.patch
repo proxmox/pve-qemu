@@ -501,7 +501,7 @@ index 0000000000..1dda8b7d8f
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..3d28975eaa
+index 0000000000..6af212b9b4
 --- /dev/null
 +++ b/pve-backup.c
 @@ -0,0 +1,956 @@
@@ -1134,7 +1134,7 @@ index 0000000000..3d28975eaa
 +
 +        ssize_t size = bdrv_getlength(di->bs);
 +        if (size < 0) {
-+            error_setg_errno(task->errp, -di->size, "bdrv_getlength failed");
++            error_setg_errno(task->errp, -size, "bdrv_getlength failed");
 +            goto err;
 +        }
 +        di->size = size;

@@ -116,7 +116,7 @@ index 4ce7bc0b5e..0923037dec 100644
  static void proxmox_backup_schedule_wake(void *data) {
      CoCtxData *waker = (CoCtxData *)data;
 diff --git a/pve-backup.c b/pve-backup.c
-index fa9c6c4493..109498eaf9 100644
+index 5662f48b72..e4fe1b601d 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -354,7 +354,7 @@ static void job_cancel_bh(void *opaque) {
@@ -267,8 +267,8 @@ index fa9c6c4493..109498eaf9 100644
  
          ssize_t size = bdrv_getlength(di->bs);
          if (size < 0) {
--            error_setg_errno(task->errp, -di->size, "bdrv_getlength failed");
-+            error_setg_errno(errp, -di->size, "bdrv_getlength failed");
+-            error_setg_errno(task->errp, -size, "bdrv_getlength failed");
++            error_setg_errno(errp, -size, "bdrv_getlength failed");
              goto err;
          }
          di->size = size;
