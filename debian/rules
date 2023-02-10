@@ -29,6 +29,9 @@ BUILDDIR=build
 
 CFLAGS = -Wall
 
+# FIXME: There is a second -02 added because of meson.build in the subproject
+# and that is appended after -O0 from here (last -O wins), so supporting noopt
+# doesn't work like this.
 ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
 	CFLAGS += -O0
 else
