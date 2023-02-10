@@ -35,6 +35,8 @@ else
 	CFLAGS += -O2
 endif
 
+export CFLAGS
+
 ${BUILDDIR}/config.status: configure
 	dh_testdir
 	# Add here commands to configure the package.
