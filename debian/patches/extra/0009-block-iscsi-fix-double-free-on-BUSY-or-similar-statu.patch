@@ -1,0 +1,32 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Tue, 10 Jan 2023 17:36:33 +0100
+Subject: [PATCH] block/iscsi: fix double-free on BUSY or similar statuses
+
+Commit 8c460269aa77 ("iscsi: base all handling of check condition on
+scsi_sense_to_errno", 2019-07-15) removed a "goto out" so that the
+same coroutine is re-entered twice; once from iscsi_co_generic_cb,
+once from the timer callback iscsi_retry_timer_expired.  This can
+cause a crash.
+
+Resolves: https://gitlab.com/qemu-project/qemu/-/issues/1378
+Reported-by: Grzegorz Zdanowski <https://gitlab.com/kiler129>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry-picked from commit 5080152e2ef6cde7aa692e29880c62bd54acb750)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ block/iscsi.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/block/iscsi.c b/block/iscsi.c
+index 3ed4a50c0d..89cd032c3a 100644
+--- a/block/iscsi.c
++++ b/block/iscsi.c
+@@ -268,6 +268,7 @@ iscsi_co_generic_cb(struct iscsi_context *iscsi, int status,
+                 timer_mod(&iTask->retry_timer,
+                           qemu_clock_get_ms(QEMU_CLOCK_REALTIME) + retry_time);
+                 iTask->do_retry = 1;
++                return;
+             } else if (status == SCSI_STATUS_CHECK_CONDITION) {
+                 int error = iscsi_translate_sense(&task->sense);
+                 if (error == EAGAIN) {
