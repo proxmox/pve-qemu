@@ -5,6 +5,7 @@ extra/0004-virtio-mem-Fix-the-iterator-variable-in-a-vmem-rdl_l.patch
 extra/0005-vhost-fix-vq-dirty-bitmap-syncing-when-vIOMMU-is-ena.patch
 extra/0006-virtio-rng-pci-fix-migration-compat-for-vectors.patch
 extra/0007-block-fix-detect-zeroes-with-BDRV_REQ_REGISTERED_BUF.patch
+extra/0008-memory-prevent-dma-reentracy-issues.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
