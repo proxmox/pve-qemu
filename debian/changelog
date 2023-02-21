@@ -1,3 +1,20 @@
+pve-qemu-kvm (7.2.0-5) bullseye; urgency=medium
+
+  * fix #4476: savevm-async: avoid looping without progress
+
+  * savevm-async: decrease the boundary for free space for (memory) state left
+    on target from 30 MiB to 100 MiB, improving the heuristic for when to
+    enter the final "pause and sync" stage.
+
+  * QMP backup: use correct error number when getting blockdrive length fails
+
+  * backport fix for some DMA reentrancy issues, better protecting against
+    malicious guests
+
+  * backport fix for iSCSI double free issue leading to crashes
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 21 Feb 2023 13:49:43 +0100
+
 pve-qemu-kvm (7.2.0-4) bullseye; urgency=medium
 
   * backport fix for a 7.2 regression when using VirtIO disk with
