@@ -37,15 +37,25 @@ Thus, even after moving the blk_inc_in_flight to above the
 replay_bh_schedule_event call, the invariant "ide_issue_trim_cb
 returns with an accompanying in-flight count" is still satisfied.
 
+However, the issue 7e5cdb345f fixed for canceling resurfaces, because
+ide_cancel_dma_sync assumes that it just needs to drain once. But now
+the in_flight count is not consistently > 0 during the trim operation.
+So, change it to drain until !s->bus->dma->aiocb, which means that the
+operation finished (s->bus->dma->aiocb is cleared by ide_set_inactive
+via the ide_dma_cb when the end of the transfer is reached).
+
+Discussion here:
+https://lists.nongnu.org/archive/html/qemu-devel/2023-03/msg02506.html
+
 Fixes: 7e5cdb345f ("ide: Increment BB in-flight counter for TRIM BH")
 Suggested-by: Hanna Czenczek <hreitz@redhat.com>
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- hw/ide/core.c | 7 +++----
- 1 file changed, 3 insertions(+), 4 deletions(-)
+ hw/ide/core.c | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/hw/ide/core.c b/hw/ide/core.c
-index 39afdc0006..6474522bc9 100644
+index 39afdc0006..b67c1885a8 100644
 --- a/hw/ide/core.c
 +++ b/hw/ide/core.c
 @@ -443,7 +443,7 @@ static void ide_trim_bh_cb(void *opaque)
@@ -76,3 +86,15 @@ index 39afdc0006..6474522bc9 100644
      iocb = blk_aio_get(&trim_aiocb_info, s->blk, cb, cb_opaque);
      iocb->s = s;
      iocb->bh = qemu_bh_new(ide_trim_bh_cb, iocb);
+@@ -739,8 +738,9 @@ void ide_cancel_dma_sync(IDEState *s)
+      */
+     if (s->bus->dma->aiocb) {
+         trace_ide_cancel_dma_sync_remaining();
+-        blk_drain(s->blk);
+-        assert(s->bus->dma->aiocb == NULL);
++        while (s->bus->dma->aiocb) {
++            blk_drain(s->blk);
++        }
+     }
+ }
+ 
