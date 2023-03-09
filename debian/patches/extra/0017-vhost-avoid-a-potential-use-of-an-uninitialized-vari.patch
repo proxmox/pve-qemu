@@ -1,0 +1,132 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Carlos=20L=C3=B3pez?= <clopez@suse.de>
+Date: Mon, 13 Feb 2023 09:57:47 +0100
+Subject: [PATCH] vhost: avoid a potential use of an uninitialized variable in
+ vhost_svq_poll()
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In vhost_svq_poll(), if vhost_svq_get_buf() fails due to a device
+providing invalid descriptors, len is left uninitialized and returned
+to the caller, potentally leaking stack data or causing undefined
+behavior.
+
+Fix this by initializing len to 0.
+
+Found with GCC 13 and -fanalyzer (abridged):
+
+../hw/virtio/vhost-shadow-virtqueue.c: In function ‘vhost_svq_poll’:
+../hw/virtio/vhost-shadow-virtqueue.c:538:12: warning: use of uninitialized value ‘len’ [CWE-457] [-Wanalyzer-use-of-uninitialized-value]
+  538 |     return len;
+      |            ^~~
+  ‘vhost_svq_poll’: events 1-4
+    |
+    |  522 | size_t vhost_svq_poll(VhostShadowVirtqueue *svq)
+    |      |        ^~~~~~~~~~~~~~
+    |      |        |
+    |      |        (1) entry to ‘vhost_svq_poll’
+    |......
+    |  525 |     uint32_t len;
+    |      |              ~~~
+    |      |              |
+    |      |              (2) region created on stack here
+    |      |              (3) capacity: 4 bytes
+    |......
+    |  528 |         if (vhost_svq_more_used(svq)) {
+    |      |             ~
+    |      |             |
+    |      |             (4) inlined call to ‘vhost_svq_more_used’ from ‘vhost_svq_poll’
+
+    (...)
+
+    |  528 |         if (vhost_svq_more_used(svq)) {
+    |      |            ^~~~~~~~~~~~~~~~~~~~~~~~~
+    |      |            ||
+    |      |            |(8) ...to here
+    |      |            (7) following ‘true’ branch...
+    |......
+    |  537 |     vhost_svq_get_buf(svq, &len);
+    |      |     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    |      |     |
+    |      |     (9) calling ‘vhost_svq_get_buf’ from ‘vhost_svq_poll’
+    |
+    +--> ‘vhost_svq_get_buf’: events 10-11
+           |
+           |  416 | static VirtQueueElement *vhost_svq_get_buf(VhostShadowVirtqueue *svq,
+           |      |                          ^~~~~~~~~~~~~~~~~
+           |      |                          |
+           |      |                          (10) entry to ‘vhost_svq_get_buf’
+           |......
+           |  423 |     if (!vhost_svq_more_used(svq)) {
+           |      |          ~
+           |      |          |
+           |      |          (11) inlined call to ‘vhost_svq_more_used’ from ‘vhost_svq_get_buf’
+           |
+
+           (...)
+
+           |
+         ‘vhost_svq_get_buf’: event 14
+           |
+           |  423 |     if (!vhost_svq_more_used(svq)) {
+           |      |        ^
+           |      |        |
+           |      |        (14) following ‘false’ branch...
+           |
+         ‘vhost_svq_get_buf’: event 15
+           |
+           |cc1:
+           | (15): ...to here
+           |
+    <------+
+    |
+  ‘vhost_svq_poll’: events 16-17
+    |
+    |  537 |     vhost_svq_get_buf(svq, &len);
+    |      |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    |      |     |
+    |      |     (16) returning to ‘vhost_svq_poll’ from ‘vhost_svq_get_buf’
+    |  538 |     return len;
+    |      |            ~~~
+    |      |            |
+    |      |            (17) use of uninitialized value ‘len’ here
+
+Note by  Laurent Vivier <lvivier@redhat.com>:
+
+    The return value is only used to detect an error:
+
+    vhost_svq_poll
+        vhost_vdpa_net_cvq_add
+            vhost_vdpa_net_load_cmd
+                vhost_vdpa_net_load_mac
+                  -> a negative return is only used to detect error
+                vhost_vdpa_net_load_mq
+                  -> a negative return is only used to detect error
+            vhost_vdpa_net_handle_ctrl_avail
+              -> a negative return is only used to detect error
+
+Fixes: d368c0b052ad ("vhost: Do not depend on !NULL VirtQueueElement on vhost_svq_flush")
+Signed-off-by: Carlos López <clopez@suse.de>
+Message-Id: <20230213085747.19956-1-clopez@suse.de>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry-picked from commit e4dd39c699b7d63a06f686ec06ded8adbee989c1)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/virtio/vhost-shadow-virtqueue.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/virtio/vhost-shadow-virtqueue.c b/hw/virtio/vhost-shadow-virtqueue.c
+index 5bd14cad96..a723073747 100644
+--- a/hw/virtio/vhost-shadow-virtqueue.c
++++ b/hw/virtio/vhost-shadow-virtqueue.c
+@@ -522,7 +522,7 @@ static void vhost_svq_flush(VhostShadowVirtqueue *svq,
+ size_t vhost_svq_poll(VhostShadowVirtqueue *svq)
+ {
+     int64_t start_us = g_get_monotonic_time();
+-    uint32_t len;
++    uint32_t len = 0;
+ 
+     do {
+         if (vhost_svq_more_used(svq)) {
