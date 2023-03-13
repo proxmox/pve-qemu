@@ -1,3 +1,24 @@
+pve-qemu-kvm (7.2.0-7) bullseye; urgency=medium
+
+  * improve fix for potential deadlock with trim for IDE/SATA and draining
+
+  * backport stable fixes:
+    - hw/nvme: fix missing endian conversions for doorbell buffers
+    - hw/smbios: fix field corruption in type 4 table
+    - virtio-rng-pci: fix transitional migration compat for vectors
+    - hw/timer/hpet: Fix expiration time overflow
+    - vhost/vdpa: stop all svq on device deletion
+    - vhost: avoid a potential use of an uninitialized variable in the call to
+      vhost_svq_poll
+    - chardev/char-socket: set s->listener = NULL in char_socket_finalize to
+      fix a potential crash after live-migration
+    - intel-iommu: fail MAP notifier without caching mode
+    - intel-iommu: fail DEVIOTLB_UNMAP without dt mode
+
+  * fix a regression for when the LSI SCSI controller is used
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 13 Mar 2023 17:42:49 +0100
+
 pve-qemu-kvm (7.2.0-6) bullseye; urgency=medium
 
   * fix 7.2 regression for Linux boot failures with megasas SCSI
