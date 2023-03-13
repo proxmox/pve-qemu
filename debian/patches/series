@@ -18,6 +18,8 @@ extra/0017-vhost-avoid-a-potential-use-of-an-uninitialized-vari.patch
 extra/0018-chardev-char-socket-set-s-listener-NULL-in-char_sock.patch
 extra/0019-intel-iommu-fail-MAP-notifier-without-caching-mode.patch
 extra/0020-intel-iommu-fail-DEVIOTLB_UNMAP-without-dt-mode.patch
+extra/0021-memory-Allow-disabling-re-entrancy-checking-per-MR.patch
+extra/0022-lsi53c895a-disable-reentrancy-detection-for-script-R.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
