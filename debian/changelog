@@ -2,7 +2,10 @@ pve-qemu-kvm (7.2.0-8) bullseye; urgency=medium
 
   * backport fix for ACPI CPU hotplug issue with TCG
 
- -- Proxmox Support Team <support@proxmox.com>  Fri, 17 Mar 2023 12:11:38 +0100
+  * cherry-pick TCG-related stable fixes for 7.2 for users that turned off KVM
+    HW acceleration
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 17 Mar 2023 15:47:08 +0100
 
 pve-qemu-kvm (7.2.0-7) bullseye; urgency=medium
 
