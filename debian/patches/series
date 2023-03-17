@@ -21,6 +21,11 @@ extra/0020-intel-iommu-fail-DEVIOTLB_UNMAP-without-dt-mode.patch
 extra/0021-memory-Allow-disabling-re-entrancy-checking-per-MR.patch
 extra/0022-lsi53c895a-disable-reentrancy-detection-for-script-R.patch
 extra/0023-acpi-cpuhp-fix-guest-visible-maximum-access-size-to-.patch
+extra/0024-tests-tcg-i386-Introduce-and-use-reg_t-consistently.patch
+extra/0025-target-i386-Fix-BEXTR-instruction.patch
+extra/0026-target-i386-Fix-C-flag-for-BLSI-BLSMSK-BLSR.patch
+extra/0027-target-i386-fix-ADOX-followed-by-ADCX.patch
+extra/0028-target-i386-Fix-BZHI-instruction.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch

@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Richard Henderson <richard.henderson@linaro.org>
+Date: Sat, 14 Jan 2023 13:32:06 -1000
+Subject: [PATCH] target/i386: Fix BZHI instruction
+
+We did not correctly handle N >= operand size.
+
+Resolves: https://gitlab.com/qemu-project/qemu/-/issues/1374
+Signed-off-by: Richard Henderson <richard.henderson@linaro.org>
+Message-Id: <20230114233206.3118472-1-richard.henderson@linaro.org>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry-picked from commit 9ad2ba6e8e7fc195d0dd0b76ab38bd2fceb1bdd4)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/i386/tcg/emit.c.inc      | 14 +++++++-------
+ tests/tcg/i386/test-i386-bmi2.c |  3 +++
+ 2 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/target/i386/tcg/emit.c.inc b/target/i386/tcg/emit.c.inc
+index 0d7c6e80ae..7296f3952c 100644
+--- a/target/i386/tcg/emit.c.inc
++++ b/target/i386/tcg/emit.c.inc
+@@ -1145,20 +1145,20 @@ static void gen_BLSR(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+ static void gen_BZHI(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode)
+ {
+     MemOp ot = decode->op[0].ot;
+-    TCGv bound;
++    TCGv bound = tcg_constant_tl(ot == MO_64 ? 63 : 31);
++    TCGv zero = tcg_constant_tl(0);
++    TCGv mone = tcg_constant_tl(-1);
+ 
+-    tcg_gen_ext8u_tl(s->T1, cpu_regs[s->vex_v]);
+-    bound = tcg_constant_tl(ot == MO_64 ? 63 : 31);
++    tcg_gen_ext8u_tl(s->T1, s->T1);
+ 
+     /*
+      * Note that since we're using BMILG (in order to get O
+      * cleared) we need to store the inverse into C.
+      */
+-    tcg_gen_setcond_tl(TCG_COND_LT, cpu_cc_src, s->T1, bound);
+-    tcg_gen_movcond_tl(TCG_COND_GT, s->T1, s->T1, bound, bound, s->T1);
++    tcg_gen_setcond_tl(TCG_COND_LEU, cpu_cc_src, s->T1, bound);
+ 
+-    tcg_gen_movi_tl(s->A0, -1);
+-    tcg_gen_shl_tl(s->A0, s->A0, s->T1);
++    tcg_gen_shl_tl(s->A0, mone, s->T1);
++    tcg_gen_movcond_tl(TCG_COND_LEU, s->A0, s->T1, bound, s->A0, zero);
+     tcg_gen_andc_tl(s->T0, s->T0, s->A0);
+ 
+     gen_op_update1_cc(s);
+diff --git a/tests/tcg/i386/test-i386-bmi2.c b/tests/tcg/i386/test-i386-bmi2.c
+index 982d4abda4..0244df7987 100644
+--- a/tests/tcg/i386/test-i386-bmi2.c
++++ b/tests/tcg/i386/test-i386-bmi2.c
+@@ -123,6 +123,9 @@ int main(int argc, char *argv[]) {
+     result = bzhiq(mask, 0x1f);
+     assert(result == (mask & ~(-1 << 30)));
+ 
++    result = bzhiq(mask, 0x40);
++    assert(result == mask);
++
+     result = rorxq(0x2132435465768798, 8);
+     assert(result == 0x9821324354657687);
+ 
