@@ -40,6 +40,9 @@ endif
 
 export CFLAGS
 
+# DEB_BUILD_OPTIONS=parallel=N
+MAKEFLAGS += $(subst parallel=,-j,$(filter parallel=%,${DEB_BUILD_OPTIONS}))
+
 ${BUILDDIR}/config.status: configure
 	dh_testdir
 	# Add here commands to configure the package.
