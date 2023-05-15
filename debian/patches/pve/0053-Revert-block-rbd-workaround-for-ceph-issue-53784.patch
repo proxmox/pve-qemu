@@ -12,10 +12,10 @@ Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
  1 file changed, 2 insertions(+), 40 deletions(-)
 
 diff --git a/block/rbd.c b/block/rbd.c
-index 64a8d7d48b..9fc6dcb957 100644
+index a4749f3b1b..53e0396b51 100644
 --- a/block/rbd.c
 +++ b/block/rbd.c
-@@ -1348,7 +1348,6 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
+@@ -1511,7 +1511,6 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
      int status, r;
      RBDDiffIterateReq req = { .offs = offset };
      uint64_t features, flags;
@@ -23,7 +23,7 @@ index 64a8d7d48b..9fc6dcb957 100644
  
      assert(offset + bytes <= s->image_size);
  
-@@ -1376,43 +1375,7 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
+@@ -1539,43 +1538,7 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
          return status;
      }
  
@@ -68,7 +68,7 @@ index 64a8d7d48b..9fc6dcb957 100644
                            qemu_rbd_diff_iterate_cb, &req);
      if (r < 0 && r != QEMU_RBD_EXIT_DIFF_ITERATE2) {
          return status;
-@@ -1431,8 +1394,7 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
+@@ -1594,8 +1557,7 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
          status = BDRV_BLOCK_ZERO | BDRV_BLOCK_OFFSET_VALID;
      }
  

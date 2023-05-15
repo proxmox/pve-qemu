@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Fri, 31 Mar 2023 14:13:01 +0200
+Subject: [PATCH] savevm-async: optimize querying pending
+
+by using the estimate variant until the precopy estimate is below the
+threshold. This is similar to what is done in migration.c
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ migration/savevm-async.c | 15 +++++++++++----
+ 1 file changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/migration/savevm-async.c b/migration/savevm-async.c
+index fab1dc32d2..de91506821 100644
+--- a/migration/savevm-async.c
++++ b/migration/savevm-async.c
+@@ -242,12 +242,19 @@ static void coroutine_fn process_savevm_co(void *opaque)
+ 
+     while (snap_state.state == SAVE_STATE_ACTIVE) {
+         uint64_t pending_size, pend_precopy, pend_postcopy;
++        uint64_t threshold = 400 * 1000;
+ 
+-        /* pending is expected to be called without iothread lock */
++        /*
++         * pending_{estimate,exact} are expected to be called without iothread
++         * lock. Similar to what is done in migration.c, call the exact variant
++         * only once pend_precopy in the estimate is below the threshold.
++         */
+         qemu_mutex_unlock_iothread();
+-        qemu_savevm_state_pending_exact(&pend_precopy, &pend_postcopy);
++        qemu_savevm_state_pending_estimate(&pend_precopy, &pend_postcopy);
++        if (pend_precopy <= threshold) {
++            qemu_savevm_state_pending_exact(&pend_precopy, &pend_postcopy);
++        }
+         qemu_mutex_lock_iothread();
+-
+         pending_size = pend_precopy + pend_postcopy;
+ 
+         /*
+@@ -259,7 +266,7 @@ static void coroutine_fn process_savevm_co(void *opaque)
+         maxlen = blk_getlength(snap_state.target) - 100*1024*1024;
+ 
+         /* Note that there is no progress for pend_postcopy when iterating */
+-        if (pending_size - pend_postcopy > 400000 && snap_state.bs_pos + pending_size < maxlen) {
++        if (pend_precopy > threshold && snap_state.bs_pos + pending_size < maxlen) {
+             ret = qemu_savevm_state_iterate(snap_state.file, false);
+             if (ret < 0) {
+                 save_snapshot_error("qemu_savevm_state_iterate error %d", ret);

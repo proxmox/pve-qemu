@@ -9,10 +9,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 11 insertions(+), 4 deletions(-)
 
 diff --git a/block/gluster.c b/block/gluster.c
-index 7c90f7ba4b..2e03102f00 100644
+index 185a83e5e5..f11a40aa9e 100644
 --- a/block/gluster.c
 +++ b/block/gluster.c
-@@ -42,7 +42,7 @@
+@@ -43,7 +43,7 @@
  #define GLUSTER_DEBUG_DEFAULT       4
  #define GLUSTER_DEBUG_MAX           9
  #define GLUSTER_OPT_LOGFILE         "logfile"
@@ -21,7 +21,7 @@ index 7c90f7ba4b..2e03102f00 100644
  /*
   * Several versions of GlusterFS (3.12? -> 6.0.1) fail when the transfer size
   * is greater or equal to 1024 MiB, so we are limiting the transfer size to 512
-@@ -424,6 +424,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
+@@ -425,6 +425,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
      int old_errno;
      SocketAddressList *server;
      unsigned long long port;
@@ -29,7 +29,7 @@ index 7c90f7ba4b..2e03102f00 100644
  
      glfs = glfs_find_preopened(gconf->volume);
      if (glfs) {
-@@ -466,9 +467,15 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
+@@ -467,9 +468,15 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
          }
      }
  

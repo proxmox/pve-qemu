@@ -15,7 +15,7 @@ Signed-off-by: Alexander Bulekov <alxndr@bu.edu>
  1 file changed, 6 insertions(+)
 
 diff --git a/hw/scsi/lsi53c895a.c b/hw/scsi/lsi53c895a.c
-index 50979640c3..894b9311ac 100644
+index af93557a9a..db27872963 100644
 --- a/hw/scsi/lsi53c895a.c
 +++ b/hw/scsi/lsi53c895a.c
 @@ -2302,6 +2302,12 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)

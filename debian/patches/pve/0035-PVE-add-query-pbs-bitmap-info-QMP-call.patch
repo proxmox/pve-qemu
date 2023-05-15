@@ -15,10 +15,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  3 files changed, 159 insertions(+), 42 deletions(-)
 
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 670f783515..d819e5fc36 100644
+index 087161a967..9a67e544ce 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
-@@ -202,6 +202,7 @@ void hmp_info_mice(Monitor *mon, const QDict *qdict)
+@@ -148,6 +148,7 @@ void hmp_sync_profile(Monitor *mon, const QDict *qdict)
  void hmp_info_backup(Monitor *mon, const QDict *qdict)
  {
      BackupStatus *info;
@@ -26,7 +26,7 @@ index 670f783515..d819e5fc36 100644
  
      info = qmp_query_backup(NULL);
  
-@@ -232,26 +233,29 @@ void hmp_info_backup(Monitor *mon, const QDict *qdict)
+@@ -178,26 +179,29 @@ void hmp_info_backup(Monitor *mon, const QDict *qdict)
              // this should not happen normally
              monitor_printf(mon, "Total size: %d\n", 0);
          } else {
@@ -69,10 +69,10 @@ index 670f783515..d819e5fc36 100644
                             info->zero_bytes, zero_per);
  
 diff --git a/pve-backup.c b/pve-backup.c
-index 9318ca4f0c..c85b2ecd83 100644
+index c6fee40a67..d4abe6e703 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -46,6 +46,7 @@ static struct PVEBackupState {
+@@ -48,6 +48,7 @@ static struct PVEBackupState {
          size_t transferred;
          size_t reused;
          size_t zero_bytes;
@@ -80,7 +80,7 @@ index 9318ca4f0c..c85b2ecd83 100644
      } stat;
      int64_t speed;
      VmaWriter *vmaw;
-@@ -669,7 +670,6 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -663,7 +664,6 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      }
  
      size_t total = 0;
@@ -88,7 +88,7 @@ index 9318ca4f0c..c85b2ecd83 100644
  
      l = di_list;
      while (l) {
-@@ -690,18 +690,33 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -684,18 +684,33 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
  
      uuid_generate(uuid);
  
@@ -108,12 +108,12 @@ index 9318ca4f0c..c85b2ecd83 100644
 +    }
 +
      if (format == BACKUP_FORMAT_PBS) {
-         if (!task->has_password) {
+         if (!task->password) {
              error_set(task->errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'password'");
 -            goto err;
 +            goto err_mutex;
          }
-         if (!task->has_backup_id) {
+         if (!task->backup_id) {
              error_set(task->errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'backup-id'");
 -            goto err;
 +            goto err_mutex;
@@ -125,7 +125,7 @@ index 9318ca4f0c..c85b2ecd83 100644
          }
  
          int dump_cb_block_size = PROXMOX_BACKUP_DEFAULT_CHUNK_SIZE; // Hardcoded (4M)
-@@ -728,12 +743,12 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -722,12 +737,12 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              error_set(task->errp, ERROR_CLASS_GENERIC_ERROR,
                        "proxmox_backup_new failed: %s", pbs_err);
              proxmox_backup_free_error(pbs_err);
@@ -140,7 +140,7 @@ index 9318ca4f0c..c85b2ecd83 100644
  
          /* register all devices */
          l = di_list;
-@@ -744,6 +759,8 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -738,6 +753,8 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              di->block_size = dump_cb_block_size;
  
              const char *devname = bdrv_get_device_name(di->bs);
@@ -149,7 +149,7 @@ index 9318ca4f0c..c85b2ecd83 100644
  
              BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(di->bs, PBS_BITMAP_NAME);
              bool expect_only_dirty = false;
-@@ -752,49 +769,59 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -746,49 +763,59 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
                  if (bitmap == NULL) {
                      bitmap = bdrv_create_dirty_bitmap(di->bs, dump_cb_block_size, PBS_BITMAP_NAME, task->errp);
                      if (!bitmap) {
@@ -219,7 +219,7 @@ index 9318ca4f0c..c85b2ecd83 100644
          }
  
          /* register all devices for vma writer */
-@@ -804,7 +831,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -798,7 +825,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              l = g_list_next(l);
  
              if (!(di->target = bdrv_backup_dump_create(VMA_CLUSTER_SIZE, di->size, pvebackup_co_dump_vma_cb, di, task->errp))) {
@@ -228,7 +228,7 @@ index 9318ca4f0c..c85b2ecd83 100644
              }
  
              const char *devname = bdrv_get_device_name(di->bs);
-@@ -812,16 +839,14 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -806,16 +833,14 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              if (di->dev_id <= 0) {
                  error_set(task->errp, ERROR_CLASS_GENERIC_ERROR,
                            "register_stream failed");
@@ -247,7 +247,7 @@ index 9318ca4f0c..c85b2ecd83 100644
          }
          backup_dir = task->backup_file;
  
-@@ -838,18 +863,18 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -832,18 +857,18 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
                              di->size, flags, false, &local_err);
              if (local_err) {
                  error_propagate(task->errp, local_err);
@@ -269,8 +269,8 @@ index 9318ca4f0c..c85b2ecd83 100644
      }
  
  
-@@ -857,7 +882,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
-     if (task->has_config_file) {
+@@ -851,7 +876,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+     if (task->config_file) {
          if (pvebackup_co_add_config(task->config_file, config_name, format, backup_dir,
                                      vmaw, pbs, task->errp) != 0) {
 -            goto err;
@@ -278,8 +278,8 @@ index 9318ca4f0c..c85b2ecd83 100644
          }
      }
  
-@@ -865,12 +890,11 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
-     if (task->has_firewall_file) {
+@@ -859,12 +884,11 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+     if (task->firewall_file) {
          if (pvebackup_co_add_config(task->firewall_file, firewall_name, format, backup_dir,
                                      vmaw, pbs, task->errp) != 0) {
 -            goto err;
@@ -293,7 +293,7 @@ index 9318ca4f0c..c85b2ecd83 100644
  
      if (backup_state.stat.error) {
          error_free(backup_state.stat.error);
-@@ -890,10 +914,9 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -884,10 +908,9 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      char *uuid_str = g_strdup(backup_state.stat.uuid_str);
  
      backup_state.stat.total = total;
@@ -305,7 +305,7 @@ index 9318ca4f0c..c85b2ecd83 100644
  
      qemu_mutex_unlock(&backup_state.stat.lock);
  
-@@ -910,6 +933,9 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -904,6 +927,9 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      task->result = uuid_info;
      return;
  
@@ -315,7 +315,7 @@ index 9318ca4f0c..c85b2ecd83 100644
  err:
  
      l = di_list;
-@@ -1073,11 +1099,42 @@ BackupStatus *qmp_query_backup(Error **errp)
+@@ -1055,11 +1081,42 @@ BackupStatus *qmp_query_backup(Error **errp)
      return info;
  }
  
@@ -359,10 +359,10 @@ index 9318ca4f0c..c85b2ecd83 100644
      return ret;
  }
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 8b0e0d92de..7fde927621 100644
+index 1ac535fcf2..130d5f065f 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -871,6 +871,8 @@
+@@ -966,6 +966,8 @@
  # @pbs-dirty-bitmap: True if dirty-bitmap-incremental backups to PBS are
  #                    supported.
  #
@@ -371,7 +371,7 @@ index 8b0e0d92de..7fde927621 100644
  # @pbs-dirty-bitmap-savevm: True if 'dirty-bitmaps' migration capability can
  #                           safely be set for savevm-async.
  #
-@@ -879,6 +881,7 @@
+@@ -974,6 +976,7 @@
  ##
  { 'struct': 'ProxmoxSupportStatus',
    'data': { 'pbs-dirty-bitmap': 'bool',
@@ -379,7 +379,7 @@ index 8b0e0d92de..7fde927621 100644
              'pbs-dirty-bitmap-savevm': 'bool',
              'pbs-library-version': 'str' } }
  
-@@ -892,6 +895,59 @@
+@@ -987,6 +990,59 @@
  ##
  { 'command': 'query-proxmox-support', 'returns': 'ProxmoxSupportStatus' }
  

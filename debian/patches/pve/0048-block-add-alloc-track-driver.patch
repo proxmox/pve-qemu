@@ -28,17 +28,17 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
      make error return value consistent with QEMU]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/alloc-track.c | 350 ++++++++++++++++++++++++++++++++++++++++++++
+ block/alloc-track.c | 351 ++++++++++++++++++++++++++++++++++++++++++++
  block/meson.build   |   1 +
- 2 files changed, 351 insertions(+)
+ 2 files changed, 352 insertions(+)
  create mode 100644 block/alloc-track.c
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
 new file mode 100644
-index 0000000000..43d40d11af
+index 0000000000..113bbd7058
 --- /dev/null
 +++ b/block/alloc-track.c
-@@ -0,0 +1,350 @@
+@@ -0,0 +1,351 @@
 +/*
 + * Node to allow backing images to be applied to any node. Assumes a blank
 + * image to begin with, only new writes are tracked as allocated, thus this
@@ -54,6 +54,7 @@ index 0000000000..43d40d11af
 +#include "qemu/osdep.h"
 +#include "qapi/error.h"
 +#include "block/block_int.h"
++#include "block/dirty-bitmap.h"
 +#include "qapi/qmp/qdict.h"
 +#include "qapi/qmp/qstring.h"
 +#include "qemu/cutils.h"
@@ -163,9 +164,9 @@ index 0000000000..43d40d11af
 +    }
 +}
 +
-+static int64_t track_getlength(BlockDriverState *bs)
++static coroutine_fn int64_t track_co_getlength(BlockDriverState *bs)
 +{
-+    return bdrv_getlength(bs->file->bs);
++    return bdrv_co_getlength(bs->file->bs);
 +}
 +
 +static int coroutine_fn track_co_preadv(BlockDriverState *bs,
@@ -365,7 +366,7 @@ index 0000000000..43d40d11af
 +
 +    .bdrv_file_open                   = track_open,
 +    .bdrv_close                       = track_close,
-+    .bdrv_getlength                   = track_getlength,
++    .bdrv_co_getlength                = track_co_getlength,
 +    .bdrv_child_perm                  = track_child_perm,
 +    .bdrv_refresh_limits              = track_refresh_limits,
 +
@@ -390,7 +391,7 @@ index 0000000000..43d40d11af
 +
 +block_init(bdrv_alloc_track_init);
 diff --git a/block/meson.build b/block/meson.build
-index 7ef2fa72d5..15352f579f 100644
+index eece0d5743..8a68162cc0 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -2,6 +2,7 @@ block_ss.add(genh)

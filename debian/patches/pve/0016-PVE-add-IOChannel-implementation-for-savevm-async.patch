@@ -15,19 +15,19 @@ Additionally, allows tracking the current position from the outside
 
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- migration/channel-savevm-async.c | 182 +++++++++++++++++++++++++++++++
+ migration/channel-savevm-async.c | 183 +++++++++++++++++++++++++++++++
  migration/channel-savevm-async.h |  51 +++++++++
  migration/meson.build            |   1 +
- 3 files changed, 234 insertions(+)
+ 3 files changed, 235 insertions(+)
  create mode 100644 migration/channel-savevm-async.c
  create mode 100644 migration/channel-savevm-async.h
 
 diff --git a/migration/channel-savevm-async.c b/migration/channel-savevm-async.c
 new file mode 100644
-index 0000000000..06d5484778
+index 0000000000..aab081ce07
 --- /dev/null
 +++ b/migration/channel-savevm-async.c
-@@ -0,0 +1,182 @@
+@@ -0,0 +1,183 @@
 +/*
 + * QIO Channel implementation to be used by savevm-async QMP calls
 + */
@@ -71,6 +71,7 @@ index 0000000000..06d5484778
 +                               size_t niov,
 +                               int **fds,
 +                               size_t *nfds,
++                               int flags,
 +                               Error **errp)
 +{
 +    QIOChannelSavevmAsync *saioc = QIO_CHANNEL_SAVEVM_ASYNC(ioc);
@@ -268,7 +269,7 @@ index 0000000000..17ae2cb261
 +
 +#endif /* QIO_CHANNEL_SAVEVM_ASYNC_H */
 diff --git a/migration/meson.build b/migration/meson.build
-index 690487cf1a..8cac83c06c 100644
+index 0d1bb9f96e..8a142fc7a9 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
 @@ -13,6 +13,7 @@ softmmu_ss.add(files(

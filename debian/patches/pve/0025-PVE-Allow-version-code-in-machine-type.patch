@@ -11,35 +11,36 @@ and only if 'is-current').
 
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[FE: adapt to QAPI changes]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- hw/core/machine-qmp-cmds.c |  6 ++++++
+ hw/core/machine-qmp-cmds.c |  5 +++++
  include/hw/boards.h        |  2 ++
  qapi/machine.json          |  4 +++-
  softmmu/vl.c               | 25 +++++++++++++++++++++++++
- 4 files changed, 36 insertions(+), 1 deletion(-)
+ 4 files changed, 35 insertions(+), 1 deletion(-)
 
 diff --git a/hw/core/machine-qmp-cmds.c b/hw/core/machine-qmp-cmds.c
-index 76fff60a6b..ec9201fb9a 100644
+index 24595f618c..ee9cb0cd04 100644
 --- a/hw/core/machine-qmp-cmds.c
 +++ b/hw/core/machine-qmp-cmds.c
-@@ -103,6 +103,12 @@ MachineInfoList *qmp_query_machines(Error **errp)
+@@ -107,6 +107,11 @@ MachineInfoList *qmp_query_machines(Error **errp)
          if (strcmp(mc->name, MACHINE_GET_CLASS(current_machine)->name) == 0) {
              info->has_is_current = true;
              info->is_current = true;
 +
 +            // PVE version string only exists for current machine
 +            if (mc->pve_version) {
-+                info->has_pve_version = true;
 +                info->pve_version = g_strdup(mc->pve_version);
 +            }
          }
  
          if (mc->default_cpu_type) {
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index 90f1dd3aeb..14d60520d9 100644
+index 6fbbfd56c8..61a526e97d 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
-@@ -230,6 +230,8 @@ struct MachineClass {
+@@ -232,6 +232,8 @@ struct MachineClass {
      const char *desc;
      const char *deprecation_reason;
  
@@ -49,29 +50,29 @@ index 90f1dd3aeb..14d60520d9 100644
      void (*reset)(MachineState *state, ShutdownCause reason);
      void (*wakeup)(MachineState *state);
 diff --git a/qapi/machine.json b/qapi/machine.json
-index 9156103c8f..f4fb1b2c9c 100644
+index c904280085..47f3facdb2 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
-@@ -157,6 +157,8 @@
+@@ -159,6 +159,8 @@
  #
- # @default-ram-id: the default ID of initial RAM memory backend (since 5.2)
+ # @acpi: machine type supports ACPI (since 8.0)
  #
 +# @pve-version: custom PVE version suffix specified as 'machine+pveN'
 +#
  # Since: 1.2
  ##
  { 'struct': 'MachineInfo',
-@@ -164,7 +166,7 @@
+@@ -166,7 +168,7 @@
              '*is-default': 'bool', '*is-current': 'bool', 'cpu-max': 'int',
              'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
              'deprecated': 'bool', '*default-cpu-type': 'str',
--            '*default-ram-id': 'str' } }
-+            '*default-ram-id': 'str', '*pve-version': 'str' } }
+-            '*default-ram-id': 'str', 'acpi': 'bool' } }
++            '*default-ram-id': 'str', 'acpi': 'bool', '*pve-version': 'str' } }
  
  ##
  # @query-machines:
 diff --git a/softmmu/vl.c b/softmmu/vl.c
-index 9d737e7914..a64eee2fad 100644
+index 323f6a23d4..25abdc9da7 100644
 --- a/softmmu/vl.c
 +++ b/softmmu/vl.c
 @@ -1578,6 +1578,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
@@ -94,7 +95,7 @@ index 9d737e7914..a64eee2fad 100644
      g_slist_free(machines);
      if (local_err) {
          error_append_hint(&local_err, "Use -machine help to list supported machines\n");
-@@ -3205,12 +3211,31 @@ void qemu_init(int argc, char **argv)
+@@ -3213,12 +3219,31 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_machine:
                  {
                      bool help;

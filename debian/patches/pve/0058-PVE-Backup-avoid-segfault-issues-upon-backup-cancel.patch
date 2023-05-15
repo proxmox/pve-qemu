@@ -39,10 +39,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 38 insertions(+), 19 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 0cf30e1ced..4067018dbe 100644
+index a20fa38ee8..3509f46ed8 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -354,12 +354,41 @@ static void pvebackup_complete_cb(void *opaque, int ret)
+@@ -356,12 +356,41 @@ static void pvebackup_complete_cb(void *opaque, int ret)
  
  /*
   * job_cancel(_sync) does not like to be called from coroutines, so defer to
@@ -87,7 +87,7 @@ index 0cf30e1ced..4067018dbe 100644
      aio_co_enter(data->ctx, data->co);
  }
  
-@@ -380,22 +409,12 @@ void coroutine_fn qmp_backup_cancel(Error **errp)
+@@ -382,22 +411,12 @@ void coroutine_fn qmp_backup_cancel(Error **errp)
          proxmox_backup_abort(backup_state.pbs, "backup canceled");
      }
  

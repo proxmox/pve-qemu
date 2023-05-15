@@ -20,10 +20,10 @@ Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
  create mode 100644 vma.h
 
 diff --git a/block/meson.build b/block/meson.build
-index 020a89ae07..4feae20e37 100644
+index 253fe49fa2..744b698a82 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -46,6 +46,8 @@ block_ss.add(files(
+@@ -47,6 +47,8 @@ block_ss.add(files(
    'zeroinit.c',
  ), zstd, zlib, gnutls)
  
@@ -33,10 +33,10 @@ index 020a89ae07..4feae20e37 100644
  softmmu_ss.add(files('block-ram-registrar.c'))
  
 diff --git a/meson.build b/meson.build
-index 5c6b5a1c75..e8cf7e3d78 100644
+index c44d05a13f..b9bc31b01c 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1525,6 +1525,8 @@ keyutils = dependency('libkeyutils', required: false,
+@@ -1527,6 +1527,8 @@ keyutils = dependency('libkeyutils', required: false,
  
  has_gettid = cc.has_function('gettid')
  
@@ -45,7 +45,7 @@ index 5c6b5a1c75..e8cf7e3d78 100644
  # libselinux
  selinux = dependency('libselinux',
                       required: get_option('selinux'),
-@@ -3596,6 +3598,9 @@ if have_tools
+@@ -3645,6 +3647,9 @@ if have_tools
                 dependencies: [blockdev, qemuutil, gnutls, selinux],
                 install: true)
  

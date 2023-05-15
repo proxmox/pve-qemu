@@ -4,6 +4,8 @@ Date: Tue, 26 Apr 2022 16:06:28 +0200
 Subject: [PATCH] pbs: namespace support
 
 Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+[FE: adapt to QAPI change dropping redundant has_*]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/monitor/block-hmp-cmds.c |  1 +
  block/pbs.c                    | 25 +++++++++++++++++++++----
@@ -13,22 +15,22 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  5 files changed, 47 insertions(+), 9 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index c7468e5d3b..57b2457f1e 100644
+index fb881056e9..25ac598980 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1041,6 +1041,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
-         false, NULL, // PBS key_password
-         false, NULL, // PBS master_keyfile
-         false, NULL, // PBS fingerprint
-+        false, NULL, // PBS backup-ns
-         false, NULL, // PBS backup-id
+@@ -1053,6 +1053,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+         NULL, // PBS key_password
+         NULL, // PBS master_keyfile
+         NULL, // PBS fingerprint
++        NULL, // PBS backup-ns
+         NULL, // PBS backup-id
          false, 0, // PBS backup-time
          false, false, // PBS use-dirty-bitmap
 diff --git a/block/pbs.c b/block/pbs.c
-index ce9a870885..9192f3e41b 100644
+index 5d20789084..a2211e0f3b 100644
 --- a/block/pbs.c
 +++ b/block/pbs.c
-@@ -14,6 +14,7 @@
+@@ -15,6 +15,7 @@
  #include <proxmox-backup-qemu.h>
  
  #define PBS_OPT_REPOSITORY "repository"
@@ -36,7 +38,7 @@ index ce9a870885..9192f3e41b 100644
  #define PBS_OPT_SNAPSHOT "snapshot"
  #define PBS_OPT_ARCHIVE "archive"
  #define PBS_OPT_KEYFILE "keyfile"
-@@ -27,6 +28,7 @@ typedef struct {
+@@ -28,6 +29,7 @@ typedef struct {
      int64_t length;
  
      char *repository;
@@ -44,7 +46,7 @@ index ce9a870885..9192f3e41b 100644
      char *snapshot;
      char *archive;
  } BDRVPBSState;
-@@ -40,6 +42,11 @@ static QemuOptsList runtime_opts = {
+@@ -41,6 +43,11 @@ static QemuOptsList runtime_opts = {
              .type = QEMU_OPT_STRING,
              .help = "The server address and repository to connect to.",
          },
@@ -56,7 +58,7 @@ index ce9a870885..9192f3e41b 100644
          {
              .name = PBS_OPT_SNAPSHOT,
              .type = QEMU_OPT_STRING,
-@@ -76,7 +83,7 @@ static QemuOptsList runtime_opts = {
+@@ -77,7 +84,7 @@ static QemuOptsList runtime_opts = {
  
  
  // filename format:
@@ -65,7 +67,7 @@ index ce9a870885..9192f3e41b 100644
  static void pbs_parse_filename(const char *filename, QDict *options,
                                       Error **errp)
  {
-@@ -112,6 +119,7 @@ static int pbs_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -113,6 +120,7 @@ static int pbs_open(BlockDriverState *bs, QDict *options, int flags,
      s->archive = g_strdup(qemu_opt_get(opts, PBS_OPT_ARCHIVE));
      const char *keyfile = qemu_opt_get(opts, PBS_OPT_KEYFILE);
      const char *password = qemu_opt_get(opts, PBS_OPT_PASSWORD);
@@ -73,7 +75,7 @@ index ce9a870885..9192f3e41b 100644
      const char *fingerprint = qemu_opt_get(opts, PBS_OPT_FINGERPRINT);
      const char *key_password = qemu_opt_get(opts, PBS_OPT_ENCRYPTION_PASSWORD);
  
-@@ -124,9 +132,12 @@ static int pbs_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -125,9 +133,12 @@ static int pbs_open(BlockDriverState *bs, QDict *options, int flags,
      if (!key_password) {
          key_password = getenv("PBS_ENCRYPTION_PASSWORD");
      }
@@ -87,7 +89,7 @@ index ce9a870885..9192f3e41b 100644
          keyfile, key_password, fingerprint, &pbs_error);
  
      /* invalidates qemu_opt_get char pointers from above */
-@@ -171,6 +182,7 @@ static int pbs_file_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -172,6 +183,7 @@ static int pbs_file_open(BlockDriverState *bs, QDict *options, int flags,
  static void pbs_close(BlockDriverState *bs) {
      BDRVPBSState *s = bs->opaque;
      g_free(s->repository);
@@ -95,7 +97,7 @@ index ce9a870885..9192f3e41b 100644
      g_free(s->snapshot);
      g_free(s->archive);
      proxmox_restore_disconnect(s->conn);
-@@ -252,8 +264,13 @@ static coroutine_fn int pbs_co_pwritev(BlockDriverState *bs,
+@@ -253,8 +265,13 @@ static coroutine_fn int pbs_co_pwritev(BlockDriverState *bs,
  static void pbs_refresh_filename(BlockDriverState *bs)
  {
      BDRVPBSState *s = bs->opaque;
@@ -170,10 +172,10 @@ index 2f834cf42e..f03d9bab8d 100644
          fprintf(stderr, "restore failed: %s\n", pbs_error);
          return -1;
 diff --git a/pve-backup.c b/pve-backup.c
-index 4b5134ed27..262e7d3894 100644
+index 504c11657a..809ff6d134 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -10,6 +10,8 @@
+@@ -12,6 +12,8 @@
  #include "qapi/qmp/qerror.h"
  #include "qemu/cutils.h"
  
@@ -182,30 +184,30 @@ index 4b5134ed27..262e7d3894 100644
  /* PVE backup state and related function */
  
  /*
-@@ -531,6 +533,7 @@ UuidInfo coroutine_fn *qmp_backup(
-     bool has_key_password, const char *key_password,
-     bool has_master_keyfile, const char *master_keyfile,
-     bool has_fingerprint, const char *fingerprint,
-+    bool has_backup_ns, const char *backup_ns,
-     bool has_backup_id, const char *backup_id,
+@@ -533,6 +535,7 @@ UuidInfo coroutine_fn *qmp_backup(
+     const char *key_password,
+     const char *master_keyfile,
+     const char *fingerprint,
++    const char *backup_ns,
+     const char *backup_id,
      bool has_backup_time, int64_t backup_time,
      bool has_use_dirty_bitmap, bool use_dirty_bitmap,
-@@ -670,8 +673,9 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -672,8 +675,9 @@ UuidInfo coroutine_fn *qmp_backup(
          firewall_name = "fw.conf";
  
          char *pbs_err = NULL;
 -        pbs = proxmox_backup_new(
 +        pbs = proxmox_backup_new_ns(
              backup_file,
-+            has_backup_ns ? backup_ns : NULL,
++            backup_ns,
              backup_id,
              backup_time,
              dump_cb_block_size,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index d8c7331090..889726fc26 100644
+index 568feb63ad..9edeb33d82 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -817,6 +817,8 @@
+@@ -912,6 +912,8 @@
  #
  # @fingerprint: server cert fingerprint (optional for format 'pbs')
  #
@@ -214,7 +216,7 @@ index d8c7331090..889726fc26 100644
  # @backup-id: backup ID (required for format 'pbs')
  #
  # @backup-time: backup timestamp (Unix epoch, required for format 'pbs')
-@@ -836,6 +838,7 @@
+@@ -931,6 +933,7 @@
                                      '*key-password': 'str',
                                      '*master-keyfile': 'str',
                                      '*fingerprint': 'str',
@@ -222,7 +224,7 @@ index d8c7331090..889726fc26 100644
                                      '*backup-id': 'str',
                                      '*backup-time': 'int',
                                      '*use-dirty-bitmap': 'bool',
-@@ -3290,7 +3293,7 @@
+@@ -3385,7 +3388,7 @@
  { 'struct': 'BlockdevOptionsPbs',
    'data': { 'repository': 'str', 'snapshot': 'str', 'archive': 'str',
              '*keyfile': 'str', '*password': 'str', '*fingerprint': 'str',

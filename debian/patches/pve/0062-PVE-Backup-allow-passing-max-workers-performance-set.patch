@@ -31,13 +31,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 23 insertions(+), 8 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 57b2457f1e..ab0c988ae9 100644
+index 25ac598980..74e43a757f 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1049,7 +1049,9 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1061,7 +1061,9 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
          false, false, // PBS encrypt
          true, dir ? BACKUP_FORMAT_DIR : BACKUP_FORMAT_VMA,
-         false, NULL, false, NULL, !!devlist,
+         NULL, NULL,
 -        devlist, qdict_haskey(qdict, "speed"), speed, &error);
 +        devlist, qdict_haskey(qdict, "speed"), speed,
 +        false, 0, // BackupPerf max-workers
@@ -46,10 +46,10 @@ index 57b2457f1e..ab0c988ae9 100644
      hmp_handle_error(mon, error);
  }
 diff --git a/pve-backup.c b/pve-backup.c
-index 4067018dbe..3ca4f74cb8 100644
+index 3509f46ed8..a343d63586 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -55,6 +55,7 @@ static struct PVEBackupState {
+@@ -57,6 +57,7 @@ static struct PVEBackupState {
          bool starting;
      } stat;
      int64_t speed;
@@ -57,7 +57,7 @@ index 4067018dbe..3ca4f74cb8 100644
      VmaWriter *vmaw;
      ProxmoxBackupHandle *pbs;
      GList *di_list;
-@@ -490,8 +491,6 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -492,8 +493,6 @@ static void create_backup_jobs_bh(void *opaque) {
      }
      backup_state.txn = job_txn_new_seq();
  
@@ -66,7 +66,7 @@ index 4067018dbe..3ca4f74cb8 100644
      /* create and start all jobs (paused state) */
      GList *l =  backup_state.di_list;
      while (l) {
-@@ -511,8 +510,9 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -513,8 +512,9 @@ static void create_backup_jobs_bh(void *opaque) {
  
          BlockJob *job = backup_job_create(
              NULL, di->bs, di->target, backup_state.speed, sync_mode, di->bitmap,
@@ -78,10 +78,10 @@ index 4067018dbe..3ca4f74cb8 100644
  
          aio_context_release(aio_context);
  
-@@ -583,7 +583,9 @@ UuidInfo coroutine_fn *qmp_backup(
-     bool has_config_file, const char *config_file,
-     bool has_firewall_file, const char *firewall_file,
-     bool has_devlist, const char *devlist,
+@@ -585,7 +585,9 @@ UuidInfo coroutine_fn *qmp_backup(
+     const char *config_file,
+     const char *firewall_file,
+     const char *devlist,
 -    bool has_speed, int64_t speed, Error **errp)
 +    bool has_speed, int64_t speed,
 +    bool has_max_workers, int64_t max_workers,
@@ -89,7 +89,7 @@ index 4067018dbe..3ca4f74cb8 100644
  {
      assert(qemu_in_coroutine());
  
-@@ -913,6 +915,11 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -915,6 +917,11 @@ UuidInfo coroutine_fn *qmp_backup(
  
      backup_state.speed = (has_speed && speed > 0) ? speed : 0;
  
@@ -101,7 +101,7 @@ index 4067018dbe..3ca4f74cb8 100644
      backup_state.vmaw = vmaw;
      backup_state.pbs = pbs;
  
-@@ -1088,5 +1095,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1086,5 +1093,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->pbs_dirty_bitmap_migration = true;
      ret->query_bitmap_info = true;
      ret->pbs_masterkey = true;
@@ -109,10 +109,10 @@ index 4067018dbe..3ca4f74cb8 100644
      return ret;
  }
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 889726fc26..65795b7204 100644
+index 9edeb33d82..809f3c61bc 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -829,6 +829,8 @@
+@@ -924,6 +924,8 @@
  #
  # @encrypt: use encryption ((optional for format 'pbs', defaults to true if there is a keyfile)
  #
@@ -121,7 +121,7 @@ index 889726fc26..65795b7204 100644
  # Returns: the uuid of the backup job
  #
  ##
-@@ -847,7 +849,9 @@
+@@ -942,7 +944,9 @@
                                      '*format': 'BackupFormat',
                                      '*config-file': 'str',
                                      '*firewall-file': 'str',
@@ -132,7 +132,7 @@ index 889726fc26..65795b7204 100644
    'returns': 'UuidInfo', 'coroutine': true }
  
  ##
-@@ -902,7 +906,8 @@
+@@ -997,7 +1001,8 @@
              'pbs-dirty-bitmap-savevm': 'bool',
              'pbs-dirty-bitmap-migration': 'bool',
              'pbs-masterkey': 'bool',

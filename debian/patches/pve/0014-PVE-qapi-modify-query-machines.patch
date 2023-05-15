@@ -13,13 +13,13 @@ Signed-off-by: Dietmar Maurer <dietmar@proxmox.com>
  2 files changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/hw/core/machine-qmp-cmds.c b/hw/core/machine-qmp-cmds.c
-index 4f4ab30f8c..76fff60a6b 100644
+index b98ff15089..24595f618c 100644
 --- a/hw/core/machine-qmp-cmds.c
 +++ b/hw/core/machine-qmp-cmds.c
-@@ -99,6 +99,12 @@ MachineInfoList *qmp_query_machines(Error **errp)
-         info->hotpluggable_cpus = mc->has_hotpluggable_cpus;
+@@ -103,6 +103,12 @@ MachineInfoList *qmp_query_machines(Error **errp)
          info->numa_mem_supported = mc->numa_mem_supported;
          info->deprecated = !!mc->deprecation_reason;
+         info->acpi = !!object_class_property_find(OBJECT_CLASS(mc), "acpi");
 +
 +        if (strcmp(mc->name, MACHINE_GET_CLASS(current_machine)->name) == 0) {
 +            info->has_is_current = true;
@@ -28,9 +28,9 @@ index 4f4ab30f8c..76fff60a6b 100644
 +
          if (mc->default_cpu_type) {
              info->default_cpu_type = g_strdup(mc->default_cpu_type);
-             info->has_default_cpu_type = true;
+         }
 diff --git a/qapi/machine.json b/qapi/machine.json
-index 10e77a9af3..9156103c8f 100644
+index 15f5f86683..c904280085 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
 @@ -138,6 +138,8 @@
@@ -42,7 +42,7 @@ index 10e77a9af3..9156103c8f 100644
  # @cpu-max: maximum number of CPUs supported by the machine type
  #           (since 1.5)
  #
-@@ -159,7 +161,7 @@
+@@ -161,7 +163,7 @@
  ##
  { 'struct': 'MachineInfo',
    'data': { 'name': 'str', '*alias': 'str',
@@ -50,4 +50,4 @@ index 10e77a9af3..9156103c8f 100644
 +            '*is-default': 'bool', '*is-current': 'bool', 'cpu-max': 'int',
              'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
              'deprecated': 'bool', '*default-cpu-type': 'str',
-             '*default-ram-id': 'str' } }
+             '*default-ram-id': 'str', 'acpi': 'bool' } }

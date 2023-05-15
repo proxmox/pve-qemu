@@ -7,20 +7,62 @@ Actually provide memory information via the query-balloon
 command.
 
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[FE: add BalloonInfo to member name exceptions list]
+[FE: add BalloonInfo to member name exceptions list
+     rebase for 8.0 - moved to hw/core/machine-hmp-cmds.c]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
+ hw/core/machine-hmp-cmds.c | 30 +++++++++++++++++++++++++++++-
  hw/virtio/virtio-balloon.c | 33 +++++++++++++++++++++++++++++++--
- monitor/hmp-cmds.c         | 30 +++++++++++++++++++++++++++++-
  qapi/machine.json          | 22 +++++++++++++++++++++-
  qapi/pragma.json           |  1 +
  4 files changed, 82 insertions(+), 4 deletions(-)
 
+diff --git a/hw/core/machine-hmp-cmds.c b/hw/core/machine-hmp-cmds.c
+index c3e55ef9e9..0e32e6201f 100644
+--- a/hw/core/machine-hmp-cmds.c
++++ b/hw/core/machine-hmp-cmds.c
+@@ -169,7 +169,35 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
+         return;
+     }
+ 
+-    monitor_printf(mon, "balloon: actual=%" PRId64 "\n", info->actual >> 20);
++    monitor_printf(mon, "balloon: actual=%" PRId64, info->actual >> 20);
++    monitor_printf(mon, " max_mem=%" PRId64, info->max_mem >> 20);
++    if (info->has_total_mem) {
++        monitor_printf(mon, " total_mem=%" PRId64, info->total_mem >> 20);
++    }
++    if (info->has_free_mem) {
++        monitor_printf(mon, " free_mem=%" PRId64, info->free_mem >> 20);
++    }
++
++    if (info->has_mem_swapped_in) {
++        monitor_printf(mon, " mem_swapped_in=%" PRId64, info->mem_swapped_in);
++    }
++    if (info->has_mem_swapped_out) {
++        monitor_printf(mon, " mem_swapped_out=%" PRId64, info->mem_swapped_out);
++    }
++    if (info->has_major_page_faults) {
++        monitor_printf(mon, " major_page_faults=%" PRId64,
++                       info->major_page_faults);
++    }
++    if (info->has_minor_page_faults) {
++        monitor_printf(mon, " minor_page_faults=%" PRId64,
++                       info->minor_page_faults);
++    }
++    if (info->has_last_update) {
++        monitor_printf(mon, " last_update=%" PRId64,
++                       info->last_update);
++    }
++
++    monitor_printf(mon, "\n");
+ 
+     qapi_free_BalloonInfo(info);
+ }
 diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-index 73ac5eb675..bbfe7eca62 100644
+index 746f07c4d2..a41854b902 100644
 --- a/hw/virtio/virtio-balloon.c
 +++ b/hw/virtio/virtio-balloon.c
-@@ -806,8 +806,37 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
+@@ -804,8 +804,37 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
  static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
  {
      VirtIOBalloon *dev = opaque;
@@ -60,52 +102,11 @@ index 73ac5eb675..bbfe7eca62 100644
  }
  
  static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
-diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 01b789a79e..480b798963 100644
---- a/monitor/hmp-cmds.c
-+++ b/monitor/hmp-cmds.c
-@@ -696,7 +696,35 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
-         return;
-     }
- 
--    monitor_printf(mon, "balloon: actual=%" PRId64 "\n", info->actual >> 20);
-+    monitor_printf(mon, "balloon: actual=%" PRId64, info->actual >> 20);
-+    monitor_printf(mon, " max_mem=%" PRId64, info->max_mem >> 20);
-+    if (info->has_total_mem) {
-+        monitor_printf(mon, " total_mem=%" PRId64, info->total_mem >> 20);
-+    }
-+    if (info->has_free_mem) {
-+        monitor_printf(mon, " free_mem=%" PRId64, info->free_mem >> 20);
-+    }
-+
-+    if (info->has_mem_swapped_in) {
-+        monitor_printf(mon, " mem_swapped_in=%" PRId64, info->mem_swapped_in);
-+    }
-+    if (info->has_mem_swapped_out) {
-+        monitor_printf(mon, " mem_swapped_out=%" PRId64, info->mem_swapped_out);
-+    }
-+    if (info->has_major_page_faults) {
-+        monitor_printf(mon, " major_page_faults=%" PRId64,
-+                       info->major_page_faults);
-+    }
-+    if (info->has_minor_page_faults) {
-+        monitor_printf(mon, " minor_page_faults=%" PRId64,
-+                       info->minor_page_faults);
-+    }
-+    if (info->has_last_update) {
-+        monitor_printf(mon, " last_update=%" PRId64,
-+                       info->last_update);
-+    }
-+
-+    monitor_printf(mon, "\n");
- 
-     qapi_free_BalloonInfo(info);
- }
 diff --git a/qapi/machine.json b/qapi/machine.json
-index b9228a5e46..10e77a9af3 100644
+index 604b686e59..15f5f86683 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
-@@ -1054,9 +1054,29 @@
+@@ -1056,9 +1056,29 @@
  # @actual: the logical size of the VM in bytes
  #          Formula used: logical_vm_size = vm_ram_size - balloon_size
  #

@@ -21,10 +21,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 8 insertions(+), 2 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 262e7d3894..fde3554133 100644
+index 809ff6d134..221e45ed0e 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -503,6 +503,11 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -505,6 +505,11 @@ static void create_backup_jobs_bh(void *opaque) {
      }
  
      if (*errp) {
@@ -36,7 +36,7 @@ index 262e7d3894..fde3554133 100644
          l = backup_state.di_list;
          while (l) {
              PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
-@@ -513,11 +518,11 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -515,11 +520,11 @@ static void create_backup_jobs_bh(void *opaque) {
                  di->target = NULL;
              }
  
@@ -50,7 +50,7 @@ index 262e7d3894..fde3554133 100644
              }
          }
      }
-@@ -943,6 +948,7 @@ err:
+@@ -945,6 +950,7 @@ err:
  
      if (pbs) {
          proxmox_backup_disconnect(pbs);

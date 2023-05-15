@@ -11,10 +11,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/block/stream.c b/block/stream.c
-index 694709bd25..e09bd5c4ef 100644
+index 7f9e1ecdbb..6a29d80398 100644
 --- a/block/stream.c
 +++ b/block/stream.c
-@@ -28,7 +28,7 @@ enum {
+@@ -27,7 +27,7 @@ enum {
       * large enough to process multiple clusters in a single call, so
       * that populating contiguous regions of the image is efficient.
       */

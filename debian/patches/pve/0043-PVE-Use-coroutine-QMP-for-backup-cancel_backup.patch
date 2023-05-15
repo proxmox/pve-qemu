@@ -23,20 +23,23 @@ way instead)
 
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[FE: adapt to QAPI changes
+     call coroutine version of is_inserted()]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/monitor/block-hmp-cmds.c |   4 +-
  hmp-commands.hx                |   2 +
  proxmox-backup-client.c        |  31 -----
- pve-backup.c                   | 232 ++++++++++-----------------------
+ pve-backup.c                   | 220 +++++++++++----------------------
  qapi/block-core.json           |   4 +-
- 5 files changed, 77 insertions(+), 196 deletions(-)
+ 5 files changed, 79 insertions(+), 182 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index a09f722fea..71ed202491 100644
+index 6a6ed6d0e7..bcf5849196 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1016,7 +1016,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
-     g_free(global_snapshots);
+@@ -1028,7 +1028,7 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+                                !!read_only, read_only_mode, errp);
  }
  
 -void hmp_backup_cancel(Monitor *mon, const QDict *qdict)
@@ -44,7 +47,7 @@ index a09f722fea..71ed202491 100644
  {
      Error *error = NULL;
  
-@@ -1025,7 +1025,7 @@ void hmp_backup_cancel(Monitor *mon, const QDict *qdict)
+@@ -1037,7 +1037,7 @@ void hmp_backup_cancel(Monitor *mon, const QDict *qdict)
      hmp_handle_error(mon, error);
  }
  
@@ -54,7 +57,7 @@ index a09f722fea..71ed202491 100644
      Error *error = NULL;
  
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index fcf9461295..5fdb198ca4 100644
+index 9b6b8e2e9c..896430dae8 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
 @@ -111,6 +111,7 @@ ERST
@@ -116,10 +119,10 @@ index 4ce7bc0b5e..0923037dec 100644
  static void proxmox_backup_schedule_wake(void *data) {
      CoCtxData *waker = (CoCtxData *)data;
 diff --git a/pve-backup.c b/pve-backup.c
-index 5662f48b72..e4fe1b601d 100644
+index 5c9c153e31..378e4a9a63 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -354,7 +354,7 @@ static void job_cancel_bh(void *opaque) {
+@@ -356,7 +356,7 @@ static void job_cancel_bh(void *opaque) {
      aio_co_enter(data->ctx, data->co);
  }
  
@@ -128,7 +131,7 @@ index 5662f48b72..e4fe1b601d 100644
  {
      Error *cancel_err = NULL;
      error_setg(&cancel_err, "backup canceled");
-@@ -391,11 +391,6 @@ static void coroutine_fn pvebackup_co_cancel(void *opaque)
+@@ -393,11 +393,6 @@ static void coroutine_fn pvebackup_co_cancel(void *opaque)
      qemu_co_mutex_unlock(&backup_state.backup_mutex);
  }
  
@@ -140,33 +143,25 @@ index 5662f48b72..e4fe1b601d 100644
  // assumes the caller holds backup_mutex
  static int coroutine_fn pvebackup_co_add_config(
      const char *file,
-@@ -529,50 +524,27 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -531,42 +526,27 @@ static void create_backup_jobs_bh(void *opaque) {
      aio_co_enter(data->ctx, data->co);
  }
  
 -typedef struct QmpBackupTask {
 -    const char *backup_file;
--    bool has_password;
 -    const char *password;
--    bool has_keyfile;
 -    const char *keyfile;
--    bool has_key_password;
 -    const char *key_password;
--    bool has_backup_id;
 -    const char *backup_id;
 -    bool has_backup_time;
 -    const char *fingerprint;
--    bool has_fingerprint;
 -    int64_t backup_time;
 -    bool has_use_dirty_bitmap;
 -    bool use_dirty_bitmap;
 -    bool has_format;
 -    BackupFormat format;
--    bool has_config_file;
 -    const char *config_file;
--    bool has_firewall_file;
 -    const char *firewall_file;
--    bool has_devlist;
 -    const char *devlist;
 -    bool has_compress;
 -    bool compress;
@@ -181,19 +176,19 @@ index 5662f48b72..e4fe1b601d 100644
 -static void coroutine_fn pvebackup_co_prepare(void *opaque)
 +UuidInfo coroutine_fn *qmp_backup(
 +    const char *backup_file,
-+    bool has_password, const char *password,
-+    bool has_keyfile, const char *keyfile,
-+    bool has_key_password, const char *key_password,
-+    bool has_fingerprint, const char *fingerprint,
-+    bool has_backup_id, const char *backup_id,
++    const char *password,
++    const char *keyfile,
++    const char *key_password,
++    const char *fingerprint,
++    const char *backup_id,
 +    bool has_backup_time, int64_t backup_time,
 +    bool has_use_dirty_bitmap, bool use_dirty_bitmap,
 +    bool has_compress, bool compress,
 +    bool has_encrypt, bool encrypt,
 +    bool has_format, BackupFormat format,
-+    bool has_config_file, const char *config_file,
-+    bool has_firewall_file, const char *firewall_file,
-+    bool has_devlist, const char *devlist,
++    const char *config_file,
++    const char *firewall_file,
++    const char *devlist,
 +    bool has_speed, int64_t speed, Error **errp)
  {
      assert(qemu_in_coroutine());
@@ -207,7 +202,7 @@ index 5662f48b72..e4fe1b601d 100644
      BlockBackend *blk;
      BlockDriverState *bs = NULL;
      const char *backup_dir = NULL;
-@@ -589,17 +561,17 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -583,32 +563,32 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      const char *firewall_name = "qemu-server.fw";
  
      if (backup_state.di_list) {
@@ -223,18 +218,19 @@ index 5662f48b72..e4fe1b601d 100644
 -    BackupFormat format = task->has_format ? task->format : BACKUP_FORMAT_VMA;
 +    format = has_format ? format : BACKUP_FORMAT_VMA;
  
--    if (task->has_devlist) {
+-    if (task->devlist) {
 -        devs = g_strsplit_set(task->devlist, ",;:", -1);
-+    if (has_devlist) {
++    if (devlist) {
 +        devs = g_strsplit_set(devlist, ",;:", -1);
  
          gchar **d = devs;
          while (d && *d) {
-@@ -607,14 +579,14 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+             blk = blk_by_name(*d);
              if (blk) {
                  bs = blk_bs(blk);
-                 if (!bdrv_is_inserted(bs)) {
+-                if (!bdrv_is_inserted(bs)) {
 -                    error_setg(task->errp, QERR_DEVICE_HAS_NO_MEDIUM, *d);
++                if (!bdrv_co_is_inserted(bs)) {
 +                    error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, *d);
                      goto err;
                  }
@@ -247,7 +243,16 @@ index 5662f48b72..e4fe1b601d 100644
                            "Device '%s' not found", *d);
                  goto err;
              }
-@@ -637,7 +609,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -620,7 +600,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+ 
+         bs = NULL;
+         for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
+-            if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
++            if (!bdrv_co_is_inserted(bs) || bdrv_is_read_only(bs)) {
+                 continue;
+             }
+ 
+@@ -631,7 +611,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      }
  
      if (!di_list) {
@@ -256,7 +261,7 @@ index 5662f48b72..e4fe1b601d 100644
          goto err;
      }
  
-@@ -647,13 +619,13 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -641,13 +621,13 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      while (l) {
          PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
          l = g_list_next(l);
@@ -272,19 +277,19 @@ index 5662f48b72..e4fe1b601d 100644
              goto err;
          }
          di->size = size;
-@@ -680,47 +652,44 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -674,47 +654,44 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      }
  
      if (format == BACKUP_FORMAT_PBS) {
--        if (!task->has_password) {
+-        if (!task->password) {
 -            error_set(task->errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'password'");
-+        if (!has_password) {
++        if (!password) {
 +            error_set(errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'password'");
              goto err_mutex;
          }
--        if (!task->has_backup_id) {
+-        if (!task->backup_id) {
 -            error_set(task->errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'backup-id'");
-+        if (!has_backup_id) {
++        if (!backup_id) {
 +            error_set(errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'backup-id'");
              goto err_mutex;
          }
@@ -310,19 +315,19 @@ index 5662f48b72..e4fe1b601d 100644
 +            backup_id,
 +            backup_time,
              dump_cb_block_size,
--            task->has_password ? task->password : NULL,
--            task->has_keyfile ? task->keyfile : NULL,
--            task->has_key_password ? task->key_password : NULL,
+-            task->password,
+-            task->keyfile,
+-            task->key_password,
 -            task->has_compress ? task->compress : true,
--            task->has_encrypt ? task->encrypt : task->has_keyfile,
--            task->has_fingerprint ? task->fingerprint : NULL,
-+            has_password ? password : NULL,
-+            has_keyfile ? keyfile : NULL,
-+            has_key_password ? key_password : NULL,
+-            task->has_encrypt ? task->encrypt : !!task->keyfile,
+-            task->fingerprint,
++            password,
++            keyfile,
++            key_password,
 +            has_compress ? compress : true,
-+            has_encrypt ? encrypt : has_keyfile,
-+            has_fingerprint ? fingerprint : NULL,
-              &pbs_err);
++            has_encrypt ? encrypt : !!keyfile,
++            fingerprint,
+             &pbs_err);
  
          if (!pbs) {
 -            error_set(task->errp, ERROR_CLASS_GENERIC_ERROR,
@@ -337,7 +342,7 @@ index 5662f48b72..e4fe1b601d 100644
          if (connect_result < 0)
              goto err_mutex;
  
-@@ -739,9 +708,9 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -733,9 +710,9 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(di->bs, PBS_BITMAP_NAME);
              bool expect_only_dirty = false;
  
@@ -349,7 +354,7 @@ index 5662f48b72..e4fe1b601d 100644
                      if (!bitmap) {
                          goto err_mutex;
                      }
-@@ -771,12 +740,12 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -765,12 +742,12 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
                  }
              }
  
@@ -364,7 +369,7 @@ index 5662f48b72..e4fe1b601d 100644
                  goto err_mutex;
              }
  
-@@ -790,10 +759,10 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -784,10 +761,10 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              backup_state.stat.bitmap_list = g_list_append(backup_state.stat.bitmap_list, info);
          }
      } else if (format == BACKUP_FORMAT_VMA) {
@@ -377,7 +382,7 @@ index 5662f48b72..e4fe1b601d 100644
              }
              goto err_mutex;
          }
-@@ -804,25 +773,25 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -798,25 +775,25 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
              l = g_list_next(l);
  
@@ -409,7 +414,7 @@ index 5662f48b72..e4fe1b601d 100644
  
          l = di_list;
          while (l) {
-@@ -836,34 +805,34 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -830,34 +807,34 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
              bdrv_img_create(di->targetfile, "raw", NULL, NULL, NULL,
                              di->size, flags, false, &local_err);
              if (local_err) {
@@ -433,10 +438,10 @@ index 5662f48b72..e4fe1b601d 100644
  
  
      /* add configuration file to archive */
--    if (task->has_config_file) {
+-    if (task->config_file) {
 -        if (pvebackup_co_add_config(task->config_file, config_name, format, backup_dir,
 -                                    vmaw, pbs, task->errp) != 0) {
-+    if (has_config_file) {
++    if (config_file) {
 +        if (pvebackup_co_add_config(config_file, config_name, format, backup_dir,
 +                                    vmaw, pbs, errp) != 0) {
              goto err_mutex;
@@ -444,16 +449,16 @@ index 5662f48b72..e4fe1b601d 100644
      }
  
      /* add firewall file to archive */
--    if (task->has_firewall_file) {
+-    if (task->firewall_file) {
 -        if (pvebackup_co_add_config(task->firewall_file, firewall_name, format, backup_dir,
 -                                    vmaw, pbs, task->errp) != 0) {
-+    if (has_firewall_file) {
++    if (firewall_file) {
 +        if (pvebackup_co_add_config(firewall_file, firewall_name, format, backup_dir,
 +                                    vmaw, pbs, errp) != 0) {
              goto err_mutex;
          }
      }
-@@ -881,7 +850,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -875,7 +852,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      if (backup_state.stat.backup_file) {
          g_free(backup_state.stat.backup_file);
      }
@@ -462,7 +467,7 @@ index 5662f48b72..e4fe1b601d 100644
  
      uuid_copy(backup_state.stat.uuid, uuid);
      uuid_unparse_lower(uuid, backup_state.stat.uuid_str);
-@@ -896,7 +865,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -890,7 +867,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
  
      qemu_mutex_unlock(&backup_state.stat.lock);
  
@@ -471,7 +476,7 @@ index 5662f48b72..e4fe1b601d 100644
  
      backup_state.vmaw = vmaw;
      backup_state.pbs = pbs;
-@@ -906,8 +875,6 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -900,8 +877,6 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      uuid_info = g_malloc0(sizeof(*uuid_info));
      uuid_info->UUID = uuid_str;
  
@@ -480,7 +485,7 @@ index 5662f48b72..e4fe1b601d 100644
      /* Run create_backup_jobs_bh outside of coroutine (in BH) but keep
      * backup_mutex locked. This is fine, a CoMutex can be held across yield
      * points, and we'll release it as soon as the BH reschedules us.
-@@ -921,7 +888,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -915,7 +890,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      qemu_coroutine_yield();
  
      if (local_err) {
@@ -489,7 +494,7 @@ index 5662f48b72..e4fe1b601d 100644
          goto err;
      }
  
-@@ -934,7 +901,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
+@@ -928,7 +903,7 @@ static void coroutine_fn pvebackup_co_prepare(void *opaque)
      /* start the first job in the transaction */
      job_txn_start_seq(backup_state.txn);
  
@@ -498,7 +503,7 @@ index 5662f48b72..e4fe1b601d 100644
  
  err_mutex:
      qemu_mutex_unlock(&backup_state.stat.lock);
-@@ -965,7 +932,7 @@ err:
+@@ -959,7 +934,7 @@ err:
      if (vmaw) {
          Error *err = NULL;
          vma_writer_close(vmaw, &err);
@@ -507,7 +512,7 @@ index 5662f48b72..e4fe1b601d 100644
      }
  
      if (pbs) {
-@@ -976,65 +943,8 @@ err:
+@@ -970,57 +945,8 @@ err:
          rmdir(backup_dir);
      }
  
@@ -519,32 +524,27 @@ index 5662f48b72..e4fe1b601d 100644
 -
 -UuidInfo *qmp_backup(
 -    const char *backup_file,
--    bool has_password, const char *password,
--    bool has_keyfile, const char *keyfile,
--    bool has_key_password, const char *key_password,
--    bool has_fingerprint, const char *fingerprint,
--    bool has_backup_id, const char *backup_id,
+-    const char *password,
+-    const char *keyfile,
+-    const char *key_password,
+-    const char *fingerprint,
+-    const char *backup_id,
 -    bool has_backup_time, int64_t backup_time,
 -    bool has_use_dirty_bitmap, bool use_dirty_bitmap,
 -    bool has_compress, bool compress,
 -    bool has_encrypt, bool encrypt,
 -    bool has_format, BackupFormat format,
--    bool has_config_file, const char *config_file,
--    bool has_firewall_file, const char *firewall_file,
--    bool has_devlist, const char *devlist,
+-    const char *config_file,
+-    const char *firewall_file,
+-    const char *devlist,
 -    bool has_speed, int64_t speed, Error **errp)
 -{
 -    QmpBackupTask task = {
 -        .backup_file = backup_file,
--        .has_password = has_password,
 -        .password = password,
--        .has_keyfile = has_keyfile,
 -        .keyfile = keyfile,
--        .has_key_password = has_key_password,
 -        .key_password = key_password,
--        .has_fingerprint = has_fingerprint,
 -        .fingerprint = fingerprint,
--        .has_backup_id = has_backup_id,
 -        .backup_id = backup_id,
 -        .has_backup_time = has_backup_time,
 -        .backup_time = backup_time,
@@ -556,11 +556,8 @@ index 5662f48b72..e4fe1b601d 100644
 -        .encrypt = encrypt,
 -        .has_format = has_format,
 -        .format = format,
--        .has_config_file = has_config_file,
 -        .config_file = config_file,
--        .has_firewall_file = has_firewall_file,
 -        .firewall_file = firewall_file,
--        .has_devlist = has_devlist,
 -        .devlist = devlist,
 -        .has_speed = has_speed,
 -        .speed = speed,
@@ -575,10 +572,10 @@ index 5662f48b72..e4fe1b601d 100644
  
  BackupStatus *qmp_query_backup(Error **errp)
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 24f30260c8..4e8c35a3a2 100644
+index e7412f6322..93d924ef79 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -842,7 +842,7 @@
+@@ -937,7 +937,7 @@
                                      '*config-file': 'str',
                                      '*firewall-file': 'str',
                                      '*devlist': 'str', '*speed': 'int' },
@@ -587,7 +584,7 @@ index 24f30260c8..4e8c35a3a2 100644
  
  ##
  # @query-backup:
-@@ -864,7 +864,7 @@
+@@ -959,7 +959,7 @@
  # Notes: This command succeeds even if there is no backup process running.
  #
  ##

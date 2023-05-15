@@ -10,10 +10,10 @@ Signed-off-by: Alexander Bulekov <alxndr@bu.edu>
  2 files changed, 4 insertions(+), 1 deletion(-)
 
 diff --git a/include/exec/memory.h b/include/exec/memory.h
-index 91f8a2395a..d7268d9f39 100644
+index 15ade918ba..e6819e3c39 100644
 --- a/include/exec/memory.h
 +++ b/include/exec/memory.h
-@@ -765,6 +765,9 @@ struct MemoryRegion {
+@@ -791,6 +791,9 @@ struct MemoryRegion {
      unsigned ioeventfd_nb;
      MemoryRegionIoeventfd *ioeventfds;
      RamDiscardManager *rdm; /* Only for RAM */
@@ -24,7 +24,7 @@ index 91f8a2395a..d7268d9f39 100644
  
  struct IOMMUMemoryRegion {
 diff --git a/softmmu/memory.c b/softmmu/memory.c
-index 7dcb3347aa..2b46714191 100644
+index e4d2268d32..d88acb204b 100644
 --- a/softmmu/memory.c
 +++ b/softmmu/memory.c
 @@ -544,7 +544,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,

@@ -38,7 +38,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 25 insertions(+)
 
 diff --git a/include/hw/qdev-core.h b/include/hw/qdev-core.h
-index 785dd5a56e..886f6bb79e 100644
+index bd50ad5ee1..7623703943 100644
 --- a/include/hw/qdev-core.h
 +++ b/include/hw/qdev-core.h
 @@ -162,6 +162,10 @@ struct NamedClockList {
@@ -63,7 +63,7 @@ index 785dd5a56e..886f6bb79e 100644
  
  struct DeviceListener {
 diff --git a/softmmu/memory.c b/softmmu/memory.c
-index bc0be3f62c..7dcb3347aa 100644
+index b1a6cae6f5..e4d2268d32 100644
 --- a/softmmu/memory.c
 +++ b/softmmu/memory.c
 @@ -533,6 +533,7 @@ static MemTxResult access_with_adjusted_size(hwaddr addr,

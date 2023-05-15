@@ -8,23 +8,24 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Dietmar Maurer <dietmar@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: adapt to changed function signatures
-     make pbs_co_preadv return values consistent with QEMU]
+     make pbs_co_preadv return values consistent with QEMU
+     getlength is now a coroutine function]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build    |   3 +
- block/pbs.c          | 276 +++++++++++++++++++++++++++++++++++++++++++
+ block/pbs.c          | 277 +++++++++++++++++++++++++++++++++++++++++++
  configure            |   9 ++
  meson.build          |   2 +-
  qapi/block-core.json |  13 ++
  qapi/pragma.json     |   1 +
- 6 files changed, 303 insertions(+), 1 deletion(-)
+ 6 files changed, 304 insertions(+), 1 deletion(-)
  create mode 100644 block/pbs.c
 
 diff --git a/block/meson.build b/block/meson.build
-index e995ae72b9..7ef2fa72d5 100644
+index 5bcebb934b..eece0d5743 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -53,6 +53,9 @@ block_ss.add(files(
+@@ -54,6 +54,9 @@ block_ss.add(files(
    '../pve-backup.c',
  ), libproxmox_backup_qemu)
  
@@ -36,10 +37,10 @@ index e995ae72b9..7ef2fa72d5 100644
  softmmu_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/pbs.c b/block/pbs.c
 new file mode 100644
-index 0000000000..9d1f1f39d4
+index 0000000000..43e69ada46
 --- /dev/null
 +++ b/block/pbs.c
-@@ -0,0 +1,276 @@
+@@ -0,0 +1,277 @@
 +/*
 + * Proxmox Backup Server read-only block driver
 + */
@@ -52,6 +53,7 @@ index 0000000000..9d1f1f39d4
 +#include "qemu/option.h"
 +#include "qemu/cutils.h"
 +#include "block/block_int.h"
++#include "block/block-io.h"
 +
 +#include <proxmox-backup-qemu.h>
 +
@@ -218,7 +220,7 @@ index 0000000000..9d1f1f39d4
 +    proxmox_restore_disconnect(s->conn);
 +}
 +
-+static int64_t pbs_getlength(BlockDriverState *bs)
++static coroutine_fn int64_t pbs_co_getlength(BlockDriverState *bs)
 +{
 +    BDRVPBSState *s = bs->opaque;
 +    return s->length;
@@ -301,7 +303,7 @@ index 0000000000..9d1f1f39d4
 +    .bdrv_file_open         = pbs_file_open,
 +    .bdrv_open              = pbs_open,
 +    .bdrv_close             = pbs_close,
-+    .bdrv_getlength         = pbs_getlength,
++    .bdrv_co_getlength      = pbs_co_getlength,
 +
 +    .bdrv_co_preadv         = pbs_co_preadv,
 +    .bdrv_co_pwritev        = pbs_co_pwritev,
@@ -317,10 +319,10 @@ index 0000000000..9d1f1f39d4
 +
 +block_init(bdrv_pbs_init);
 diff --git a/configure b/configure
-index 26c7bc5154..c587e986c7 100755
+index 800b5850f4..37e12a3dce 100755
 --- a/configure
 +++ b/configure
-@@ -285,6 +285,7 @@ linux_user=""
+@@ -288,6 +288,7 @@ linux_user=""
  bsd_user=""
  pie=""
  coroutine=""
@@ -328,9 +330,9 @@ index 26c7bc5154..c587e986c7 100755
  plugins="$default_feature"
  meson=""
  ninja=""
-@@ -864,6 +865,10 @@ for opt do
-   --enable-uuid|--disable-uuid)
-       echo "$0: $opt is obsolete, UUID support is always built" >&2
+@@ -872,6 +873,10 @@ for opt do
+   ;;
+   --with-coroutine=*) coroutine="$optarg"
    ;;
 +  --disable-pbs-bdrv) pbs_bdrv="no"
 +  ;;
@@ -339,15 +341,15 @@ index 26c7bc5154..c587e986c7 100755
    --with-git=*) git="$optarg"
    ;;
    --with-git-submodules=*)
-@@ -1049,6 +1054,7 @@ cat << EOF
+@@ -1048,6 +1053,7 @@ cat << EOF
    debug-info      debugging information
    safe-stack      SafeStack Stack Smash Protection. Depends on
-                   clang/llvm >= 3.7 and requires coroutine backend ucontext.
+                   clang/llvm and requires coroutine backend ucontext.
 +  pbs-bdrv        Proxmox backup server read-only block driver support
  
  NOTE: The object files are built at the place where configure is launched
  EOF
-@@ -2372,6 +2378,9 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
+@@ -2385,6 +2391,9 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
  if test "$modules" = "yes"; then
    echo "CONFIG_MODULES=y" >> $config_host_mak
  fi
@@ -358,10 +360,10 @@ index 26c7bc5154..c587e986c7 100755
  # XXX: suppress that
  if [ "$bsd" = "yes" ] ; then
 diff --git a/meson.build b/meson.build
-index 63ea813a9a..f7f5b3f253 100644
+index 8ec21bba90..419bea5cf4 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -3978,7 +3978,7 @@ summary_info += {'bzip2 support':     libbzip2}
+@@ -4035,7 +4035,7 @@ summary_info += {'bzip2 support':     libbzip2}
  summary_info += {'lzfse support':     liblzfse}
  summary_info += {'zstd support':      zstd}
  summary_info += {'NUMA host support': numa}
@@ -371,10 +373,10 @@ index 63ea813a9a..f7f5b3f253 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libudev':           libudev}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 5ac6276dc1..45b63dfe26 100644
+index 864b8ce97c..705a65ab1a 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3103,6 +3103,7 @@
+@@ -3198,6 +3198,7 @@
              'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
              'raw', 'rbd',
              { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
@@ -382,7 +384,7 @@ index 5ac6276dc1..45b63dfe26 100644
              'ssh', 'throttle', 'vdi', 'vhdx',
              { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
              { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
-@@ -3179,6 +3180,17 @@
+@@ -3274,6 +3275,17 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -400,7 +402,7 @@ index 5ac6276dc1..45b63dfe26 100644
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -4531,6 +4543,7 @@
+@@ -4647,6 +4659,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',

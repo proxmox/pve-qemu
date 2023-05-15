@@ -12,6 +12,8 @@ uniform w.r.t. backup block jobs.
 
 Signed-off-by: Fabian Grünbichler <f.gruenbichler@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[FE: rebase for 8.0]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/mirror.c             | 28 +++------------
  blockdev.c                 | 29 +++++++++++++++
@@ -19,10 +21,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  3 files changed, 70 insertions(+), 59 deletions(-)
 
 diff --git a/block/mirror.c b/block/mirror.c
-index 4969c6833c..cf85ae1074 100644
+index f42953837b..8f79efaa87 100644
 --- a/block/mirror.c
 +++ b/block/mirror.c
-@@ -1668,31 +1668,13 @@ static BlockJob *mirror_start_job(
+@@ -1688,31 +1688,13 @@ static BlockJob *mirror_start_job(
      uint64_t target_perms, target_shared_perms;
      int ret;
  
@@ -60,17 +62,17 @@ index 4969c6833c..cf85ae1074 100644
  
          if (bitmap_mode != BITMAP_SYNC_MODE_NEVER) {
 diff --git a/blockdev.c b/blockdev.c
-index dd1c2cdef7..756e980889 100644
+index 24a76b451d..3917af7d02 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -3024,7 +3024,36 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -3005,7 +3005,36 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
          sync = MIRROR_SYNC_MODE_FULL;
      }
  
 +    if ((sync == MIRROR_SYNC_MODE_BITMAP) ||
 +        (sync == MIRROR_SYNC_MODE_INCREMENTAL)) {
 +        /* done before desugaring 'incremental' to print the right message */
-+        if (!has_bitmap) {
++        if (!bitmap) {
 +            error_setg(errp, "Must provide a valid bitmap name for "
 +                       "'%s' sync mode", MirrorSyncMode_str(sync));
 +            return;
@@ -91,7 +93,7 @@ index dd1c2cdef7..756e980889 100644
 +        bitmap_mode = BITMAP_SYNC_MODE_ON_SUCCESS;
 +    }
 +
-     if (has_bitmap) {
+     if (bitmap) {
 +        if (sync != MIRROR_SYNC_MODE_BITMAP) {
 +            error_setg(errp, "Sync mode '%s' not supported with bitmap.",
 +                       MirrorSyncMode_str(sync));

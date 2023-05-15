@@ -16,10 +16,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 25 insertions(+), 3 deletions(-)
 
 diff --git a/qemu-img.c b/qemu-img.c
-index 221b9d6a16..c1306385a8 100644
+index c584de648c..a57ceeddfe 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -4830,11 +4830,13 @@ static int img_bitmap(int argc, char **argv)
+@@ -4886,11 +4886,13 @@ static int img_bitmap(int argc, char **argv)
  #define C_OF      010
  #define C_SKIP    020
  #define C_OSIZE   040
@@ -33,7 +33,7 @@ index 221b9d6a16..c1306385a8 100644
  };
  
  struct DdIo {
-@@ -4923,6 +4925,19 @@ static int img_dd_osize(const char *arg,
+@@ -4979,6 +4981,19 @@ static int img_dd_osize(const char *arg,
      return 0;
  }
  
@@ -53,7 +53,7 @@ index 221b9d6a16..c1306385a8 100644
  static int img_dd(int argc, char **argv)
  {
      int ret = 0;
-@@ -4937,12 +4952,14 @@ static int img_dd(int argc, char **argv)
+@@ -4993,12 +5008,14 @@ static int img_dd(int argc, char **argv)
      int c, i;
      const char *out_fmt = "raw";
      const char *fmt = NULL;
@@ -69,7 +69,7 @@ index 221b9d6a16..c1306385a8 100644
      };
      struct DdIo in = {
          .bsz = 512, /* Block size is by default 512 bytes */
-@@ -4964,6 +4981,7 @@ static int img_dd(int argc, char **argv)
+@@ -5020,6 +5037,7 @@ static int img_dd(int argc, char **argv)
          { "of", img_dd_of, C_OF },
          { "skip", img_dd_skip, C_SKIP },
          { "osize", img_dd_osize, C_OSIZE },
@@ -77,7 +77,7 @@ index 221b9d6a16..c1306385a8 100644
          { NULL, NULL, 0 }
      };
      const struct option long_options[] = {
-@@ -5160,9 +5178,10 @@ static int img_dd(int argc, char **argv)
+@@ -5216,9 +5234,10 @@ static int img_dd(int argc, char **argv)
  
      in.buf = g_new(uint8_t, in.bsz);
  
@@ -90,7 +90,7 @@ index 221b9d6a16..c1306385a8 100644
          if (blk1) {
              in_ret = blk_pread(blk1, in_pos, bytes, in.buf, 0);
              if (in_ret == 0) {
-@@ -5171,6 +5190,9 @@ static int img_dd(int argc, char **argv)
+@@ -5227,6 +5246,9 @@ static int img_dd(int argc, char **argv)
          } else {
              in_ret = read(STDIN_FILENO, in.buf, bytes);
              if (in_ret == 0) {

@@ -17,10 +17,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 4 insertions(+)
 
 diff --git a/block/io.c b/block/io.c
-index b9424024f9..01f50d28c8 100644
+index 2e267a85ab..449a44bf20 100644
 --- a/block/io.c
 +++ b/block/io.c
-@@ -1730,6 +1730,10 @@ static int bdrv_pad_request(BlockDriverState *bs,
+@@ -1576,6 +1576,10 @@ static int bdrv_pad_request(BlockDriverState *bs,
  {
      int ret;
  

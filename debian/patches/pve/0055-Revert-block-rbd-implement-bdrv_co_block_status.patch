@@ -23,10 +23,10 @@ Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
  1 file changed, 112 deletions(-)
 
 diff --git a/block/rbd.c b/block/rbd.c
-index 98f4ba2620..efcbbe5949 100644
+index 0913a0af39..1dab254517 100644
 --- a/block/rbd.c
 +++ b/block/rbd.c
-@@ -97,12 +97,6 @@ typedef struct RBDTask {
+@@ -108,12 +108,6 @@ typedef struct RBDTask {
      int64_t ret;
  } RBDTask;
  
@@ -39,7 +39,7 @@ index 98f4ba2620..efcbbe5949 100644
  static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
                              BlockdevOptionsRbd *opts, bool cache,
                              const char *keypairs, const char *secretid,
-@@ -1293,111 +1287,6 @@ static ImageInfoSpecific *qemu_rbd_get_specific_info(BlockDriverState *bs,
+@@ -1456,111 +1450,6 @@ static ImageInfoSpecific *qemu_rbd_get_specific_info(BlockDriverState *bs,
      return spec_info;
  }
  
@@ -148,10 +148,10 @@ index 98f4ba2620..efcbbe5949 100644
 -    return status;
 -}
 -
- static int64_t qemu_rbd_getlength(BlockDriverState *bs)
+ static int64_t coroutine_fn qemu_rbd_co_getlength(BlockDriverState *bs)
  {
      BDRVRBDState *s = bs->opaque;
-@@ -1633,7 +1522,6 @@ static BlockDriver bdrv_rbd = {
+@@ -1796,7 +1685,6 @@ static BlockDriver bdrv_rbd = {
  #ifdef LIBRBD_SUPPORTS_WRITE_ZEROES
      .bdrv_co_pwrite_zeroes  = qemu_rbd_co_pwrite_zeroes,
  #endif

@@ -9,21 +9,23 @@ Subject: [PATCH] PVE-Backup: add backup-dump block driver
 - job.c: make job_should_pause non-static
 
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[FE: adapt to coroutine changes]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/backup-dump.c              | 167 +++++++++++++++++++++++++++++++
+ block/backup-dump.c              | 168 +++++++++++++++++++++++++++++++
  block/backup.c                   |  30 ++----
  block/meson.build                |   1 +
  include/block/block_int-common.h |  35 +++++++
  job.c                            |   3 +-
- 5 files changed, 213 insertions(+), 23 deletions(-)
+ 5 files changed, 214 insertions(+), 23 deletions(-)
  create mode 100644 block/backup-dump.c
 
 diff --git a/block/backup-dump.c b/block/backup-dump.c
 new file mode 100644
-index 0000000000..04718a94e2
+index 0000000000..232a094426
 --- /dev/null
 +++ b/block/backup-dump.c
-@@ -0,0 +1,167 @@
+@@ -0,0 +1,168 @@
 +/*
 + * BlockDriver to send backup data stream to a callback function
 + *
@@ -45,7 +47,8 @@ index 0000000000..04718a94e2
 +    void           *dump_cb_data;
 +} BDRVBackupDumpState;
 +
-+static int qemu_backup_dump_get_info(BlockDriverState *bs, BlockDriverInfo *bdi)
++static coroutine_fn int qemu_backup_dump_co_get_info(BlockDriverState *bs,
++                                                     BlockDriverInfo *bdi)
 +{
 +    BDRVBackupDumpState *s = bs->opaque;
 +
@@ -86,7 +89,7 @@ index 0000000000..04718a94e2
 +    /* Nothing to do. */
 +}
 +
-+static int64_t qemu_backup_dump_getlength(BlockDriverState *bs)
++static coroutine_fn int64_t qemu_backup_dump_co_getlength(BlockDriverState *bs)
 +{
 +    BDRVBackupDumpState *s = bs->opaque;
 +
@@ -146,8 +149,8 @@ index 0000000000..04718a94e2
 +
 +    .bdrv_close                   = qemu_backup_dump_close,
 +    .bdrv_has_zero_init           = bdrv_has_zero_init_1,
-+    .bdrv_getlength               = qemu_backup_dump_getlength,
-+    .bdrv_get_info                = qemu_backup_dump_get_info,
++    .bdrv_co_getlength            = qemu_backup_dump_co_getlength,
++    .bdrv_co_get_info             = qemu_backup_dump_co_get_info,
 +
 +    .bdrv_co_writev               = qemu_backup_dump_co_writev,
 +
@@ -192,7 +195,7 @@ index 0000000000..04718a94e2
 +    return bs;
 +}
 diff --git a/block/backup.c b/block/backup.c
-index 9b0151c5be..6e8f6e67b3 100644
+index 39410dcf8d..af87fa6aa9 100644
 --- a/block/backup.c
 +++ b/block/backup.c
 @@ -29,28 +29,6 @@
@@ -224,7 +227,7 @@ index 9b0151c5be..6e8f6e67b3 100644
  static const BlockJobDriver backup_job_driver;
  
  static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
-@@ -454,6 +432,14 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
+@@ -457,6 +435,14 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
      }
  
      cluster_size = block_copy_cluster_size(bcs);
@@ -240,7 +243,7 @@ index 9b0151c5be..6e8f6e67b3 100644
      if (perf->max_chunk && perf->max_chunk < cluster_size) {
          error_setg(errp, "Required max-chunk (%" PRIi64 ") is less than backup "
 diff --git a/block/meson.build b/block/meson.build
-index 4feae20e37..0d7023fc82 100644
+index 744b698a82..f580f95395 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -4,6 +4,7 @@ block_ss.add(files(
@@ -252,18 +255,18 @@ index 4feae20e37..0d7023fc82 100644
    'blkdebug.c',
    'blklogwrites.c',
 diff --git a/include/block/block_int-common.h b/include/block/block_int-common.h
-index 31ae91e56e..37b64bcd93 100644
+index f01bb8b617..d7ffd1826e 100644
 --- a/include/block/block_int-common.h
 +++ b/include/block/block_int-common.h
 @@ -26,6 +26,7 @@
  
- #include "block/accounting.h"
- #include "block/block.h"
+ #include "block/aio.h"
+ #include "block/block-common.h"
 +#include "block/block-copy.h"
- #include "block/aio-wait.h"
- #include "qemu/queue.h"
- #include "qemu/coroutine.h"
-@@ -64,6 +65,40 @@
+ #include "block/block-global-state.h"
+ #include "block/snapshot.h"
+ #include "qemu/iov.h"
+@@ -60,6 +61,40 @@
  
  #define BLOCK_PROBE_BUF_SIZE        512
  

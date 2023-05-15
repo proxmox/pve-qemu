@@ -13,11 +13,11 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 44 insertions(+)
 
 diff --git a/net/net.c b/net/net.c
-index 840ad9dca5..28e97c5d85 100644
+index 6492ad530e..33e901cba8 100644
 --- a/net/net.c
 +++ b/net/net.c
-@@ -1372,6 +1372,33 @@ void hmp_info_network(Monitor *mon, const QDict *qdict)
-     }
+@@ -1397,6 +1397,33 @@ RxFilterInfoList *qmp_query_rx_filter(const char *name, Error **errp)
+     return filter_list;
  }
  
 +int64_t qmp_get_link_status(const char *name, Error **errp)
@@ -51,7 +51,7 @@ index 840ad9dca5..28e97c5d85 100644
  {
      NetClientState *nc;
 diff --git a/qapi/net.json b/qapi/net.json
-index 522ac582ed..327d7c5a37 100644
+index d6eb30008b..4fe71b149d 100644
 --- a/qapi/net.json
 +++ b/qapi/net.json
 @@ -36,6 +36,21 @@

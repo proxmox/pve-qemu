@@ -21,10 +21,10 @@ Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
-index 43d40d11af..95c9c67cd8 100644
+index 113bbd7058..b75d7c6460 100644
 --- a/block/alloc-track.c
 +++ b/block/alloc-track.c
-@@ -174,7 +174,8 @@ static int coroutine_fn track_co_preadv(BlockDriverState *bs,
+@@ -175,7 +175,8 @@ static int coroutine_fn track_co_preadv(BlockDriverState *bs,
              ret = bdrv_co_preadv(bs->backing, local_offset, local_bytes,
                                   &local_qiov, flags);
          } else {

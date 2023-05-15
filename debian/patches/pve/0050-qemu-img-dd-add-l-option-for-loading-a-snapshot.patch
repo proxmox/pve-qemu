@@ -46,10 +46,10 @@ index b5b0bb4467..36f97e1f19 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index 59c403373b..065a54cc42 100644
+index 06d814e39c..e2c06c496d 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -4946,6 +4946,7 @@ static int img_dd(int argc, char **argv)
+@@ -5002,6 +5002,7 @@ static int img_dd(int argc, char **argv)
      BlockDriver *drv = NULL, *proto_drv = NULL;
      BlockBackend *blk1 = NULL, *blk2 = NULL;
      QemuOpts *opts = NULL;
@@ -57,7 +57,7 @@ index 59c403373b..065a54cc42 100644
      QemuOptsList *create_opts = NULL;
      Error *local_err = NULL;
      bool image_opts = false;
-@@ -4955,6 +4956,7 @@ static int img_dd(int argc, char **argv)
+@@ -5011,6 +5012,7 @@ static int img_dd(int argc, char **argv)
      int64_t size = 0, readsize = 0;
      int64_t out_pos, in_pos;
      bool force_share = false, skip_create = false;
@@ -65,7 +65,7 @@ index 59c403373b..065a54cc42 100644
      struct DdInfo dd = {
          .flags = 0,
          .count = 0,
-@@ -4992,7 +4994,7 @@ static int img_dd(int argc, char **argv)
+@@ -5048,7 +5050,7 @@ static int img_dd(int argc, char **argv)
          { 0, 0, 0, 0 }
      };
  
@@ -74,7 +74,7 @@ index 59c403373b..065a54cc42 100644
          if (c == EOF) {
              break;
          }
-@@ -5015,6 +5017,19 @@ static int img_dd(int argc, char **argv)
+@@ -5071,6 +5073,19 @@ static int img_dd(int argc, char **argv)
          case 'n':
              skip_create = true;
              break;
@@ -94,7 +94,7 @@ index 59c403373b..065a54cc42 100644
          case 'U':
              force_share = true;
              break;
-@@ -5074,11 +5089,24 @@ static int img_dd(int argc, char **argv)
+@@ -5130,11 +5145,24 @@ static int img_dd(int argc, char **argv)
      if (dd.flags & C_IF) {
          blk1 = img_open(image_opts, in.filename, fmt, 0, false, false,
                          force_share);
@@ -120,7 +120,7 @@ index 59c403373b..065a54cc42 100644
      }
  
      if (dd.flags & C_OSIZE) {
-@@ -5233,6 +5261,7 @@ static int img_dd(int argc, char **argv)
+@@ -5289,6 +5317,7 @@ static int img_dd(int argc, char **argv)
  out:
      g_free(arg);
      qemu_opts_del(opts);

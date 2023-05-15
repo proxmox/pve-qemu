@@ -17,10 +17,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 14 insertions(+), 3 deletions(-)
 
 diff --git a/block/pbs.c b/block/pbs.c
-index 9d1f1f39d4..ce9a870885 100644
+index 43e69ada46..5d20789084 100644
 --- a/block/pbs.c
 +++ b/block/pbs.c
-@@ -200,7 +200,16 @@ static coroutine_fn int pbs_co_preadv(BlockDriverState *bs,
+@@ -201,7 +201,16 @@ static coroutine_fn int pbs_co_preadv(BlockDriverState *bs,
      BDRVPBSState *s = bs->opaque;
      int ret;
      char *pbs_error = NULL;
@@ -38,7 +38,7 @@ index 9d1f1f39d4..ce9a870885 100644
  
      if (offset < 0 || bytes < 0) {
          fprintf(stderr, "unexpected negative 'offset' or 'bytes' value!\n");
-@@ -223,8 +232,10 @@ static coroutine_fn int pbs_co_preadv(BlockDriverState *bs,
+@@ -224,8 +233,10 @@ static coroutine_fn int pbs_co_preadv(BlockDriverState *bs,
          return -EIO;
      }
  

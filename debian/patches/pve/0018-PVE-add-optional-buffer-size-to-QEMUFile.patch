@@ -19,7 +19,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 38 insertions(+), 18 deletions(-)
 
 diff --git a/migration/qemu-file.c b/migration/qemu-file.c
-index 2d5f74ffc2..9fd97e6fe1 100644
+index 102ab3b439..5ced17aba4 100644
 --- a/migration/qemu-file.c
 +++ b/migration/qemu-file.c
 @@ -31,8 +31,8 @@
@@ -178,7 +178,7 @@ index 2d5f74ffc2..9fd97e6fe1 100644
      if (blen < compressBound(size)) {
          return -1;
 diff --git a/migration/qemu-file.h b/migration/qemu-file.h
-index fa13d04d78..914f1a63a8 100644
+index 9d0155a2a1..cc06240e8d 100644
 --- a/migration/qemu-file.h
 +++ b/migration/qemu-file.h
 @@ -63,7 +63,9 @@ typedef struct QEMUFileHooks {
@@ -192,10 +192,10 @@ index fa13d04d78..914f1a63a8 100644
  int qemu_fclose(QEMUFile *f);
  
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index dc30558713..a38e7351c1 100644
+index 24660af014..70273a2996 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
-@@ -374,7 +374,7 @@ void qmp_savevm_start(bool has_statefile, const char *statefile, Error **errp)
+@@ -372,7 +372,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
  
      QIOChannel *ioc = QIO_CHANNEL(qio_channel_savevm_async_new(snap_state.target,
                                                                 &snap_state.bs_pos));
@@ -204,7 +204,7 @@ index dc30558713..a38e7351c1 100644
  
      if (!snap_state.file) {
          error_set(errp, ERROR_CLASS_GENERIC_ERROR, "failed to open '%s'", statefile);
-@@ -507,7 +507,8 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
+@@ -504,7 +504,8 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
      blk_op_block_all(be, blocker);
  
      /* restore the VM state */
