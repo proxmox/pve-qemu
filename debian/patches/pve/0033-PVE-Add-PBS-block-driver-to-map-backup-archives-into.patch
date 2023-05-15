@@ -7,18 +7,20 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 [error cleanups, file_open implementation]
 Signed-off-by: Dietmar Maurer <dietmar@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[WB: add namespace support]
+Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 [FE: adapt to changed function signatures
      make pbs_co_preadv return values consistent with QEMU
      getlength is now a coroutine function]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build    |   3 +
- block/pbs.c          | 277 +++++++++++++++++++++++++++++++++++++++++++
+ block/pbs.c          | 305 +++++++++++++++++++++++++++++++++++++++++++
  configure            |   9 ++
  meson.build          |   2 +-
  qapi/block-core.json |  13 ++
  qapi/pragma.json     |   1 +
- 6 files changed, 304 insertions(+), 1 deletion(-)
+ 6 files changed, 332 insertions(+), 1 deletion(-)
  create mode 100644 block/pbs.c
 
 diff --git a/block/meson.build b/block/meson.build
@@ -37,10 +39,10 @@ index 5bcebb934b..eece0d5743 100644
  softmmu_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/pbs.c b/block/pbs.c
 new file mode 100644
-index 0000000000..43e69ada46
+index 0000000000..a2211e0f3b
 --- /dev/null
 +++ b/block/pbs.c
-@@ -0,0 +1,277 @@
+@@ -0,0 +1,305 @@
 +/*
 + * Proxmox Backup Server read-only block driver
 + */
@@ -58,6 +60,7 @@ index 0000000000..43e69ada46
 +#include <proxmox-backup-qemu.h>
 +
 +#define PBS_OPT_REPOSITORY "repository"
++#define PBS_OPT_NAMESPACE "namespace"
 +#define PBS_OPT_SNAPSHOT "snapshot"
 +#define PBS_OPT_ARCHIVE "archive"
 +#define PBS_OPT_KEYFILE "keyfile"
@@ -71,6 +74,7 @@ index 0000000000..43e69ada46
 +    int64_t length;
 +
 +    char *repository;
++    char *namespace;
 +    char *snapshot;
 +    char *archive;
 +} BDRVPBSState;
@@ -83,6 +87,11 @@ index 0000000000..43e69ada46
 +            .name = PBS_OPT_REPOSITORY,
 +            .type = QEMU_OPT_STRING,
 +            .help = "The server address and repository to connect to.",
++        },
++        {
++            .name = PBS_OPT_NAMESPACE,
++            .type = QEMU_OPT_STRING,
++            .help = "Optional: The snapshot's namespace.",
 +        },
 +        {
 +            .name = PBS_OPT_SNAPSHOT,
@@ -120,7 +129,7 @@ index 0000000000..43e69ada46
 +
 +
 +// filename format:
-+// pbs:repository=<repo>,snapshot=<snap>,password=<pw>,key_password=<kpw>,fingerprint=<fp>,archive=<archive>
++// pbs:repository=<repo>,namespace=<ns>,snapshot=<snap>,password=<pw>,key_password=<kpw>,fingerprint=<fp>,archive=<archive>
 +static void pbs_parse_filename(const char *filename, QDict *options,
 +                                     Error **errp)
 +{
@@ -156,6 +165,7 @@ index 0000000000..43e69ada46
 +    s->archive = g_strdup(qemu_opt_get(opts, PBS_OPT_ARCHIVE));
 +    const char *keyfile = qemu_opt_get(opts, PBS_OPT_KEYFILE);
 +    const char *password = qemu_opt_get(opts, PBS_OPT_PASSWORD);
++    const char *namespace = qemu_opt_get(opts, PBS_OPT_NAMESPACE);
 +    const char *fingerprint = qemu_opt_get(opts, PBS_OPT_FINGERPRINT);
 +    const char *key_password = qemu_opt_get(opts, PBS_OPT_ENCRYPTION_PASSWORD);
 +
@@ -168,9 +178,12 @@ index 0000000000..43e69ada46
 +    if (!key_password) {
 +        key_password = getenv("PBS_ENCRYPTION_PASSWORD");
 +    }
++    if (namespace) {
++        s->namespace = g_strdup(namespace);
++    }
 +
 +    /* connect to PBS server in read mode */
-+    s->conn = proxmox_restore_new(s->repository, s->snapshot, password,
++    s->conn = proxmox_restore_new_ns(s->repository, s->snapshot, s->namespace, password,
 +        keyfile, key_password, fingerprint, &pbs_error);
 +
 +    /* invalidates qemu_opt_get char pointers from above */
@@ -215,6 +228,7 @@ index 0000000000..43e69ada46
 +static void pbs_close(BlockDriverState *bs) {
 +    BDRVPBSState *s = bs->opaque;
 +    g_free(s->repository);
++    g_free(s->namespace);
 +    g_free(s->snapshot);
 +    g_free(s->archive);
 +    proxmox_restore_disconnect(s->conn);
@@ -244,7 +258,16 @@ index 0000000000..43e69ada46
 +    BDRVPBSState *s = bs->opaque;
 +    int ret;
 +    char *pbs_error = NULL;
-+    uint8_t *buf = malloc(bytes);
++    uint8_t *buf;
++    bool inline_buf = true;
++
++    /* for single-buffer IO vectors we can fast-path the write directly to it */
++    if (qiov->niov == 1 && qiov->iov->iov_len >= bytes) {
++        buf = qiov->iov->iov_base;
++    } else {
++        inline_buf = false;
++        buf = g_malloc(bytes);
++    }
 +
 +    if (offset < 0 || bytes < 0) {
 +        fprintf(stderr, "unexpected negative 'offset' or 'bytes' value!\n");
@@ -267,8 +290,10 @@ index 0000000000..43e69ada46
 +        return -EIO;
 +    }
 +
-+    qemu_iovec_from_buf(qiov, 0, buf, bytes);
-+    free(buf);
++    if (!inline_buf) {
++        qemu_iovec_from_buf(qiov, 0, buf, bytes);
++        g_free(buf);
++    }
 +
 +    return 0;
 +}
@@ -285,8 +310,13 @@ index 0000000000..43e69ada46
 +static void pbs_refresh_filename(BlockDriverState *bs)
 +{
 +    BDRVPBSState *s = bs->opaque;
-+    snprintf(bs->exact_filename, sizeof(bs->exact_filename), "%s/%s(%s)",
-+             s->repository, s->snapshot, s->archive);
++    if (s->namespace) {
++        snprintf(bs->exact_filename, sizeof(bs->exact_filename), "%s/%s:%s(%s)",
++                 s->repository, s->namespace, s->snapshot, s->archive);
++    } else {
++        snprintf(bs->exact_filename, sizeof(bs->exact_filename), "%s/%s(%s)",
++                 s->repository, s->snapshot, s->archive);
++    }
 +}
 +
 +static const char *const pbs_strong_runtime_opts[] = {
@@ -373,10 +403,10 @@ index afd105001e..d01ee5d489 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libudev':           libudev}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 864b8ce97c..705a65ab1a 100644
+index 4ec70acf95..47118bf83e 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3198,6 +3198,7 @@
+@@ -3301,6 +3301,7 @@
              'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
              'raw', 'rbd',
              { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
@@ -384,7 +414,7 @@ index 864b8ce97c..705a65ab1a 100644
              'ssh', 'throttle', 'vdi', 'vhdx',
              { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
              { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
-@@ -3274,6 +3275,17 @@
+@@ -3377,6 +3378,17 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -397,12 +427,12 @@ index 864b8ce97c..705a65ab1a 100644
 +{ 'struct': 'BlockdevOptionsPbs',
 +  'data': { 'repository': 'str', 'snapshot': 'str', 'archive': 'str',
 +            '*keyfile': 'str', '*password': 'str', '*fingerprint': 'str',
-+            '*key_password': 'str' } }
++            '*key_password': 'str', '*namespace': 'str' } }
 +
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -4647,6 +4659,7 @@
+@@ -4750,6 +4762,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',

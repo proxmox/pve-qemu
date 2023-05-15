@@ -25,20 +25,21 @@ once the backing image is removed. It will be replaced by 'file'.
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: adapt to changed function signatures
-     make error return value consistent with QEMU]
+     make error return value consistent with QEMU
+     avoid premature break during read]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/alloc-track.c | 351 ++++++++++++++++++++++++++++++++++++++++++++
+ block/alloc-track.c | 352 ++++++++++++++++++++++++++++++++++++++++++++
  block/meson.build   |   1 +
- 2 files changed, 352 insertions(+)
+ 2 files changed, 353 insertions(+)
  create mode 100644 block/alloc-track.c
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
 new file mode 100644
-index 0000000000..113bbd7058
+index 0000000000..b75d7c6460
 --- /dev/null
 +++ b/block/alloc-track.c
-@@ -0,0 +1,351 @@
+@@ -0,0 +1,352 @@
 +/*
 + * Node to allow backing images to be applied to any node. Assumes a blank
 + * image to begin with, only new writes are tracked as allocated, thus this
@@ -216,7 +217,8 @@ index 0000000000..113bbd7058
 +            ret = bdrv_co_preadv(bs->backing, local_offset, local_bytes,
 +                                 &local_qiov, flags);
 +        } else {
-+            ret = qemu_iovec_memset(&local_qiov, cur_offset, 0, local_bytes);
++            qemu_iovec_memset(&local_qiov, cur_offset, 0, local_bytes);
++            ret = 0;
 +        }
 +
 +        if (ret != 0) {

@@ -1,9 +1,9 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Fabian Ebner <f.ebner@proxmox.com>
 Date: Mon, 7 Feb 2022 14:21:01 +0100
-Subject: [PATCH] qemu-img: dd: add -l option for loading a snapshot
+Subject: [PATCH] qemu-img dd: add -l option for loading a snapshot
 
-Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  docs/tools/qemu-img.rst |  6 +++---

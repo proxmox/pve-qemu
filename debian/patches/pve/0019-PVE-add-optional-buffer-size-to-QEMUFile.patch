@@ -192,10 +192,10 @@ index 9d0155a2a1..cc06240e8d 100644
  int qemu_fclose(QEMUFile *f);
  
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index 24660af014..70273a2996 100644
+index c5db9e9c1e..effe6d1e0d 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
-@@ -372,7 +372,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+@@ -380,7 +380,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
  
      QIOChannel *ioc = QIO_CHANNEL(qio_channel_savevm_async_new(snap_state.target,
                                                                 &snap_state.bs_pos));
@@ -204,7 +204,7 @@ index 24660af014..70273a2996 100644
  
      if (!snap_state.file) {
          error_set(errp, ERROR_CLASS_GENERIC_ERROR, "failed to open '%s'", statefile);
-@@ -504,7 +504,8 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
+@@ -513,7 +513,8 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
      blk_op_block_all(be, blocker);
  
      /* restore the VM state */

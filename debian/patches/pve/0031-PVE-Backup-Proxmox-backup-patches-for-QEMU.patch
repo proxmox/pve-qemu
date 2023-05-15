@@ -1,32 +1,102 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Dietmar Maurer <dietmar@proxmox.com>
 Date: Mon, 6 Apr 2020 12:16:59 +0200
-Subject: [PATCH] PVE-Backup: proxmox backup patches for qemu
+Subject: [PATCH] PVE-Backup: Proxmox backup patches for QEMU
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+For PBS, using dirty bitmaps is supported via QEMU's
+MIRROR_SYNC_MODE_BITMAP. When the feature is used, the data-write
+callback is only executed for any changed chunks, the PBS rust code
+will reuse chunks from the previous index for everything it doesn't
+receive if reuse_index is true. On error or cancellation, all dirty
+bitmaps are removed to ensure consistency.
+
+By using a JobTxn, we can sync dirty bitmaps only when *all* jobs were
+successful - meaning we don't need to remove them when the backup
+fails, since QEMU's BITMAP_SYNC_MODE_ON_SUCCESS will now handle that
+for us. A sequential transaction is used, so drives will be backed up
+one after the other.
+
+The backup and backup-cancel QMP calls are coroutines. This has the
+benefit that calls are asynchronous to the main loop, i.e. long
+running operations like connecting to a PBS server will no longer hang
+the VM.
+
+backup_job_create() and job_cancel_sync() cannot be run from a
+coroutine and requires an acuqired AioContext, so the job creation and
+canceling are extracted as bottom halves and called from the
+respective QMP coroutines.
+
+To communicate the finishing state, a dedicated property is used for
+query-backup: 'finishing'. A dedicated state is explicitly not used,
+since that would break compatibility with older qemu-server versions.
+
+The first call to job_cancel_sync() will cancel and free all jobs in
+the transaction, but it is necessary to pick a job that is:
+1. still referenced. For this, there is a job_ref directly after job
+creation paired with a job_unref in cleanup paths.
+2. not yet finalized. In job_cancel_bh(), the first job that's not
+completed yet is used. This is not necessarily the first job in the
+list, because pvebackup_co_complete_stream() might not yet have
+removed a completed job when job_cancel_bh() runs. Why even bother
+with the bottom half at all and not use job_cancel() in
+qmp_backup_cancel() directly? The reason is that qmp_backup_cancel()
+is a coroutine, so it will hang when reaching AIO_WAIT_WHILE() and
+job_cancel() might end up calling that.
+
+Regarding BackupPerf performance settings. For now, only the
+max-workers setting is exposed, because:
+1. use-copy-range would need to be implemented in backup-dump and the
+feature was actually turned off by default in QEMU itself, because it
+didn't provide the expected benefit, see commit 6a30f663d4 ("qapi:
+backup: disable copy_range by default").
+2. max-chunk: enforced to be at least the backup cluster size (4 MiB
+for PBS) and otherwise maximum of source and target cluster size.
+And block-copy has a maximum buffer size of 1 MiB, so setting a larger
+max-chunk doesn't even have an effect. To make the setting sensibly
+usable the check would need to be removed and optionally the
+block-copy max buffer size would need to be bumped. I tried doing just
+that, and tested different source/target combinations with different
+max-chunk settings, but there were no noticable improvements over the
+default "unlimited" (resulting in 1 MiB for block-copy).
 
 Signed-off-by: Dietmar Maurer <dietmar@proxmox.com>
-[PVE-Backup: avoid coroutines to fix AIO freeze, cleanups]
+[SR: Add dirty-bitmap tracking for incremental backups
+     Add query_proxmox_support and query-pbs-bitmap-info QMP calls
+     Use a transaction to synchronize job states
+     Co-routine and async-related improvements
+     Improve finishing backups/cleanups
+     Various other improvements]
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
+[FG: add master key support]
+Signed-off-by: Fabian Grünbichler <f.gruenbichler@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[WB: add PBS namespace support]
+Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 [FE: add new force parameter to job_cancel_sync calls
      adapt for new job lock mechanism replacing AioContext locks
-     adapt to QAPI changes]
+     adapt to QAPI changes
+     improve canceling
+     allow passing max-workers setting]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/meson.build              |   5 +
- block/monitor/block-hmp-cmds.c |  33 ++
- blockdev.c                     |   1 +
- hmp-commands-info.hx           |  14 +
- hmp-commands.hx                |  29 +
- include/monitor/hmp.h          |   3 +
- meson.build                    |   1 +
- monitor/hmp-cmds.c             |  45 ++
- proxmox-backup-client.c        | 176 +++++++
- proxmox-backup-client.h        |  59 +++
- pve-backup.c                   | 938 +++++++++++++++++++++++++++++++++
- qapi/block-core.json           | 109 ++++
- qapi/common.json               |  13 +
- qapi/machine.json              |  15 +-
- 14 files changed, 1428 insertions(+), 13 deletions(-)
+ block/meson.build              |    5 +
+ block/monitor/block-hmp-cmds.c |   40 ++
+ blockdev.c                     |    1 +
+ hmp-commands-info.hx           |   14 +
+ hmp-commands.hx                |   31 +
+ include/monitor/hmp.h          |    3 +
+ meson.build                    |    1 +
+ monitor/hmp-cmds.c             |   72 +++
+ proxmox-backup-client.c        |  146 +++++
+ proxmox-backup-client.h        |   60 ++
+ pve-backup.c                   | 1097 ++++++++++++++++++++++++++++++++
+ qapi/block-core.json           |  226 +++++++
+ qapi/common.json               |   13 +
+ qapi/machine.json              |   15 +-
+ 14 files changed, 1711 insertions(+), 13 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
@@ -48,15 +118,15 @@ index f580f95395..5bcebb934b 100644
  softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  softmmu_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index ca2599de44..d50e99df26 100644
+index ca2599de44..636509b83e 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1029,3 +1029,36 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+@@ -1029,3 +1029,43 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
      qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
                                 !!read_only, read_only_mode, errp);
  }
 +
-+void hmp_backup_cancel(Monitor *mon, const QDict *qdict)
++void coroutine_fn hmp_backup_cancel(Monitor *mon, const QDict *qdict)
 +{
 +    Error *error = NULL;
 +
@@ -65,7 +135,7 @@ index ca2599de44..d50e99df26 100644
 +    hmp_handle_error(mon, error);
 +}
 +
-+void hmp_backup(Monitor *mon, const QDict *qdict)
++void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
 +{
 +    Error *error = NULL;
 +
@@ -79,12 +149,19 @@ index ca2599de44..d50e99df26 100644
 +        NULL, // PBS password
 +        NULL, // PBS keyfile
 +        NULL, // PBS key_password
++        NULL, // PBS master_keyfile
 +        NULL, // PBS fingerprint
++        NULL, // PBS backup-ns
 +        NULL, // PBS backup-id
 +        false, 0, // PBS backup-time
++        false, false, // PBS use-dirty-bitmap
++        false, false, // PBS compress
++        false, false, // PBS encrypt
 +        true, dir ? BACKUP_FORMAT_DIR : BACKUP_FORMAT_VMA,
 +        NULL, NULL,
-+        devlist, qdict_haskey(qdict, "speed"), speed, &error);
++        devlist, qdict_haskey(qdict, "speed"), speed,
++        false, 0, // BackupPerf max-workers
++        &error);
 +
 +    hmp_handle_error(mon, error);
 +}
@@ -126,10 +203,10 @@ index a166bff3d5..4b75966c2e 100644
      {
          .name       = "usernet",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index b66d7fc4ab..9b6b8e2e9c 100644
+index b66d7fc4ab..896430dae8 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
-@@ -101,6 +101,35 @@ ERST
+@@ -101,6 +101,37 @@ ERST
  SRST
  ``block_stream``
    Copy data from a backing file into a block device.
@@ -143,6 +220,7 @@ index b66d7fc4ab..9b6b8e2e9c 100644
 +		    "\n\t\t\t Use -d to dump data into a directory instead"
 +		    "\n\t\t\t of using VMA format.",
 +        .cmd = hmp_backup,
++        .coroutine  = true,
 +    },
 +
 +SRST
@@ -156,6 +234,7 @@ index b66d7fc4ab..9b6b8e2e9c 100644
 +        .params     = "",
 +        .help       = "cancel the current VM backup",
 +        .cmd        = hmp_backup_cancel,
++        .coroutine  = true,
 +    },
 +
 +SRST
@@ -199,7 +278,7 @@ index 603cdb97bb..d307d8eabf 100644
  # libselinux
  selinux = dependency('libselinux',
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 435f9334f9..9e1bd57aeb 100644
+index 435f9334f9..9a67e544ce 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
 @@ -21,6 +21,7 @@
@@ -210,13 +289,14 @@ index 435f9334f9..9e1bd57aeb 100644
  #include "qapi/qapi-commands-control.h"
  #include "qapi/qapi-commands-migration.h"
  #include "qapi/qapi-commands-misc.h"
-@@ -144,6 +145,50 @@ void hmp_sync_profile(Monitor *mon, const QDict *qdict)
+@@ -144,6 +145,77 @@ void hmp_sync_profile(Monitor *mon, const QDict *qdict)
      }
  }
  
 +void hmp_info_backup(Monitor *mon, const QDict *qdict)
 +{
 +    BackupStatus *info;
++    PBSBitmapInfoList *bitmap_info;
 +
 +    info = qmp_query_backup(NULL);
 +
@@ -240,19 +320,45 @@ index 435f9334f9..9e1bd57aeb 100644
 +            monitor_printf(mon, "End time: %s", ctime(&info->end_time));
 +        }
 +
-+        int per = (info->has_total && info->total &&
-+            info->has_transferred && info->transferred) ?
-+            (info->transferred * 100)/info->total : 0;
-+        int zero_per = (info->has_total && info->total &&
-+                        info->has_zero_bytes && info->zero_bytes) ?
-+            (info->zero_bytes * 100)/info->total : 0;
 +        monitor_printf(mon, "Backup file: %s\n", info->backup_file);
 +        monitor_printf(mon, "Backup uuid: %s\n", info->uuid);
-+        monitor_printf(mon, "Total size: %zd\n", info->total);
-+        monitor_printf(mon, "Transferred bytes: %zd (%d%%)\n",
-+                       info->transferred, per);
-+        monitor_printf(mon, "Zero bytes: %zd (%d%%)\n",
-+                       info->zero_bytes, zero_per);
++
++        if (!(info->has_total && info->total))  {
++            // this should not happen normally
++            monitor_printf(mon, "Total size: %d\n", 0);
++        } else {
++            size_t total_or_dirty = info->total;
++            bitmap_info = qmp_query_pbs_bitmap_info(NULL);
++
++            while (bitmap_info) {
++                monitor_printf(mon, "Drive %s:\n",
++                        bitmap_info->value->drive);
++                monitor_printf(mon, "  bitmap action: %s\n",
++                        PBSBitmapAction_str(bitmap_info->value->action));
++                monitor_printf(mon, "  size: %zd\n",
++                        bitmap_info->value->size);
++                monitor_printf(mon, "  dirty: %zd\n",
++                        bitmap_info->value->dirty);
++                bitmap_info = bitmap_info->next;
++            }
++
++            qapi_free_PBSBitmapInfoList(bitmap_info);
++
++            int zero_per = (info->has_zero_bytes && info->zero_bytes) ?
++                (info->zero_bytes * 100)/info->total : 0;
++            monitor_printf(mon, "Total size: %zd\n", info->total);
++            int trans_per = (info->transferred * 100)/total_or_dirty;
++            monitor_printf(mon, "Transferred bytes: %zd (%d%%)\n",
++                           info->transferred, trans_per);
++            monitor_printf(mon, "Zero bytes: %zd (%d%%)\n",
++                           info->zero_bytes, zero_per);
++
++            if (info->has_reused) {
++                int reused_per = (info->reused * 100)/total_or_dirty;
++                monitor_printf(mon, "Reused bytes: %zd (%d%%)\n",
++                               info->reused, reused_per);
++            }
++        }
 +    }
 +
 +    qapi_free_BackupStatus(info);
@@ -263,47 +369,16 @@ index 435f9334f9..9e1bd57aeb 100644
      Error *err = NULL;
 diff --git a/proxmox-backup-client.c b/proxmox-backup-client.c
 new file mode 100644
-index 0000000000..a8f6653a81
+index 0000000000..0923037dec
 --- /dev/null
 +++ b/proxmox-backup-client.c
-@@ -0,0 +1,176 @@
+@@ -0,0 +1,146 @@
 +#include "proxmox-backup-client.h"
 +#include "qemu/main-loop.h"
 +#include "block/aio-wait.h"
 +#include "qapi/error.h"
 +
 +/* Proxmox Backup Server client bindings using coroutines */
-+
-+typedef struct BlockOnCoroutineWrapper {
-+    AioContext *ctx;
-+    CoroutineEntry *entry;
-+    void *entry_arg;
-+    bool finished;
-+} BlockOnCoroutineWrapper;
-+
-+static void coroutine_fn block_on_coroutine_wrapper(void *opaque)
-+{
-+    BlockOnCoroutineWrapper *wrapper = opaque;
-+    wrapper->entry(wrapper->entry_arg);
-+    wrapper->finished = true;
-+    aio_wait_kick();
-+}
-+
-+void block_on_coroutine_fn(CoroutineEntry *entry, void *entry_arg)
-+{
-+    assert(!qemu_in_coroutine());
-+
-+    AioContext *ctx = qemu_get_current_aio_context();
-+    BlockOnCoroutineWrapper wrapper = {
-+        .finished = false,
-+        .entry = entry,
-+        .entry_arg = entry_arg,
-+        .ctx = ctx,
-+    };
-+    Coroutine *wrapper_co = qemu_coroutine_create(block_on_coroutine_wrapper, &wrapper);
-+    aio_co_enter(ctx, wrapper_co);
-+    AIO_WAIT_WHILE(ctx, !wrapper.finished);
-+}
 +
 +// This is called from another thread, so we use aio_co_schedule()
 +static void proxmox_backup_schedule_wake(void *data) {
@@ -358,6 +433,7 @@ index 0000000000..a8f6653a81
 +    ProxmoxBackupHandle *pbs,
 +    const char *device_name,
 +    uint64_t size,
++    bool incremental,
 +    Error **errp)
 +{
 +    Coroutine *co = qemu_coroutine_self();
@@ -367,7 +443,7 @@ index 0000000000..a8f6653a81
 +    int pbs_res = -1;
 +
 +    proxmox_backup_register_image_async(
-+        pbs, device_name, size ,proxmox_backup_schedule_wake, &waker, &pbs_res, &pbs_err);
++        pbs, device_name, size, incremental, proxmox_backup_schedule_wake, &waker, &pbs_res, &pbs_err);
 +    qemu_coroutine_yield();
 +    if (pbs_res < 0) {
 +        if (errp) error_setg(errp, "backup register image failed: %s", pbs_err ? pbs_err : "unknown error");
@@ -445,10 +521,10 @@ index 0000000000..a8f6653a81
 +}
 diff --git a/proxmox-backup-client.h b/proxmox-backup-client.h
 new file mode 100644
-index 0000000000..1dda8b7d8f
+index 0000000000..8cbf645b2c
 --- /dev/null
 +++ b/proxmox-backup-client.h
-@@ -0,0 +1,59 @@
+@@ -0,0 +1,60 @@
 +#ifndef PROXMOX_BACKUP_CLIENT_H
 +#define PROXMOX_BACKUP_CLIENT_H
 +
@@ -483,6 +559,7 @@ index 0000000000..1dda8b7d8f
 +    ProxmoxBackupHandle *pbs,
 +    const char *device_name,
 +    uint64_t size,
++    bool incremental,
 +    Error **errp);
 +
 +
@@ -510,10 +587,10 @@ index 0000000000..1dda8b7d8f
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..f77892a509
+index 0000000000..dd72ee0ed6
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,938 @@
+@@ -0,0 +1,1097 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -523,8 +600,12 @@ index 0000000000..f77892a509
 +#include "sysemu/blockdev.h"
 +#include "block/block_int-global-state.h"
 +#include "block/blockjob.h"
++#include "block/dirty-bitmap.h"
 +#include "qapi/qapi-commands-block.h"
 +#include "qapi/qmp/qerror.h"
++#include "qemu/cutils.h"
++
++#include <proxmox-backup-qemu.h>
 +
 +/* PVE backup state and related function */
 +
@@ -545,9 +626,13 @@ index 0000000000..f77892a509
 + *
 + */
 +
++const char *PBS_BITMAP_NAME = "pbs-incremental-dirty-bitmap";
++
 +static struct PVEBackupState {
 +    struct {
-+        // Everithing accessed from qmp_backup_query command is protected using lock
++        // Everything accessed from qmp_backup_query command is protected using
++        // this lock. Do NOT hold this lock for long times, as it is sometimes
++        // acquired from coroutines, and thus any wait time may block the guest.
 +        QemuMutex lock;
 +        Error *error;
 +        time_t start_time;
@@ -556,21 +641,28 @@ index 0000000000..f77892a509
 +        uuid_t uuid;
 +        char uuid_str[37];
 +        size_t total;
++        size_t dirty;
 +        size_t transferred;
++        size_t reused;
 +        size_t zero_bytes;
++        GList *bitmap_list;
++        bool finishing;
++        bool starting;
 +    } stat;
 +    int64_t speed;
++    BackupPerf perf;
 +    VmaWriter *vmaw;
 +    ProxmoxBackupHandle *pbs;
 +    GList *di_list;
-+    QemuMutex backup_mutex;
++    JobTxn *txn;
++    CoMutex backup_mutex;
 +    CoMutex dump_callback_mutex;
 +} backup_state;
 +
 +static void pvebackup_init(void)
 +{
 +    qemu_mutex_init(&backup_state.stat.lock);
-+    qemu_mutex_init(&backup_state.backup_mutex);
++    qemu_co_mutex_init(&backup_state.backup_mutex);
 +    qemu_co_mutex_init(&backup_state.dump_callback_mutex);
 +}
 +
@@ -580,33 +672,14 @@ index 0000000000..f77892a509
 +typedef struct PVEBackupDevInfo {
 +    BlockDriverState *bs;
 +    size_t size;
++    uint64_t block_size;
 +    uint8_t dev_id;
-+    bool completed;
++    int completed_ret; // INT_MAX if not completed
 +    char targetfile[PATH_MAX];
++    BdrvDirtyBitmap *bitmap;
 +    BlockDriverState *target;
++    BlockJob *job;
 +} PVEBackupDevInfo;
-+
-+static void pvebackup_run_next_job(void);
-+
-+static BlockJob *
-+lookup_active_block_job(PVEBackupDevInfo *di)
-+{
-+    if (!di->completed && di->bs) {
-+        WITH_JOB_LOCK_GUARD() {
-+            for (BlockJob *job = block_job_next_locked(NULL); job; job = block_job_next_locked(job)) {
-+                if (job->job.driver->job_type != JOB_TYPE_BACKUP) {
-+                    continue;
-+                }
-+
-+                BackupBlockJob *bjob = container_of(job, BackupBlockJob, common);
-+                if (bjob && bjob->source_bs == di->bs) {
-+                    return job;
-+                }
-+            }
-+        }
-+    }
-+    return NULL;
-+}
 +
 +static void pvebackup_propagate_error(Error *err)
 +{
@@ -624,11 +697,12 @@ index 0000000000..f77892a509
 +    return error_or_canceled;
 +}
 +
-+static void pvebackup_add_transfered_bytes(size_t transferred, size_t zero_bytes)
++static void pvebackup_add_transfered_bytes(size_t transferred, size_t zero_bytes, size_t reused)
 +{
 +    qemu_mutex_lock(&backup_state.stat.lock);
 +    backup_state.stat.zero_bytes += zero_bytes;
 +    backup_state.stat.transferred += transferred;
++    backup_state.stat.reused += reused;
 +    qemu_mutex_unlock(&backup_state.stat.lock);
 +}
 +
@@ -648,9 +722,12 @@ index 0000000000..f77892a509
 +    PVEBackupDevInfo *di = opaque;
 +
 +    assert(backup_state.pbs);
++    assert(buf);
 +
 +    Error *local_err = NULL;
 +    int pbs_res = -1;
++
++    bool is_zero_block = size == di->block_size && buffer_is_zero(buf, size);
 +
 +    qemu_co_mutex_lock(&backup_state.dump_callback_mutex);
 +
@@ -660,15 +737,28 @@ index 0000000000..f77892a509
 +        return -1;
 +    }
 +
-+    pbs_res = proxmox_backup_co_write_data(backup_state.pbs, di->dev_id, buf, start, size, &local_err);
-+    qemu_co_mutex_unlock(&backup_state.dump_callback_mutex);
++    uint64_t transferred = 0;
++    uint64_t reused = 0;
++    while (transferred < size) {
++        uint64_t left = size - transferred;
++        uint64_t to_transfer = left < di->block_size ? left : di->block_size;
 +
-+    if (pbs_res < 0) {
-+        pvebackup_propagate_error(local_err);
-+        return pbs_res;
-+    } else {
-+        pvebackup_add_transfered_bytes(size, !buf ? size : 0);
++        pbs_res = proxmox_backup_co_write_data(backup_state.pbs, di->dev_id,
++            is_zero_block ? NULL : buf + transferred, start + transferred,
++            to_transfer, &local_err);
++        transferred += to_transfer;
++
++        if (pbs_res < 0) {
++            pvebackup_propagate_error(local_err);
++            qemu_co_mutex_unlock(&backup_state.dump_callback_mutex);
++            return pbs_res;
++        }
++
++        reused += pbs_res == 0 ? to_transfer : 0;
 +    }
++
++    qemu_co_mutex_unlock(&backup_state.dump_callback_mutex);
++    pvebackup_add_transfered_bytes(size, is_zero_block ? size : 0, reused);
 +
 +    return size;
 +}
@@ -690,6 +780,7 @@ index 0000000000..f77892a509
 +    int ret = -1;
 +
 +    assert(backup_state.vmaw);
++    assert(buf);
 +
 +    uint64_t remaining = size;
 +
@@ -716,9 +807,7 @@ index 0000000000..f77892a509
 +        qemu_co_mutex_unlock(&backup_state.dump_callback_mutex);
 +
 +        ++cluster_num;
-+        if (buf) {
-+            buf += VMA_CLUSTER_SIZE;
-+        }
++        buf += VMA_CLUSTER_SIZE;
 +        if (ret < 0) {
 +            Error *local_err = NULL;
 +            vma_writer_error_propagate(backup_state.vmaw, &local_err);
@@ -727,11 +816,11 @@ index 0000000000..f77892a509
 +        } else {
 +            if (remaining >= VMA_CLUSTER_SIZE) {
 +                assert(ret == VMA_CLUSTER_SIZE);
-+                pvebackup_add_transfered_bytes(VMA_CLUSTER_SIZE, zero_bytes);
++                pvebackup_add_transfered_bytes(VMA_CLUSTER_SIZE, zero_bytes, 0);
 +                remaining -= VMA_CLUSTER_SIZE;
 +            } else {
 +                assert(ret == remaining);
-+                pvebackup_add_transfered_bytes(remaining, zero_bytes);
++                pvebackup_add_transfered_bytes(remaining, zero_bytes, 0);
 +                remaining = 0;
 +            }
 +        }
@@ -741,12 +830,12 @@ index 0000000000..f77892a509
 +}
 +
 +// assumes the caller holds backup_mutex
-+static void coroutine_fn pvebackup_co_cleanup(void *unused)
++static void coroutine_fn pvebackup_co_cleanup(void)
 +{
 +    assert(qemu_in_coroutine());
 +
 +    qemu_mutex_lock(&backup_state.stat.lock);
-+    backup_state.stat.end_time = time(NULL);
++    backup_state.stat.finishing = true;
 +    qemu_mutex_unlock(&backup_state.stat.lock);
 +
 +    if (backup_state.vmaw) {
@@ -775,12 +864,39 @@ index 0000000000..f77892a509
 +
 +    g_list_free(backup_state.di_list);
 +    backup_state.di_list = NULL;
++
++    qemu_mutex_lock(&backup_state.stat.lock);
++    backup_state.stat.end_time = time(NULL);
++    backup_state.stat.finishing = false;
++    qemu_mutex_unlock(&backup_state.stat.lock);
 +}
 +
-+// assumes the caller holds backup_mutex
-+static void coroutine_fn pvebackup_complete_stream(void *opaque)
++static void coroutine_fn pvebackup_co_complete_stream(void *opaque)
 +{
 +    PVEBackupDevInfo *di = opaque;
++    int ret = di->completed_ret;
++
++    qemu_mutex_lock(&backup_state.stat.lock);
++    bool starting = backup_state.stat.starting;
++    qemu_mutex_unlock(&backup_state.stat.lock);
++    if (starting) {
++        /* in 'starting' state, no tasks have been run yet, meaning we can (and
++         * must) skip all cleanup, as we don't know what has and hasn't been
++         * initialized yet. */
++        return;
++    }
++
++    qemu_co_mutex_lock(&backup_state.backup_mutex);
++
++    if (ret < 0) {
++        Error *local_err = NULL;
++        error_setg(&local_err, "job failed with err %d - %s", ret, strerror(-ret));
++        pvebackup_propagate_error(local_err);
++    }
++
++    di->bs = NULL;
++
++    assert(di->target == NULL);
 +
 +    bool error_or_canceled = pvebackup_error_or_canceled();
 +
@@ -795,49 +911,90 @@ index 0000000000..f77892a509
 +            pvebackup_propagate_error(local_err);
 +        }
 +    }
-+}
 +
-+static void pvebackup_complete_cb(void *opaque, int ret)
-+{
-+    assert(!qemu_in_coroutine());
-+
-+    PVEBackupDevInfo *di = opaque;
-+
-+    qemu_mutex_lock(&backup_state.backup_mutex);
-+
-+    di->completed = true;
-+
-+    if (ret < 0) {
-+        Error *local_err = NULL;
-+        error_setg(&local_err, "job failed with err %d - %s", ret, strerror(-ret));
-+        pvebackup_propagate_error(local_err);
++    if (di->job) {
++        WITH_JOB_LOCK_GUARD() {
++            job_unref_locked(&di->job->job);
++            di->job = NULL;
++        }
 +    }
 +
-+    di->bs = NULL;
-+
-+    assert(di->target == NULL);
-+
-+    block_on_coroutine_fn(pvebackup_complete_stream, di);
-+
-+    // remove self from job queue
++    // remove self from job list
 +    backup_state.di_list = g_list_remove(backup_state.di_list, di);
 +
 +    g_free(di);
 +
-+    qemu_mutex_unlock(&backup_state.backup_mutex);
++    /* call cleanup if we're the last job */
++    if (!g_list_first(backup_state.di_list)) {
++        pvebackup_co_cleanup();
++    }
 +
-+    pvebackup_run_next_job();
++    qemu_co_mutex_unlock(&backup_state.backup_mutex);
 +}
 +
-+static void pvebackup_cancel(void)
++static void pvebackup_complete_cb(void *opaque, int ret)
 +{
-+    assert(!qemu_in_coroutine());
++    PVEBackupDevInfo *di = opaque;
++    di->completed_ret = ret;
 +
++    /*
++     * Schedule stream cleanup in async coroutine. close_image and finish might
++     * take a while, so we can't block on them here. This way it also doesn't
++     * matter if we're already running in a coroutine or not.
++     * Note: di is a pointer to an entry in the global backup_state struct, so
++     * it stays valid.
++     */
++    Coroutine *co = qemu_coroutine_create(pvebackup_co_complete_stream, di);
++    aio_co_enter(qemu_get_aio_context(), co);
++}
++
++/*
++ * job_cancel(_sync) does not like to be called from coroutines, so defer to
++ * main loop processing via a bottom half. Assumes that caller holds
++ * backup_mutex.
++ */
++static void job_cancel_bh(void *opaque) {
++    CoCtxData *data = (CoCtxData*)opaque;
++
++    /*
++     * Be careful to pick a valid job to cancel:
++     * 1. job_cancel_sync() does not expect the job to be finalized already.
++     * 2. job_exit() might run between scheduling and running job_cancel_bh()
++     *    and pvebackup_co_complete_stream() might not have removed the job from
++     *    the list yet (in fact, cannot, because it waits for the backup_mutex).
++     * Requiring !job_is_completed() ensures that no finalized job is picked.
++     */
++    GList *bdi = g_list_first(backup_state.di_list);
++    while (bdi) {
++        if (bdi->data) {
++            BlockJob *bj = ((PVEBackupDevInfo *)bdi->data)->job;
++            if (bj) {
++                Job *job = &bj->job;
++                WITH_JOB_LOCK_GUARD() {
++                    if (!job_is_completed_locked(job)) {
++                        job_cancel_sync_locked(job, true);
++                        /*
++                         * It's enough to cancel one job in the transaction, the
++                         * rest will follow automatically.
++                         */
++                        break;
++                    }
++                }
++            }
++        }
++        bdi = g_list_next(bdi);
++    }
++
++    aio_co_enter(data->ctx, data->co);
++}
++
++void coroutine_fn qmp_backup_cancel(Error **errp)
++{
 +    Error *cancel_err = NULL;
 +    error_setg(&cancel_err, "backup canceled");
 +    pvebackup_propagate_error(cancel_err);
 +
-+    qemu_mutex_lock(&backup_state.backup_mutex);
++    qemu_co_mutex_lock(&backup_state.backup_mutex);
 +
 +    if (backup_state.vmaw) {
 +        /* make sure vma writer does not block anymore */
@@ -848,39 +1005,14 @@ index 0000000000..f77892a509
 +        proxmox_backup_abort(backup_state.pbs, "backup canceled");
 +    }
 +
-+    qemu_mutex_unlock(&backup_state.backup_mutex);
++    CoCtxData data = {
++        .ctx = qemu_get_current_aio_context(),
++        .co = qemu_coroutine_self(),
++    };
++    aio_bh_schedule_oneshot(data.ctx, job_cancel_bh, &data);
++    qemu_coroutine_yield();
 +
-+    for(;;) {
-+
-+        BlockJob *next_job = NULL;
-+
-+        qemu_mutex_lock(&backup_state.backup_mutex);
-+
-+        GList *l = backup_state.di_list;
-+        while (l) {
-+            PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
-+            l = g_list_next(l);
-+
-+            BlockJob *job = lookup_active_block_job(di);
-+            if (job != NULL) {
-+                next_job = job;
-+                break;
-+            }
-+        }
-+
-+        qemu_mutex_unlock(&backup_state.backup_mutex);
-+
-+        if (next_job) {
-+            job_cancel_sync(&next_job->job, true);
-+        } else {
-+            break;
-+        }
-+    }
-+}
-+
-+void qmp_backup_cancel(Error **errp)
-+{
-+    pvebackup_cancel();
++    qemu_co_mutex_unlock(&backup_state.backup_mutex);
 +}
 +
 +// assumes the caller holds backup_mutex
@@ -933,50 +1065,26 @@ index 0000000000..f77892a509
 +    goto out;
 +}
 +
-+bool job_should_pause_locked(Job *job);
-+
-+static void pvebackup_run_next_job(void)
-+{
-+    assert(!qemu_in_coroutine());
-+
-+    qemu_mutex_lock(&backup_state.backup_mutex);
-+
-+    GList *l = backup_state.di_list;
-+    while (l) {
-+        PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
-+        l = g_list_next(l);
-+
-+        BlockJob *job = lookup_active_block_job(di);
-+
-+        if (job) {
-+            qemu_mutex_unlock(&backup_state.backup_mutex);
-+
-+            WITH_JOB_LOCK_GUARD() {
-+                if (job_should_pause_locked(&job->job)) {
-+                    bool error_or_canceled = pvebackup_error_or_canceled();
-+                    if (error_or_canceled) {
-+                        job_cancel_sync_locked(&job->job, true);
-+                    } else {
-+                        job_resume_locked(&job->job);
-+                    }
-+                }
-+            }
-+            return;
-+        }
-+    }
-+
-+    block_on_coroutine_fn(pvebackup_co_cleanup, NULL); // no more jobs, run cleanup
-+
-+    qemu_mutex_unlock(&backup_state.backup_mutex);
-+}
-+
-+static bool create_backup_jobs(void) {
++/*
++ * backup_job_create can *not* be run from a coroutine (and requires an
++ * acquired AioContext), so this can't either.
++ * The caller is responsible that backup_mutex is held nonetheless.
++ */
++static void create_backup_jobs_bh(void *opaque) {
 +
 +    assert(!qemu_in_coroutine());
++
++    CoCtxData *data = (CoCtxData*)opaque;
++    Error **errp = (Error**)data->data;
 +
 +    Error *local_err = NULL;
 +
-+    BackupPerf perf = { .max_workers = 16 };
++    /* create job transaction to synchronize bitmap commit and cancel all
++     * jobs in case one errors */
++    if (backup_state.txn) {
++        job_txn_unref(backup_state.txn);
++    }
++    backup_state.txn = job_txn_new_seq();
 +
 +    /* create and start all jobs (paused state) */
 +    GList *l =  backup_state.di_list;
@@ -986,33 +1094,46 @@ index 0000000000..f77892a509
 +
 +        assert(di->target != NULL);
 +
++        MirrorSyncMode sync_mode = MIRROR_SYNC_MODE_FULL;
++        BitmapSyncMode bitmap_mode = BITMAP_SYNC_MODE_NEVER;
++        if (di->bitmap) {
++            sync_mode = MIRROR_SYNC_MODE_BITMAP;
++            bitmap_mode = BITMAP_SYNC_MODE_ON_SUCCESS;
++        }
 +        AioContext *aio_context = bdrv_get_aio_context(di->bs);
 +        aio_context_acquire(aio_context);
 +
 +        BlockJob *job = backup_job_create(
-+            NULL, di->bs, di->target, backup_state.speed, MIRROR_SYNC_MODE_FULL, NULL,
-+            BITMAP_SYNC_MODE_NEVER, false, NULL, &perf, BLOCKDEV_ON_ERROR_REPORT, BLOCKDEV_ON_ERROR_REPORT,
-+            JOB_DEFAULT, pvebackup_complete_cb, di, NULL, &local_err);
++            NULL, di->bs, di->target, backup_state.speed, sync_mode, di->bitmap,
++            bitmap_mode, false, NULL, &backup_state.perf, BLOCKDEV_ON_ERROR_REPORT,
++            BLOCKDEV_ON_ERROR_REPORT, JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn,
++            &local_err);
 +
 +        aio_context_release(aio_context);
 +
-+        if (!job || local_err != NULL) {
-+            Error *create_job_err = NULL;
-+            error_setg(&create_job_err, "backup_job_create failed: %s",
-+                       local_err ? error_get_pretty(local_err) : "null");
++        di->job = job;
++        if (job) {
++            WITH_JOB_LOCK_GUARD() {
++                job_ref_locked(&job->job);
++            }
++        }
 +
-+            pvebackup_propagate_error(create_job_err);
++        if (!job || local_err) {
++            error_setg(errp, "backup_job_create failed: %s",
++                       local_err ? error_get_pretty(local_err) : "null");
 +            break;
 +        }
-+        job_start(&job->job);
 +
 +        bdrv_unref(di->target);
 +        di->target = NULL;
 +    }
 +
-+    bool errors = pvebackup_error_or_canceled();
-+
-+    if (errors) {
++    if (*errp) {
++        /*
++         * It's enough to cancel one job in the transaction, the rest will
++         * follow automatically.
++         */
++        bool canceled = false;
 +        l = backup_state.di_list;
 +        while (l) {
 +            PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
@@ -1022,40 +1143,48 @@ index 0000000000..f77892a509
 +                bdrv_unref(di->target);
 +                di->target = NULL;
 +            }
++
++            if (di->job) {
++                WITH_JOB_LOCK_GUARD() {
++                    if (!canceled) {
++                        job_cancel_sync_locked(&di->job->job, true);
++                        canceled = true;
++                    }
++                    job_unref_locked(&di->job->job);
++                    di->job = NULL;
++                }
++            }
 +        }
 +    }
 +
-+    return errors;
++    /* return */
++    aio_co_enter(data->ctx, data->co);
 +}
 +
-+typedef struct QmpBackupTask {
-+    const char *backup_file;
-+    const char *password;
-+    const char *keyfile;
-+    const char *key_password;
-+    const char *backup_id;
-+    bool has_backup_time;
-+    const char *fingerprint;
-+    int64_t backup_time;
-+    bool has_format;
-+    BackupFormat format;
-+    const char *config_file;
-+    const char *firewall_file;
-+    const char *devlist;
-+    bool has_speed;
-+    int64_t speed;
-+    Error **errp;
-+    UuidInfo *result;
-+} QmpBackupTask;
-+
-+// assumes the caller holds backup_mutex
-+static void coroutine_fn pvebackup_co_prepare(void *opaque)
++UuidInfo coroutine_fn *qmp_backup(
++    const char *backup_file,
++    const char *password,
++    const char *keyfile,
++    const char *key_password,
++    const char *master_keyfile,
++    const char *fingerprint,
++    const char *backup_ns,
++    const char *backup_id,
++    bool has_backup_time, int64_t backup_time,
++    bool has_use_dirty_bitmap, bool use_dirty_bitmap,
++    bool has_compress, bool compress,
++    bool has_encrypt, bool encrypt,
++    bool has_format, BackupFormat format,
++    const char *config_file,
++    const char *firewall_file,
++    const char *devlist,
++    bool has_speed, int64_t speed,
++    bool has_max_workers, int64_t max_workers,
++    Error **errp)
 +{
 +    assert(qemu_in_coroutine());
 +
-+    QmpBackupTask *task = opaque;
-+
-+    task->result = NULL; // just to be sure
++    qemu_co_mutex_lock(&backup_state.backup_mutex);
 +
 +    BlockBackend *blk;
 +    BlockDriverState *bs = NULL;
@@ -1073,31 +1202,32 @@ index 0000000000..f77892a509
 +    const char *firewall_name = "qemu-server.fw";
 +
 +    if (backup_state.di_list) {
-+         error_set(task->errp, ERROR_CLASS_GENERIC_ERROR,
++        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
 +                  "previous backup not finished");
-+        return;
++        qemu_co_mutex_unlock(&backup_state.backup_mutex);
++        return NULL;
 +    }
 +
 +    /* Todo: try to auto-detect format based on file name */
-+    BackupFormat format = task->has_format ? task->format : BACKUP_FORMAT_VMA;
++    format = has_format ? format : BACKUP_FORMAT_VMA;
 +
-+    if (task->devlist) {
-+        devs = g_strsplit_set(task->devlist, ",;:", -1);
++    if (devlist) {
++        devs = g_strsplit_set(devlist, ",;:", -1);
 +
 +        gchar **d = devs;
 +        while (d && *d) {
 +            blk = blk_by_name(*d);
 +            if (blk) {
 +                bs = blk_bs(blk);
-+                if (!bdrv_is_inserted(bs)) {
-+                    error_setg(task->errp, QERR_DEVICE_HAS_NO_MEDIUM, *d);
++                if (!bdrv_co_is_inserted(bs)) {
++                    error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, *d);
 +                    goto err;
 +                }
 +                PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
 +                di->bs = bs;
 +                di_list = g_list_append(di_list, di);
 +            } else {
-+                error_set(task->errp, ERROR_CLASS_DEVICE_NOT_FOUND,
++                error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
 +                          "Device '%s' not found", *d);
 +                goto err;
 +            }
@@ -1109,7 +1239,7 @@ index 0000000000..f77892a509
 +
 +        bs = NULL;
 +        for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-+            if (!bdrv_is_inserted(bs) || bdrv_is_read_only(bs)) {
++            if (!bdrv_co_is_inserted(bs) || bdrv_is_read_only(bs)) {
 +                continue;
 +            }
 +
@@ -1120,7 +1250,7 @@ index 0000000000..f77892a509
 +    }
 +
 +    if (!di_list) {
-+        error_set(task->errp, ERROR_CLASS_GENERIC_ERROR, "empty device list");
++        error_set(errp, ERROR_CLASS_GENERIC_ERROR, "empty device list");
 +        goto err;
 +    }
 +
@@ -1130,59 +1260,81 @@ index 0000000000..f77892a509
 +    while (l) {
 +        PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
 +        l = g_list_next(l);
-+        if (bdrv_op_is_blocked(di->bs, BLOCK_OP_TYPE_BACKUP_SOURCE, task->errp)) {
++        if (bdrv_op_is_blocked(di->bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
 +            goto err;
 +        }
 +
 +        ssize_t size = bdrv_getlength(di->bs);
 +        if (size < 0) {
-+            error_setg_errno(task->errp, -size, "bdrv_getlength failed");
++            error_setg_errno(errp, -size, "bdrv_getlength failed");
 +            goto err;
 +        }
 +        di->size = size;
 +        total += size;
++
++        di->completed_ret = INT_MAX;
 +    }
 +
 +    uuid_generate(uuid);
 +
++    qemu_mutex_lock(&backup_state.stat.lock);
++    backup_state.stat.reused = 0;
++
++    /* clear previous backup's bitmap_list */
++    if (backup_state.stat.bitmap_list) {
++        GList *bl = backup_state.stat.bitmap_list;
++        while (bl) {
++            g_free(((PBSBitmapInfo *)bl->data)->drive);
++            g_free(bl->data);
++            bl = g_list_next(bl);
++        }
++        g_list_free(backup_state.stat.bitmap_list);
++        backup_state.stat.bitmap_list = NULL;
++    }
++
 +    if (format == BACKUP_FORMAT_PBS) {
-+        if (!task->password) {
-+            error_set(task->errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'password'");
-+            goto err;
++        if (!password) {
++            error_set(errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'password'");
++            goto err_mutex;
 +        }
-+        if (!task->backup_id) {
-+            error_set(task->errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'backup-id'");
-+            goto err;
++        if (!backup_id) {
++            error_set(errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'backup-id'");
++            goto err_mutex;
 +        }
-+        if (!task->has_backup_time) {
-+            error_set(task->errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'backup-time'");
-+            goto err;
++        if (!has_backup_time) {
++            error_set(errp, ERROR_CLASS_GENERIC_ERROR, "missing parameter 'backup-time'");
++            goto err_mutex;
 +        }
 +
 +        int dump_cb_block_size = PROXMOX_BACKUP_DEFAULT_CHUNK_SIZE; // Hardcoded (4M)
 +        firewall_name = "fw.conf";
 +
 +        char *pbs_err = NULL;
-+        pbs = proxmox_backup_new(
-+            task->backup_file,
-+            task->backup_id,
-+            task->backup_time,
++        pbs = proxmox_backup_new_ns(
++            backup_file,
++            backup_ns,
++            backup_id,
++            backup_time,
 +            dump_cb_block_size,
-+            task->password,
-+            task->keyfile,
-+            task->key_password,
-+            task->fingerprint,
++            password,
++            keyfile,
++            key_password,
++            master_keyfile,
++            has_compress ? compress : true,
++            has_encrypt ? encrypt : !!keyfile,
++            fingerprint,
 +            &pbs_err);
 +
 +        if (!pbs) {
-+            error_set(task->errp, ERROR_CLASS_GENERIC_ERROR,
++            error_set(errp, ERROR_CLASS_GENERIC_ERROR,
 +                      "proxmox_backup_new failed: %s", pbs_err);
 +            proxmox_backup_free_error(pbs_err);
-+            goto err;
++            goto err_mutex;
 +        }
 +
-+        if (proxmox_backup_co_connect(pbs, task->errp) < 0)
-+            goto err;
++        int connect_result = proxmox_backup_co_connect(pbs, errp);
++        if (connect_result < 0)
++            goto err_mutex;
 +
 +        /* register all devices */
 +        l = di_list;
@@ -1190,25 +1342,72 @@ index 0000000000..f77892a509
 +            PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
 +            l = g_list_next(l);
 +
++            di->block_size = dump_cb_block_size;
++
 +            const char *devname = bdrv_get_device_name(di->bs);
++            PBSBitmapAction action = PBS_BITMAP_ACTION_NOT_USED;
++            size_t dirty = di->size;
 +
-+            int dev_id = proxmox_backup_co_register_image(pbs, devname, di->size, task->errp);
-+            if (dev_id < 0)
-+                goto err;
++            BdrvDirtyBitmap *bitmap = bdrv_find_dirty_bitmap(di->bs, PBS_BITMAP_NAME);
++            bool expect_only_dirty = false;
 +
-+            if (!(di->target = bdrv_backup_dump_create(dump_cb_block_size, di->size, pvebackup_co_dump_pbs_cb, di, task->errp))) {
-+                goto err;
++            if (has_use_dirty_bitmap && use_dirty_bitmap) {
++                if (bitmap == NULL) {
++                    bitmap = bdrv_create_dirty_bitmap(di->bs, dump_cb_block_size, PBS_BITMAP_NAME, errp);
++                    if (!bitmap) {
++                        goto err_mutex;
++                    }
++                    action = PBS_BITMAP_ACTION_NEW;
++                } else {
++                    expect_only_dirty = proxmox_backup_check_incremental(pbs, devname, di->size) != 0;
++                }
++
++                if (expect_only_dirty) {
++                    /* track clean chunks as reused */
++                    dirty = MIN(bdrv_get_dirty_count(bitmap), di->size);
++                    backup_state.stat.reused += di->size - dirty;
++                    action = PBS_BITMAP_ACTION_USED;
++                } else {
++                    /* mark entire bitmap as dirty to make full backup */
++                    bdrv_set_dirty_bitmap(bitmap, 0, di->size);
++                    if (action != PBS_BITMAP_ACTION_NEW) {
++                        action = PBS_BITMAP_ACTION_INVALID;
++                    }
++                }
++                di->bitmap = bitmap;
++            } else {
++                /* after a full backup the old dirty bitmap is invalid anyway */
++                if (bitmap != NULL) {
++                    bdrv_release_dirty_bitmap(bitmap);
++                    action = PBS_BITMAP_ACTION_NOT_USED_REMOVED;
++                }
++            }
++
++            int dev_id = proxmox_backup_co_register_image(pbs, devname, di->size, expect_only_dirty, errp);
++            if (dev_id < 0) {
++                goto err_mutex;
++            }
++
++            if (!(di->target = bdrv_backup_dump_create(dump_cb_block_size, di->size, pvebackup_co_dump_pbs_cb, di, errp))) {
++                goto err_mutex;
 +            }
 +
 +            di->dev_id = dev_id;
++
++            PBSBitmapInfo *info = g_malloc(sizeof(*info));
++            info->drive = g_strdup(devname);
++            info->action = action;
++            info->size = di->size;
++            info->dirty = dirty;
++            backup_state.stat.bitmap_list = g_list_append(backup_state.stat.bitmap_list, info);
 +        }
 +    } else if (format == BACKUP_FORMAT_VMA) {
-+        vmaw = vma_writer_create(task->backup_file, uuid, &local_err);
++        vmaw = vma_writer_create(backup_file, uuid, &local_err);
 +        if (!vmaw) {
 +            if (local_err) {
-+                error_propagate(task->errp, local_err);
++                error_propagate(errp, local_err);
 +            }
-+            goto err;
++            goto err_mutex;
 +        }
 +
 +        /* register all devices for vma writer */
@@ -1217,25 +1416,25 @@ index 0000000000..f77892a509
 +            PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
 +            l = g_list_next(l);
 +
-+            if (!(di->target = bdrv_backup_dump_create(VMA_CLUSTER_SIZE, di->size, pvebackup_co_dump_vma_cb, di, task->errp))) {
-+                goto err;
++            if (!(di->target = bdrv_backup_dump_create(VMA_CLUSTER_SIZE, di->size, pvebackup_co_dump_vma_cb, di, errp))) {
++                goto err_mutex;
 +            }
 +
 +            const char *devname = bdrv_get_device_name(di->bs);
 +            di->dev_id = vma_writer_register_stream(vmaw, devname, di->size);
 +            if (di->dev_id <= 0) {
-+                error_set(task->errp, ERROR_CLASS_GENERIC_ERROR,
++                error_set(errp, ERROR_CLASS_GENERIC_ERROR,
 +                          "register_stream failed");
-+                goto err;
++                goto err_mutex;
 +            }
 +        }
 +    } else if (format == BACKUP_FORMAT_DIR) {
-+        if (mkdir(task->backup_file, 0640) != 0) {
-+            error_setg_errno(task->errp, errno, "can't create directory '%s'\n",
-+                             task->backup_file);
-+            goto err;
++        if (mkdir(backup_file, 0640) != 0) {
++            error_setg_errno(errp, errno, "can't create directory '%s'\n",
++                             backup_file);
++            goto err_mutex;
 +        }
-+        backup_dir = task->backup_file;
++        backup_dir = backup_file;
 +
 +        l = di_list;
 +        while (l) {
@@ -1249,40 +1448,39 @@ index 0000000000..f77892a509
 +            bdrv_img_create(di->targetfile, "raw", NULL, NULL, NULL,
 +                            di->size, flags, false, &local_err);
 +            if (local_err) {
-+                error_propagate(task->errp, local_err);
-+                goto err;
++                error_propagate(errp, local_err);
++                goto err_mutex;
 +            }
 +
 +            di->target = bdrv_co_open(di->targetfile, NULL, NULL, flags, &local_err);
 +            if (!di->target) {
-+                error_propagate(task->errp, local_err);
-+                goto err;
++                error_propagate(errp, local_err);
++                goto err_mutex;
 +            }
 +        }
 +    } else {
-+        error_set(task->errp, ERROR_CLASS_GENERIC_ERROR, "unknown backup format");
-+        goto err;
++        error_set(errp, ERROR_CLASS_GENERIC_ERROR, "unknown backup format");
++        goto err_mutex;
 +    }
 +
 +
 +    /* add configuration file to archive */
-+    if (task->config_file) {
-+        if (pvebackup_co_add_config(task->config_file, config_name, format, backup_dir,
-+                                    vmaw, pbs, task->errp) != 0) {
-+            goto err;
++    if (config_file) {
++        if (pvebackup_co_add_config(config_file, config_name, format, backup_dir,
++                                    vmaw, pbs, errp) != 0) {
++            goto err_mutex;
 +        }
 +    }
 +
 +    /* add firewall file to archive */
-+    if (task->firewall_file) {
-+        if (pvebackup_co_add_config(task->firewall_file, firewall_name, format, backup_dir,
-+                                    vmaw, pbs, task->errp) != 0) {
-+            goto err;
++    if (firewall_file) {
++        if (pvebackup_co_add_config(firewall_file, firewall_name, format, backup_dir,
++                                    vmaw, pbs, errp) != 0) {
++            goto err_mutex;
 +        }
 +    }
 +    /* initialize global backup_state now */
-+
-+    qemu_mutex_lock(&backup_state.stat.lock);
++    /* note: 'reused' and 'bitmap_list' are initialized earlier */
 +
 +    if (backup_state.stat.error) {
 +        error_free(backup_state.stat.error);
@@ -1295,19 +1493,27 @@ index 0000000000..f77892a509
 +    if (backup_state.stat.backup_file) {
 +        g_free(backup_state.stat.backup_file);
 +    }
-+    backup_state.stat.backup_file = g_strdup(task->backup_file);
++    backup_state.stat.backup_file = g_strdup(backup_file);
 +
 +    uuid_copy(backup_state.stat.uuid, uuid);
 +    uuid_unparse_lower(uuid, backup_state.stat.uuid_str);
 +    char *uuid_str = g_strdup(backup_state.stat.uuid_str);
 +
 +    backup_state.stat.total = total;
++    backup_state.stat.dirty = total - backup_state.stat.reused;
 +    backup_state.stat.transferred = 0;
 +    backup_state.stat.zero_bytes = 0;
++    backup_state.stat.finishing = false;
++    backup_state.stat.starting = true;
 +
 +    qemu_mutex_unlock(&backup_state.stat.lock);
 +
-+    backup_state.speed = (task->has_speed && task->speed > 0) ? task->speed : 0;
++    backup_state.speed = (has_speed && speed > 0) ? speed : 0;
++
++    backup_state.perf = (BackupPerf){ .max_workers = 16 };
++    if (has_max_workers) {
++        backup_state.perf.max_workers = max_workers;
++    }
 +
 +    backup_state.vmaw = vmaw;
 +    backup_state.pbs = pbs;
@@ -1317,8 +1523,36 @@ index 0000000000..f77892a509
 +    uuid_info = g_malloc0(sizeof(*uuid_info));
 +    uuid_info->UUID = uuid_str;
 +
-+    task->result = uuid_info;
-+    return;
++    /* Run create_backup_jobs_bh outside of coroutine (in BH) but keep
++    * backup_mutex locked. This is fine, a CoMutex can be held across yield
++    * points, and we'll release it as soon as the BH reschedules us.
++    */
++    CoCtxData waker = {
++        .co = qemu_coroutine_self(),
++        .ctx = qemu_get_current_aio_context(),
++        .data = &local_err,
++    };
++    aio_bh_schedule_oneshot(waker.ctx, create_backup_jobs_bh, &waker);
++    qemu_coroutine_yield();
++
++    if (local_err) {
++        error_propagate(errp, local_err);
++        goto err;
++    }
++
++    qemu_co_mutex_unlock(&backup_state.backup_mutex);
++
++    qemu_mutex_lock(&backup_state.stat.lock);
++    backup_state.stat.starting = false;
++    qemu_mutex_unlock(&backup_state.stat.lock);
++
++    /* start the first job in the transaction */
++    job_txn_start_seq(backup_state.txn);
++
++    return uuid_info;
++
++err_mutex:
++    qemu_mutex_unlock(&backup_state.stat.lock);
 +
 +err:
 +
@@ -1337,6 +1571,7 @@ index 0000000000..f77892a509
 +        g_free(di);
 +    }
 +    g_list_free(di_list);
++    backup_state.di_list = NULL;
 +
 +    if (devs) {
 +        g_strfreev(devs);
@@ -1345,66 +1580,20 @@ index 0000000000..f77892a509
 +    if (vmaw) {
 +        Error *err = NULL;
 +        vma_writer_close(vmaw, &err);
-+        unlink(task->backup_file);
++        unlink(backup_file);
 +    }
 +
 +    if (pbs) {
 +        proxmox_backup_disconnect(pbs);
++        backup_state.pbs = NULL;
 +    }
 +
 +    if (backup_dir) {
 +        rmdir(backup_dir);
 +    }
 +
-+    task->result = NULL;
-+    return;
-+}
-+
-+UuidInfo *qmp_backup(
-+    const char *backup_file,
-+    const char *password,
-+    const char *keyfile,
-+    const char *key_password,
-+    const char *fingerprint,
-+    const char *backup_id,
-+    bool has_backup_time, int64_t backup_time,
-+    bool has_format, BackupFormat format,
-+    const char *config_file,
-+    const char *firewall_file,
-+    const char *devlist,
-+    bool has_speed, int64_t speed, Error **errp)
-+{
-+    QmpBackupTask task = {
-+        .backup_file = backup_file,
-+        .password = password,
-+        .key_password = key_password,
-+        .fingerprint = fingerprint,
-+        .backup_id = backup_id,
-+        .has_backup_time = has_backup_time,
-+        .backup_time = backup_time,
-+        .has_format = has_format,
-+        .format = format,
-+        .config_file = config_file,
-+        .firewall_file = firewall_file,
-+        .devlist = devlist,
-+        .has_speed = has_speed,
-+        .speed = speed,
-+        .errp = errp,
-+    };
-+
-+    qemu_mutex_lock(&backup_state.backup_mutex);
-+
-+    block_on_coroutine_fn(pvebackup_co_prepare, &task);
-+
-+    if (*errp == NULL) {
-+        create_backup_jobs();
-+        qemu_mutex_unlock(&backup_state.backup_mutex);
-+        pvebackup_run_next_job();
-+    } else {
-+        qemu_mutex_unlock(&backup_state.backup_mutex);
-+    }
-+
-+    return task.result;
++    qemu_co_mutex_unlock(&backup_state.backup_mutex);
++    return NULL;
 +}
 +
 +BackupStatus *qmp_query_backup(Error **errp)
@@ -1443,20 +1632,67 @@ index 0000000000..f77892a509
 +
 +    info->has_total = true;
 +    info->total = backup_state.stat.total;
++    info->has_dirty = true;
++    info->dirty = backup_state.stat.dirty;
 +    info->has_zero_bytes = true;
 +    info->zero_bytes = backup_state.stat.zero_bytes;
 +    info->has_transferred = true;
 +    info->transferred = backup_state.stat.transferred;
++    info->has_reused = true;
++    info->reused = backup_state.stat.reused;
++    info->finishing = backup_state.stat.finishing;
 +
 +    qemu_mutex_unlock(&backup_state.stat.lock);
 +
 +    return info;
 +}
++
++PBSBitmapInfoList *qmp_query_pbs_bitmap_info(Error **errp)
++{
++    PBSBitmapInfoList *head = NULL, **p_next = &head;
++
++    qemu_mutex_lock(&backup_state.stat.lock);
++
++    GList *l = backup_state.stat.bitmap_list;
++    while (l) {
++        PBSBitmapInfo *info = (PBSBitmapInfo *)l->data;
++        l = g_list_next(l);
++
++        /* clone bitmap info to avoid auto free after QMP marshalling */
++        PBSBitmapInfo *info_ret = g_malloc0(sizeof(*info_ret));
++        info_ret->drive = g_strdup(info->drive);
++        info_ret->action = info->action;
++        info_ret->size = info->size;
++        info_ret->dirty = info->dirty;
++
++        PBSBitmapInfoList *info_list = g_malloc0(sizeof(*info_list));
++        info_list->value = info_ret;
++
++        *p_next = info_list;
++        p_next = &info_list->next;
++    }
++
++    qemu_mutex_unlock(&backup_state.stat.lock);
++
++    return head;
++}
++
++ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
++{
++    ProxmoxSupportStatus *ret = g_malloc0(sizeof(*ret));
++    ret->pbs_library_version = g_strdup(proxmox_backup_qemu_version());
++    ret->pbs_dirty_bitmap = true;
++    ret->pbs_dirty_bitmap_savevm = true;
++    ret->query_bitmap_info = true;
++    ret->pbs_masterkey = true;
++    ret->backup_max_workers = true;
++    return ret;
++}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 542add004b..16fb4c5ea0 100644
+index 542add004b..4ec70acf95 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -835,6 +835,115 @@
+@@ -835,6 +835,232 @@
  { 'command': 'query-block', 'returns': ['BlockInfo'],
    'allow-preconfig': true }
  
@@ -1473,7 +1709,12 @@ index 542add004b..16fb4c5ea0 100644
 +#
 +# @total: total amount of bytes involved in the backup process
 +#
++# @dirty: with incremental mode (PBS) this is the amount of bytes involved
++#         in the backup process which are marked dirty.
++#
 +# @transferred: amount of bytes already backed up.
++#
++# @reused: amount of bytes reused due to deduplication.
 +#
 +# @zero-bytes: amount of 'zero' bytes detected.
 +#
@@ -1485,12 +1726,15 @@ index 542add004b..16fb4c5ea0 100644
 +#
 +# @uuid: uuid for this backup job
 +#
++# @finishing: if status='active' and finishing=true, then the backup process is
++#             waiting for the target to finish.
++#
 +##
 +{ 'struct': 'BackupStatus',
-+  'data': {'*status': 'str', '*errmsg': 'str', '*total': 'int',
-+           '*transferred': 'int', '*zero-bytes': 'int',
++  'data': {'*status': 'str', '*errmsg': 'str', '*total': 'int', '*dirty': 'int',
++           '*transferred': 'int', '*zero-bytes': 'int', '*reused': 'int',
 +           '*start-time': 'int', '*end-time': 'int',
-+           '*backup-file': 'str', '*uuid': 'str' } }
++           '*backup-file': 'str', '*uuid': 'str', 'finishing': 'bool' } }
 +
 +##
 +# @BackupFormat:
@@ -1525,11 +1769,23 @@ index 542add004b..16fb4c5ea0 100644
 +#
 +# @key-password: password for keyfile (optional for format 'pbs')
 +#
++# @master-keyfile: PEM-formatted master public keyfile (optional for format 'pbs')
++#
 +# @fingerprint: server cert fingerprint (optional for format 'pbs')
++#
++# @backup-ns: backup namespace (required for format 'pbs')
 +#
 +# @backup-id: backup ID (required for format 'pbs')
 +#
 +# @backup-time: backup timestamp (Unix epoch, required for format 'pbs')
++#
++# @use-dirty-bitmap: use dirty bitmap to detect incremental changes since last job (optional for format 'pbs')
++#
++# @compress: use compression (optional for format 'pbs', defaults to true)
++#
++# @encrypt: use encryption ((optional for format 'pbs', defaults to true if there is a keyfile)
++#
++# @max-workers: see @BackupPerf for details. Default 16.
 +#
 +# Returns: the uuid of the backup job
 +#
@@ -1538,14 +1794,21 @@ index 542add004b..16fb4c5ea0 100644
 +                                    '*password': 'str',
 +                                    '*keyfile': 'str',
 +                                    '*key-password': 'str',
++                                    '*master-keyfile': 'str',
 +                                    '*fingerprint': 'str',
++                                    '*backup-ns': 'str',
 +                                    '*backup-id': 'str',
 +                                    '*backup-time': 'int',
++                                    '*use-dirty-bitmap': 'bool',
++                                    '*compress': 'bool',
++                                    '*encrypt': 'bool',
 +                                    '*format': 'BackupFormat',
 +                                    '*config-file': 'str',
 +                                    '*firewall-file': 'str',
-+                                    '*devlist': 'str', '*speed': 'int' },
-+  'returns': 'UuidInfo' }
++                                    '*devlist': 'str',
++                                    '*speed': 'int',
++                                    '*max-workers': 'int' },
++  'returns': 'UuidInfo', 'coroutine': true }
 +
 +##
 +# @query-backup:
@@ -1567,7 +1830,97 @@ index 542add004b..16fb4c5ea0 100644
 +# Notes: This command succeeds even if there is no backup process running.
 +#
 +##
-+{ 'command': 'backup-cancel' }
++{ 'command': 'backup-cancel', 'coroutine': true }
++
++##
++# @ProxmoxSupportStatus:
++#
++# Contains info about supported features added by Proxmox.
++#
++# @pbs-dirty-bitmap: True if dirty-bitmap-incremental backups to PBS are
++#                    supported.
++#
++# @query-bitmap-info: True if the 'query-pbs-bitmap-info' QMP call is supported.
++#
++# @pbs-dirty-bitmap-savevm: True if 'dirty-bitmaps' migration capability can
++#                           safely be set for savevm-async.
++#
++# @pbs-masterkey: True if the QMP backup call supports the 'master_keyfile'
++#                 parameter.
++#
++# @pbs-library-version: Running version of libproxmox-backup-qemu0 library.
++#
++##
++{ 'struct': 'ProxmoxSupportStatus',
++  'data': { 'pbs-dirty-bitmap': 'bool',
++            'query-bitmap-info': 'bool',
++            'pbs-dirty-bitmap-savevm': 'bool',
++            'pbs-masterkey': 'bool',
++            'pbs-library-version': 'str',
++            'backup-max-workers': 'bool' } }
++
++##
++# @query-proxmox-support:
++#
++# Returns information about supported features added by Proxmox.
++#
++# Returns: @ProxmoxSupportStatus
++#
++##
++{ 'command': 'query-proxmox-support', 'returns': 'ProxmoxSupportStatus' }
++
++##
++# @PBSBitmapAction:
++#
++# An action taken on a dirty-bitmap when a backup job was started.
++#
++# @not-used: Bitmap mode was not enabled.
++#
++# @not-used-removed: Bitmap mode was not enabled, but a bitmap from a
++#                    previous backup still existed and was removed.
++#
++# @new: A new bitmap was attached to the drive for this backup.
++#
++# @used: An existing bitmap will be used to only backup changed data.
++#
++# @invalid: A bitmap existed, but had to be cleared since it's associated
++#           base snapshot did not match the base given for the current job or
++#           the crypt mode has changed.
++#
++##
++{ 'enum': 'PBSBitmapAction',
++  'data': ['not-used', 'not-used-removed', 'new', 'used', 'invalid'] }
++
++##
++# @PBSBitmapInfo:
++#
++# Contains information about dirty bitmaps used for each drive in a PBS backup.
++#
++# @drive: The underlying drive.
++#
++# @action: The action that was taken when the backup started.
++#
++# @size: The total size of the drive.
++#
++# @dirty: How much of the drive is considered dirty and will be backed up,
++#         or 'size' if everything will be.
++#
++##
++{ 'struct': 'PBSBitmapInfo',
++  'data': { 'drive': 'str', 'action': 'PBSBitmapAction', 'size': 'int',
++            'dirty': 'int' } }
++
++##
++# @query-pbs-bitmap-info:
++#
++# Returns information about dirty bitmaps used on the most recently started
++# backup. Returns nothing when the last backup was not using PBS or if no
++# backup occured in this session.
++#
++# Returns: @PBSBitmapInfo
++#
++##
++{ 'command': 'query-pbs-bitmap-info', 'returns': ['PBSBitmapInfo'] }
 +
  ##
  # @BlockDeviceTimedStats:

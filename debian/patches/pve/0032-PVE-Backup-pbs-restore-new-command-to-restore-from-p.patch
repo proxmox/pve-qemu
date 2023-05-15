@@ -5,10 +5,12 @@ Subject: [PATCH] PVE-Backup: pbs-restore - new command to restore from proxmox
  backup server
 
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[WB: add namespace support]
+Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 ---
  meson.build   |   4 +
- pbs-restore.c | 223 ++++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 227 insertions(+)
+ pbs-restore.c | 236 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 240 insertions(+)
  create mode 100644 pbs-restore.c
 
 diff --git a/meson.build b/meson.build
@@ -28,10 +30,10 @@ index d307d8eabf..afd105001e 100644
    subdir('contrib/elf2dmp')
 diff --git a/pbs-restore.c b/pbs-restore.c
 new file mode 100644
-index 0000000000..2f834cf42e
+index 0000000000..f03d9bab8d
 --- /dev/null
 +++ b/pbs-restore.c
-@@ -0,0 +1,223 @@
+@@ -0,0 +1,236 @@
 +/*
 + * Qemu image restore helper for Proxmox Backup
 + *
@@ -63,7 +65,7 @@ index 0000000000..2f834cf42e
 +static void help(void)
 +{
 +    const char *help_msg =
-+        "usage: pbs-restore [--repository <repo>] snapshot archive-name target [command options]\n"
++        "usage: pbs-restore [--repository <repo>] [--ns namespace] snapshot archive-name target [command options]\n"
 +        ;
 +
 +    printf("%s", help_msg);
@@ -111,6 +113,7 @@ index 0000000000..2f834cf42e
 +    Error *main_loop_err = NULL;
 +    const char *format = "raw";
 +    const char *repository = NULL;
++    const char *backup_ns = NULL;
 +    const char *keyfile = NULL;
 +    int verbose = false;
 +    bool skip_zero = false;
@@ -124,6 +127,7 @@ index 0000000000..2f834cf42e
 +            {"verbose", no_argument, 0, 'v'},
 +            {"format", required_argument, 0, 'f'},
 +            {"repository", required_argument, 0, 'r'},
++            {"ns", required_argument, 0, 'n'},
 +            {"keyfile", required_argument, 0, 'k'},
 +            {0, 0, 0, 0}
 +        };
@@ -143,6 +147,9 @@ index 0000000000..2f834cf42e
 +                break;
 +            case 'r':
 +                repository = g_strdup(argv[optind - 1]);
++                break;
++            case 'n':
++                backup_ns = g_strdup(argv[optind - 1]);
 +                break;
 +            case 'k':
 +                keyfile = g_strdup(argv[optind - 1]);
@@ -194,8 +201,16 @@ index 0000000000..2f834cf42e
 +        fprintf(stderr, "connecting to repository '%s'\n", repository);
 +    }
 +    char *pbs_error = NULL;
-+    ProxmoxRestoreHandle *conn = proxmox_restore_new(
-+        repository, snapshot, password, keyfile, key_password, fingerprint, &pbs_error);
++    ProxmoxRestoreHandle *conn = proxmox_restore_new_ns(
++        repository,
++        snapshot,
++        backup_ns,
++        password,
++        keyfile,
++        key_password,
++        fingerprint,
++        &pbs_error
++    );
 +    if (conn == NULL) {
 +        fprintf(stderr, "restore failed: %s\n", pbs_error);
 +        return -1;

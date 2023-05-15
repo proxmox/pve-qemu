@@ -21,7 +21,8 @@ still opened by QEMU.
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 Signed-off-by: Dietmar Maurer <dietmar@proxmox.com>
 Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
-[improve aborting]
+[SR: improve aborting
+     register yank before migration_incoming_state_destroy]
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 [FE: further improve aborting
      adapt to removal of QEMUFileOps
@@ -34,13 +35,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   5 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 535 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 548 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  58 ++++
  qapi/migration.json          |  34 +++
- qapi/misc.json               |  32 +++
+ qapi/misc.json               |  32 ++
  qemu-options.hx              |  12 +
  softmmu/vl.c                 |  10 +
- 11 files changed, 735 insertions(+)
+ 11 files changed, 748 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -156,10 +157,10 @@ index 8a142fc7a9..a7824b5266 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..24660af014
+index 0000000000..c5db9e9c1e
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,535 @@
+@@ -0,0 +1,548 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -182,6 +183,7 @@ index 0000000000..24660af014
 +#include "qemu/timer.h"
 +#include "qemu/main-loop.h"
 +#include "qemu/rcu.h"
++#include "qemu/yank.h"
 +
 +/* #define DEBUG_SAVEVM_STATE */
 +
@@ -403,12 +405,19 @@ index 0000000000..24660af014
 +
 +    while (snap_state.state == SAVE_STATE_ACTIVE) {
 +        uint64_t pending_size, pend_precopy, pend_postcopy;
++        uint64_t threshold = 400 * 1000;
 +
-+        /* pending is expected to be called without iothread lock */
++        /*
++         * pending_{estimate,exact} are expected to be called without iothread
++         * lock. Similar to what is done in migration.c, call the exact variant
++         * only once pend_precopy in the estimate is below the threshold.
++         */
 +        qemu_mutex_unlock_iothread();
-+        qemu_savevm_state_pending_exact(&pend_precopy, &pend_postcopy);
++        qemu_savevm_state_pending_estimate(&pend_precopy, &pend_postcopy);
++        if (pend_precopy <= threshold) {
++            qemu_savevm_state_pending_exact(&pend_precopy, &pend_postcopy);
++        }
 +        qemu_mutex_lock_iothread();
-+
 +        pending_size = pend_precopy + pend_postcopy;
 +
 +        /*
@@ -420,7 +429,7 @@ index 0000000000..24660af014
 +        maxlen = blk_getlength(snap_state.target) - 100*1024*1024;
 +
 +        /* Note that there is no progress for pend_postcopy when iterating */
-+        if (pending_size - pend_postcopy > 400000 && snap_state.bs_pos + pending_size < maxlen) {
++        if (pend_precopy > threshold && snap_state.bs_pos + pending_size < maxlen) {
 +            ret = qemu_savevm_state_iterate(snap_state.file, false);
 +            if (ret < 0) {
 +                save_snapshot_error("qemu_savevm_state_iterate error %d", ret);
@@ -548,6 +557,7 @@ index 0000000000..24660af014
 +     */
 +    migrate_init(ms);
 +    memset(&ram_counters, 0, sizeof(ram_counters));
++    memset(&compression_counters, 0, sizeof(compression_counters));
 +    ms->to_dst_file = snap_state.file;
 +
 +    error_setg(&snap_state.blocker, "block device is in use by savevm");
@@ -679,6 +689,10 @@ index 0000000000..24660af014
 +    dirty_bitmap_mig_before_vm_start();
 +
 +    qemu_fclose(f);
++
++    /* state_destroy assumes a real migration which would have added a yank */
++    yank_register_instance(MIGRATION_YANK_INSTANCE, &error_abort);
++
 +    migration_incoming_state_destroy();
 +    if (ret < 0) {
 +        error_setg_errno(errp, -ret, "Error while loading VM state");

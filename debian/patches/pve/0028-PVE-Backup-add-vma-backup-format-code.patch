@@ -3,17 +3,23 @@ From: Dietmar Maurer <dietmar@proxmox.com>
 Date: Mon, 6 Apr 2020 12:16:57 +0200
 Subject: [PATCH] PVE-Backup: add vma backup format code
 
+Notes about partial restoring: skipping a certain drive is done via a
+map line of the form skip=drive-scsi0. Since in PVE, most archives are
+compressed and piped to vma for restore, it's not easily possible to
+skip reads.
+
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[FE: create: register all streams before entering coroutines]
-Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+[FE: improvements during create
+     allow partial restore]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build |   2 +
  meson.build       |   5 +
- vma-reader.c      | 859 ++++++++++++++++++++++++++++++++++++++++++++++
- vma-writer.c      | 791 ++++++++++++++++++++++++++++++++++++++++++
- vma.c             | 849 +++++++++++++++++++++++++++++++++++++++++++++
+ vma-reader.c      | 867 +++++++++++++++++++++++++++++++++++++++++++++
+ vma-writer.c      | 793 +++++++++++++++++++++++++++++++++++++++++
+ vma.c             | 878 ++++++++++++++++++++++++++++++++++++++++++++++
  vma.h             | 150 ++++++++
- 6 files changed, 2656 insertions(+)
+ 6 files changed, 2695 insertions(+)
  create mode 100644 vma-reader.c
  create mode 100644 vma-writer.c
  create mode 100644 vma.c
@@ -57,10 +63,10 @@ index d964e741e7..603cdb97bb 100644
    subdir('contrib/elf2dmp')
 diff --git a/vma-reader.c b/vma-reader.c
 new file mode 100644
-index 0000000000..e65f1e8415
+index 0000000000..81a891c6b1
 --- /dev/null
 +++ b/vma-reader.c
-@@ -0,0 +1,859 @@
+@@ -0,0 +1,867 @@
 +/*
 + * VMA: Virtual Machine Archive
 + *
@@ -91,6 +97,7 @@ index 0000000000..e65f1e8415
 +    bool write_zeroes;
 +    unsigned long *bitmap;
 +    int bitmap_size;
++    bool skip;
 +}  VmaRestoreState;
 +
 +struct VmaReader {
@@ -488,13 +495,14 @@ index 0000000000..e65f1e8415
 +}
 +
 +static void allocate_rstate(VmaReader *vmar,  guint8 dev_id,
-+                            BlockBackend *target, bool write_zeroes)
++                            BlockBackend *target, bool write_zeroes, bool skip)
 +{
 +    assert(vmar);
 +    assert(dev_id);
 +
 +    vmar->rstate[dev_id].target = target;
 +    vmar->rstate[dev_id].write_zeroes = write_zeroes;
++    vmar->rstate[dev_id].skip = skip;
 +
 +    int64_t size = vmar->devinfo[dev_id].size;
 +
@@ -509,28 +517,30 @@ index 0000000000..e65f1e8415
 +}
 +
 +int vma_reader_register_bs(VmaReader *vmar, guint8 dev_id, BlockBackend *target,
-+                           bool write_zeroes, Error **errp)
++                           bool write_zeroes, bool skip, Error **errp)
 +{
 +    assert(vmar);
-+    assert(target != NULL);
++    assert(target != NULL || skip);
 +    assert(dev_id);
-+    assert(vmar->rstate[dev_id].target == NULL);
++    assert(vmar->rstate[dev_id].target == NULL && !vmar->rstate[dev_id].skip);
 +
-+    int64_t size = blk_getlength(target);
-+    int64_t size_diff = size - vmar->devinfo[dev_id].size;
++    if (target != NULL) {
++        int64_t size = blk_getlength(target);
++        int64_t size_diff = size - vmar->devinfo[dev_id].size;
 +
-+    /* storage types can have different size restrictions, so it
-+     * is not always possible to create an image with exact size.
-+     * So we tolerate a size difference up to 4MB.
-+     */
-+    if ((size_diff < 0) || (size_diff > 4*1024*1024)) {
-+        error_setg(errp, "vma_reader_register_bs for stream %s failed - "
-+                   "unexpected size %zd != %zd", vmar->devinfo[dev_id].devname,
-+                   size, vmar->devinfo[dev_id].size);
-+        return -1;
++        /* storage types can have different size restrictions, so it
++         * is not always possible to create an image with exact size.
++         * So we tolerate a size difference up to 4MB.
++         */
++        if ((size_diff < 0) || (size_diff > 4*1024*1024)) {
++            error_setg(errp, "vma_reader_register_bs for stream %s failed - "
++                       "unexpected size %zd != %zd", vmar->devinfo[dev_id].devname,
++                       size, vmar->devinfo[dev_id].size);
++            return -1;
++        }
 +    }
 +
-+    allocate_rstate(vmar, dev_id, target, write_zeroes);
++    allocate_rstate(vmar, dev_id, target, write_zeroes, skip);
 +
 +    return 0;
 +}
@@ -623,19 +633,23 @@ index 0000000000..e65f1e8415
 +        VmaRestoreState *rstate = &vmar->rstate[dev_id];
 +        BlockBackend *target = NULL;
 +
++        bool skip = rstate->skip;
++
 +        if (dev_id != vmar->vmstate_stream) {
 +            target = rstate->target;
-+            if (!verify && !target) {
++            if (!verify && !target && !skip) {
 +                error_setg(errp, "got wrong dev id %d", dev_id);
 +                return -1;
 +            }
 +
-+            if (vma_reader_get_bitmap(rstate, cluster_num)) {
-+                error_setg(errp, "found duplicated cluster %zd for stream %s",
-+                          cluster_num, vmar->devinfo[dev_id].devname);
-+                return -1;
++            if (!skip) {
++                if (vma_reader_get_bitmap(rstate, cluster_num)) {
++                    error_setg(errp, "found duplicated cluster %zd for stream %s",
++                              cluster_num, vmar->devinfo[dev_id].devname);
++                    return -1;
++                }
++                vma_reader_set_bitmap(rstate, cluster_num, 1);
 +            }
-+            vma_reader_set_bitmap(rstate, cluster_num, 1);
 +
 +            max_sector = vmar->devinfo[dev_id].size/BDRV_SECTOR_SIZE;
 +        } else {
@@ -681,7 +695,7 @@ index 0000000000..e65f1e8415
 +                return -1;
 +            }
 +
-+            if (!verify) {
++            if (!verify && !skip) {
 +                int nb_sectors = end_sector - sector_num;
 +                if (restore_write_data(vmar, dev_id, target, vmstate_fd,
 +                                       buf + start, sector_num, nb_sectors,
@@ -717,7 +731,7 @@ index 0000000000..e65f1e8415
 +                        return -1;
 +                    }
 +
-+                    if (!verify) {
++                    if (!verify && !skip) {
 +                        int nb_sectors = end_sector - sector_num;
 +                        if (restore_write_data(vmar, dev_id, target, vmstate_fd,
 +                                               buf + start, sector_num,
@@ -742,7 +756,7 @@ index 0000000000..e65f1e8415
 +                            vmar->partial_zero_cluster_data += zero_size;
 +                        }
 +
-+                        if (rstate->write_zeroes && !verify) {
++                        if (rstate->write_zeroes && !verify && !skip) {
 +                            if (restore_write_data(vmar, dev_id, target, vmstate_fd,
 +                                                   zero_vma_block, sector_num,
 +                                                   nb_sectors, errp) < 0) {
@@ -913,7 +927,7 @@ index 0000000000..e65f1e8415
 +
 +    for (dev_id = 1; dev_id < 255; dev_id++) {
 +        if (vma_reader_get_device_info(vmar, dev_id)) {
-+            allocate_rstate(vmar, dev_id, NULL, false);
++            allocate_rstate(vmar, dev_id, NULL, false, false);
 +        }
 +    }
 +
@@ -922,10 +936,10 @@ index 0000000000..e65f1e8415
 +
 diff --git a/vma-writer.c b/vma-writer.c
 new file mode 100644
-index 0000000000..df4b20793d
+index 0000000000..ac7da237d0
 --- /dev/null
 +++ b/vma-writer.c
-@@ -0,0 +1,791 @@
+@@ -0,0 +1,793 @@
 +/*
 + * VMA: Virtual Machine Archive
 + *
@@ -1239,6 +1253,8 @@ index 0000000000..df4b20793d
 +        }
 +
 +        if (vmaw->fd < 0) {
++            error_free(*errp);
++            *errp = NULL;
 +            error_setg(errp, "can't open file %s - %s\n", filename,
 +                       g_strerror(errno));
 +            goto err;
@@ -1719,10 +1735,10 @@ index 0000000000..df4b20793d
 +}
 diff --git a/vma.c b/vma.c
 new file mode 100644
-index 0000000000..e8dffb43e0
+index 0000000000..304f02bc84
 --- /dev/null
 +++ b/vma.c
-@@ -0,0 +1,849 @@
+@@ -0,0 +1,878 @@
 +/*
 + * VMA: Virtual Machine Archive
 + *
@@ -1863,6 +1879,7 @@ index 0000000000..e8dffb43e0
 +    char *throttling_group;
 +    char *cache;
 +    bool write_zero;
++    bool skip;
 +} RestoreMap;
 +
 +static bool try_parse_option(char **line, const char *optname, char **out, const char *inbuf) {
@@ -1970,47 +1987,61 @@ index 0000000000..e8dffb43e0
 +            char *bps = NULL;
 +            char *group = NULL;
 +            char *cache = NULL;
++            char *devname = NULL;
++            bool skip = false;
++            uint64_t bps_value = 0;
++            const char *path = NULL;
++            bool write_zero = true;
++
 +            if (!line || line[0] == '\0' || !strcmp(line, "done\n")) {
 +                break;
 +            }
 +            int len = strlen(line);
 +            if (line[len - 1] == '\n') {
 +                line[len - 1] = '\0';
-+                if (len == 1) {
++                len = len - 1;
++                if (len == 0) {
 +                    break;
 +                }
 +            }
 +
-+            while (1) {
-+                if (!try_parse_option(&line, "format", &format, inbuf) &&
-+                    !try_parse_option(&line, "throttling.bps", &bps, inbuf) &&
-+                    !try_parse_option(&line, "throttling.group", &group, inbuf) &&
-+                    !try_parse_option(&line, "cache", &cache, inbuf))
-+                {
-+                    break;
++            if (strncmp(line, "skip", 4) == 0) {
++                if (len < 6 || line[4] != '=') {
++                    g_error("read map failed - option 'skip' has no value ('%s')",
++                            inbuf);
++                } else {
++                    devname = line + 5;
++                    skip = true;
 +                }
-+            }
-+
-+            uint64_t bps_value = 0;
-+            if (bps) {
-+                bps_value = verify_u64(bps);
-+                g_free(bps);
-+            }
-+
-+            const char *path;
-+            bool write_zero;
-+            if (line[0] == '0' && line[1] == ':') {
-+                path = line + 2;
-+                write_zero = false;
-+            } else if (line[0] == '1' && line[1] == ':') {
-+                path = line + 2;
-+                write_zero = true;
 +            } else {
-+                g_error("read map failed - parse error ('%s')", inbuf);
++                while (1) {
++                    if (!try_parse_option(&line, "format", &format, inbuf) &&
++                        !try_parse_option(&line, "throttling.bps", &bps, inbuf) &&
++                        !try_parse_option(&line, "throttling.group", &group, inbuf) &&
++                        !try_parse_option(&line, "cache", &cache, inbuf))
++                    {
++                        break;
++                    }
++                }
++
++                if (bps) {
++                    bps_value = verify_u64(bps);
++                    g_free(bps);
++                }
++
++                if (line[0] == '0' && line[1] == ':') {
++                    path = line + 2;
++                    write_zero = false;
++                } else if (line[0] == '1' && line[1] == ':') {
++                    path = line + 2;
++                    write_zero = true;
++                } else {
++                    g_error("read map failed - parse error ('%s')", inbuf);
++                }
++
++                path = extract_devname(path, &devname, -1);
 +            }
 +
-+            char *devname = NULL;
-+            path = extract_devname(path, &devname, -1);
 +            if (!devname) {
 +                g_error("read map failed - no dev name specified ('%s')",
 +                        inbuf);
@@ -2024,6 +2055,7 @@ index 0000000000..e8dffb43e0
 +            map->throttling_group = group;
 +            map->cache = cache;
 +            map->write_zero = write_zero;
++            map->skip = skip;
 +
 +            g_hash_table_insert(devmap, map->devname, map);
 +
@@ -2053,6 +2085,7 @@ index 0000000000..e8dffb43e0
 +            const char *cache = NULL;
 +            int flags = BDRV_O_RDWR;
 +            bool write_zero = true;
++            bool skip = false;
 +
 +            BlockBackend *blk = NULL;
 +
@@ -2068,6 +2101,7 @@ index 0000000000..e8dffb43e0
 +                throttling_group = map->throttling_group;
 +                cache = map->cache;
 +                write_zero = map->write_zero;
++                skip = map->skip;
 +            } else {
 +                devfn = g_strdup_printf("%s/tmp-disk-%s.raw",
 +                                        dirname, di->devname);
@@ -2086,57 +2120,60 @@ index 0000000000..e8dffb43e0
 +                write_zero = false;
 +            }
 +
-+	    size_t devlen = strlen(devfn);
-+	    QDict *options = NULL;
-+            bool writethrough;
-+            if (format) {
-+                /* explicit format from commandline */
-+                options = qdict_new();
-+                qdict_put_str(options, "driver", format);
-+            } else if ((devlen > 4 && strcmp(devfn+devlen-4, ".raw") == 0) ||
-+	               strncmp(devfn, "/dev/", 5) == 0)
-+	    {
-+                /* This part is now deprecated for PVE as well (just as qemu
-+                 * deprecated not specifying an explicit raw format, too.
-+                 */
-+		/* explicit raw format */
-+		options = qdict_new();
-+		qdict_put_str(options, "driver", "raw");
-+	    }
-+            if (cache && bdrv_parse_cache_mode(cache, &flags, &writethrough)) {
-+                g_error("invalid cache option: %s\n", cache);
-+            }
-+
-+	    if (errp || !(blk = blk_new_open(devfn, NULL, options, flags, &errp))) {
-+                g_error("can't open file %s - %s", devfn,
-+                        error_get_pretty(errp));
-+            }
-+
-+            if (cache) {
-+                blk_set_enable_write_cache(blk, !writethrough);
-+            }
-+
-+            if (throttling_group) {
-+                blk_io_limits_enable(blk, throttling_group);
-+            }
-+
-+            if (throttling_bps) {
-+                if (!throttling_group) {
-+                    blk_io_limits_enable(blk, devfn);
++            if (!skip) {
++                size_t devlen = strlen(devfn);
++                QDict *options = NULL;
++                bool writethrough;
++                if (format) {
++                    /* explicit format from commandline */
++                    options = qdict_new();
++                    qdict_put_str(options, "driver", format);
++                } else if ((devlen > 4 && strcmp(devfn+devlen-4, ".raw") == 0) ||
++                    strncmp(devfn, "/dev/", 5) == 0)
++                {
++                    /* This part is now deprecated for PVE as well (just as qemu
++                     * deprecated not specifying an explicit raw format, too.
++                     */
++                    /* explicit raw format */
++                    options = qdict_new();
++                    qdict_put_str(options, "driver", "raw");
 +                }
 +
-+                ThrottleConfig cfg;
-+                throttle_config_init(&cfg);
-+                cfg.buckets[THROTTLE_BPS_WRITE].avg = throttling_bps;
-+                Error *err = NULL;
-+                if (!throttle_is_valid(&cfg, &err)) {
-+                    error_report_err(err);
-+                    g_error("failed to apply throttling");
++                if (cache && bdrv_parse_cache_mode(cache, &flags, &writethrough)) {
++                    g_error("invalid cache option: %s\n", cache);
 +                }
-+                blk_set_io_limits(blk, &cfg);
++
++                if (errp || !(blk = blk_new_open(devfn, NULL, options, flags, &errp))) {
++                    g_error("can't open file %s - %s", devfn,
++                            error_get_pretty(errp));
++                }
++
++                if (cache) {
++                    blk_set_enable_write_cache(blk, !writethrough);
++                }
++
++                if (throttling_group) {
++                    blk_io_limits_enable(blk, throttling_group);
++                }
++
++                if (throttling_bps) {
++                    if (!throttling_group) {
++                        blk_io_limits_enable(blk, devfn);
++                    }
++
++                    ThrottleConfig cfg;
++                    throttle_config_init(&cfg);
++                    cfg.buckets[THROTTLE_BPS_WRITE].avg = throttling_bps;
++                    Error *err = NULL;
++                    if (!throttle_is_valid(&cfg, &err)) {
++                        error_report_err(err);
++                        g_error("failed to apply throttling");
++                    }
++                    blk_set_io_limits(blk, &cfg);
++                }
 +            }
 +
-+            if (vma_reader_register_bs(vmar, i, blk, write_zero, &errp) < 0) {
++            if (vma_reader_register_bs(vmar, i, blk, write_zero, skip, &errp) < 0) {
 +                g_error("%s", error_get_pretty(errp));
 +            }
 +
@@ -2252,7 +2289,7 @@ index 0000000000..e8dffb43e0
 +    struct iovec iov;
 +    QEMUIOVector qiov;
 +
-+    int64_t start, end;
++    int64_t start, end, readlen;
 +    int ret = 0;
 +
 +    unsigned char *buf = blk_blockalign(job->target, VMA_CLUSTER_SIZE);
@@ -2266,8 +2303,16 @@ index 0000000000..e8dffb43e0
 +        iov.iov_len = VMA_CLUSTER_SIZE;
 +        qemu_iovec_init_external(&qiov, &iov, 1);
 +
++        if (start + 1 == end) {
++            memset(buf, 0, VMA_CLUSTER_SIZE);
++            readlen = job->len - start * VMA_CLUSTER_SIZE;
++            assert(readlen > 0 && readlen <= VMA_CLUSTER_SIZE);
++        } else {
++            readlen = VMA_CLUSTER_SIZE;
++        }
++
 +        ret = blk_co_preadv(job->target, start * VMA_CLUSTER_SIZE,
-+                            VMA_CLUSTER_SIZE, &qiov, 0);
++                            readlen, &qiov, 0);
 +        if (ret < 0) {
 +            vma_writer_set_error(job->vmaw, "read error", -1);
 +            goto out;
@@ -2574,7 +2619,7 @@ index 0000000000..e8dffb43e0
 +}
 diff --git a/vma.h b/vma.h
 new file mode 100644
-index 0000000000..c895c97f6d
+index 0000000000..1b62859165
 --- /dev/null
 +++ b/vma.h
 @@ -0,0 +1,150 @@
@@ -2722,7 +2767,7 @@ index 0000000000..c895c97f6d
 +VmaDeviceInfo *vma_reader_get_device_info(VmaReader *vmar, guint8 dev_id);
 +int vma_reader_register_bs(VmaReader *vmar, guint8 dev_id,
 +                           BlockBackend *target, bool write_zeroes,
-+                           Error **errp);
++                           bool skip, Error **errp);
 +int vma_reader_restore(VmaReader *vmar, int vmstate_fd, bool verbose,
 +                       Error **errp);
 +int vma_reader_verify(VmaReader *vmar, bool verbose, Error **errp);
