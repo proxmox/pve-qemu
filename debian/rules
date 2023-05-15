@@ -84,7 +84,6 @@ endif
 	--enable-usb-redir \
 	--enable-virglrenderer \
 	--enable-virtfs \
-	--enable-virtiofsd \
 	--enable-zstd
 
 build: build-arch build-indep
