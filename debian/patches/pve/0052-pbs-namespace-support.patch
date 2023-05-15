@@ -172,7 +172,7 @@ index 2f834cf42e..f03d9bab8d 100644
          fprintf(stderr, "restore failed: %s\n", pbs_error);
          return -1;
 diff --git a/pve-backup.c b/pve-backup.c
-index 0d8bf1c332..8a4ecba394 100644
+index 04c5f561cd..08dfb9cbda 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -12,6 +12,8 @@

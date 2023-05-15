@@ -20,7 +20,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 50 insertions(+), 113 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 2db35f90e0..b4bc2de76e 100644
+index 0a0996b971..629da3e6c7 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -54,6 +54,7 @@ static struct PVEBackupState {

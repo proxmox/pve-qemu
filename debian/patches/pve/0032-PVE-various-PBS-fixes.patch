@@ -36,7 +36,7 @@ index cda5de792b..ecbebd39ac 100644
          NULL, NULL,
          devlist, qdict_haskey(qdict, "speed"), speed, &error);
 diff --git a/pve-backup.c b/pve-backup.c
-index c4cbff7fb1..95f742e1d1 100644
+index d9942a14a1..8f18145255 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -10,6 +10,7 @@

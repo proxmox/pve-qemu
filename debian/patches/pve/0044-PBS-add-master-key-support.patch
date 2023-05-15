@@ -33,7 +33,7 @@ index 56f39b14d4..f852c70611 100644
          NULL, // PBS backup-id
          false, 0, // PBS backup-time
 diff --git a/pve-backup.c b/pve-backup.c
-index 4536650b24..0d8bf1c332 100644
+index 88e507b3c2..04c5f561cd 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -531,6 +531,7 @@ UuidInfo coroutine_fn *qmp_backup(

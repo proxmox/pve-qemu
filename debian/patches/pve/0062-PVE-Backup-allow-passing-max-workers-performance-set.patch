@@ -46,7 +46,7 @@ index ac23f21eef..636509b83e 100644
      hmp_handle_error(mon, error);
  }
 diff --git a/pve-backup.c b/pve-backup.c
-index 04c8ce0a3d..56da408001 100644
+index 7a8240363d..cb5312fff3 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -57,6 +57,7 @@ static struct PVEBackupState {

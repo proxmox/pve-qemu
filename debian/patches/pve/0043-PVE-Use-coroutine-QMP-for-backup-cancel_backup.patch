@@ -119,7 +119,7 @@ index 4ce7bc0b5e..0923037dec 100644
  static void proxmox_backup_schedule_wake(void *data) {
      CoCtxData *waker = (CoCtxData *)data;
 diff --git a/pve-backup.c b/pve-backup.c
-index e9264e5025..4536650b24 100644
+index e0e38063a8..88e507b3c2 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -356,7 +356,7 @@ static void job_cancel_bh(void *opaque) {
@@ -423,7 +423,7 @@ index e9264e5025..4536650b24 100644
                  goto err_mutex;
              }
  
-             di->target = bdrv_open(di->targetfile, NULL, NULL, flags, &local_err);
+             di->target = bdrv_co_open(di->targetfile, NULL, NULL, flags, &local_err);
              if (!di->target) {
 -                error_propagate(task->errp, local_err);
 +                error_propagate(errp, local_err);

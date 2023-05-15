@@ -69,7 +69,7 @@ index 087161a967..9a67e544ce 100644
                             info->zero_bytes, zero_per);
  
 diff --git a/pve-backup.c b/pve-backup.c
-index 9eb8645e63..2db35f90e0 100644
+index 1400c21c49..0a0996b971 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -48,6 +48,7 @@ static struct PVEBackupState {
@@ -255,7 +255,7 @@ index 9eb8645e63..2db35f90e0 100644
 +                goto err_mutex;
              }
  
-             di->target = bdrv_open(di->targetfile, NULL, NULL, flags, &local_err);
+             di->target = bdrv_co_open(di->targetfile, NULL, NULL, flags, &local_err);
              if (!di->target) {
                  error_propagate(task->errp, local_err);
 -                goto err;

@@ -510,7 +510,7 @@ index 0000000000..1dda8b7d8f
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..389d6c84a0
+index 0000000000..f77892a509
 --- /dev/null
 +++ b/pve-backup.c
 @@ -0,0 +1,938 @@
@@ -1253,7 +1253,7 @@ index 0000000000..389d6c84a0
 +                goto err;
 +            }
 +
-+            di->target = bdrv_open(di->targetfile, NULL, NULL, flags, &local_err);
++            di->target = bdrv_co_open(di->targetfile, NULL, NULL, flags, &local_err);
 +            if (!di->target) {
 +                error_propagate(task->errp, local_err);
 +                goto err;
