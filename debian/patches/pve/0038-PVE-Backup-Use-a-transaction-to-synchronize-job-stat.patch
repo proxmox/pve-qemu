@@ -20,7 +20,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 50 insertions(+), 113 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index d4abe6e703..214c839c0b 100644
+index 2db35f90e0..b4bc2de76e 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -54,6 +54,7 @@ static struct PVEBackupState {
@@ -271,7 +271,7 @@ index d4abe6e703..214c839c0b 100644
 -        }
 -
          if (di->target) {
-             bdrv_unref(di->target);
+             bdrv_co_unref(di->target);
          }
 @@ -1021,9 +952,15 @@ UuidInfo *qmp_backup(
      block_on_coroutine_fn(pvebackup_co_prepare, &task);

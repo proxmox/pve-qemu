@@ -319,7 +319,7 @@ index 0000000000..43e69ada46
 +
 +block_init(bdrv_pbs_init);
 diff --git a/configure b/configure
-index 800b5850f4..37e12a3dce 100755
+index a62a3e6be9..1ac0feb46b 100755
 --- a/configure
 +++ b/configure
 @@ -288,6 +288,7 @@ linux_user=""
@@ -330,7 +330,7 @@ index 800b5850f4..37e12a3dce 100755
  plugins="$default_feature"
  meson=""
  ninja=""
-@@ -872,6 +873,10 @@ for opt do
+@@ -873,6 +874,10 @@ for opt do
    ;;
    --with-coroutine=*) coroutine="$optarg"
    ;;
@@ -341,7 +341,7 @@ index 800b5850f4..37e12a3dce 100755
    --with-git=*) git="$optarg"
    ;;
    --with-git-submodules=*)
-@@ -1048,6 +1053,7 @@ cat << EOF
+@@ -1049,6 +1054,7 @@ cat << EOF
    debug-info      debugging information
    safe-stack      SafeStack Stack Smash Protection. Depends on
                    clang/llvm and requires coroutine backend ucontext.
@@ -349,7 +349,7 @@ index 800b5850f4..37e12a3dce 100755
  
  NOTE: The object files are built at the place where configure is launched
  EOF
-@@ -2385,6 +2391,9 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
+@@ -2386,6 +2392,9 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
  if test "$modules" = "yes"; then
    echo "CONFIG_MODULES=y" >> $config_host_mak
  fi
@@ -360,10 +360,10 @@ index 800b5850f4..37e12a3dce 100755
  # XXX: suppress that
  if [ "$bsd" = "yes" ] ; then
 diff --git a/meson.build b/meson.build
-index 8ec21bba90..419bea5cf4 100644
+index afd105001e..d01ee5d489 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -4035,7 +4035,7 @@ summary_info += {'bzip2 support':     libbzip2}
+@@ -4037,7 +4037,7 @@ summary_info += {'bzip2 support':     libbzip2}
  summary_info += {'lzfse support':     liblzfse}
  summary_info += {'zstd support':      zstd}
  summary_info += {'NUMA host support': numa}

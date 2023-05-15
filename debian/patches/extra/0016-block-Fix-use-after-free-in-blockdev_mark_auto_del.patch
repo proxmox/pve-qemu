@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kevin Wolf <kwolf@redhat.com>
+Date: Wed, 3 May 2023 16:01:42 +0200
+Subject: [PATCH] block: Fix use after free in blockdev_mark_auto_del()
+
+job_cancel_locked() drops the job list lock temporarily and it may call
+aio_poll(). We must assume that the list has changed after this call.
+Also, with unlucky timing, it can end up freeing the job during
+job_completed_txn_abort_locked(), making the job pointer invalid, too.
+
+For both reasons, we can't just continue at block_job_next_locked(job).
+Instead, start at the head of the list again after job_cancel_locked()
+and skip those jobs that we already cancelled (or that are completing
+anyway).
+
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+Message-Id: <20230503140142.474404-1-kwolf@redhat.com>
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry-picked from commit e2626874a32602d4e52971c786ef5ffb4430629d)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ blockdev.c | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/blockdev.c b/blockdev.c
+index d7b5c18f0a..2c1752a403 100644
+--- a/blockdev.c
++++ b/blockdev.c
+@@ -153,12 +153,22 @@ void blockdev_mark_auto_del(BlockBackend *blk)
+ 
+     JOB_LOCK_GUARD();
+ 
+-    for (job = block_job_next_locked(NULL); job;
+-         job = block_job_next_locked(job)) {
+-        if (block_job_has_bdrv(job, blk_bs(blk))) {
++    do {
++        job = block_job_next_locked(NULL);
++        while (job && (job->job.cancelled ||
++                       job->job.deferred_to_main_loop ||
++                       !block_job_has_bdrv(job, blk_bs(blk))))
++        {
++            job = block_job_next_locked(job);
++        }
++        if (job) {
++            /*
++             * This drops the job lock temporarily and polls, so we need to
++             * restart processing the list from the start after this.
++             */
+             job_cancel_locked(&job->job, false);
+         }
+-    }
++    } while (job);
+ 
+     dinfo->auto_del = 1;
+ }

@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Richard Henderson <richard.henderson@linaro.org>
+Date: Thu, 4 May 2023 11:42:32 +0100
+Subject: [PATCH] target/arm: Fix vd == vm overlap in sve_ldff1_z
+
+If vd == vm, copy vm to scratch, so that we can pre-zero
+the output and still access the gather indicies.
+
+Cc: qemu-stable@nongnu.org
+Resolves: https://gitlab.com/qemu-project/qemu/-/issues/1612
+Signed-off-by: Richard Henderson <richard.henderson@linaro.org>
+(picked up from https://lists.nongnu.org/archive/html/qemu-devel/2023-05/msg00961.html)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/arm/tcg/sve_helper.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/target/arm/tcg/sve_helper.c b/target/arm/tcg/sve_helper.c
+index ccf5e5beca..0097522470 100644
+--- a/target/arm/tcg/sve_helper.c
++++ b/target/arm/tcg/sve_helper.c
+@@ -6727,6 +6727,7 @@ void sve_ldff1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
+     intptr_t reg_off;
+     SVEHostPage info;
+     target_ulong addr, in_page;
++    ARMVectorReg scratch;
+ 
+     /* Skip to the first true predicate.  */
+     reg_off = find_next_active(vg, 0, reg_max, esz);
+@@ -6736,6 +6737,11 @@ void sve_ldff1_z(CPUARMState *env, void *vd, uint64_t *vg, void *vm,
+         return;
+     }
+ 
++    /* Protect against overlap between vd and vm. */
++    if (unlikely(vd == vm)) {
++        vm = memcpy(&scratch, vm, reg_max);
++    }
++
+     /*
+      * Probe the first element, allowing faults.
+      */

@@ -1,0 +1,100 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Leonardo Bras <leobras@redhat.com>
+Date: Tue, 2 May 2023 21:27:02 -0300
+Subject: [PATCH] hw/pci: Disable PCI_ERR_UNCOR_MASK register for machine type
+ < 8.0
+
+Since it's implementation on v8.0.0-rc0, having the PCI_ERR_UNCOR_MASK
+set for machine types < 8.0 will cause migration to fail if the target
+QEMU version is < 8.0.0 :
+
+qemu-system-x86_64: get_pci_config_device: Bad config data: i=0x10a read: 40 device: 0 cmask: ff wmask: 0 w1cmask:0
+qemu-system-x86_64: Failed to load PCIDevice:config
+qemu-system-x86_64: Failed to load e1000e:parent_obj
+qemu-system-x86_64: error while loading state for instance 0x0 of device '0000:00:02.0/e1000e'
+qemu-system-x86_64: load of migration failed: Invalid argument
+
+The above test migrated a 7.2 machine type from QEMU master to QEMU 7.2.0,
+with this cmdline:
+
+./qemu-system-x86_64 -M pc-q35-7.2 [-incoming XXX]
+
+In order to fix this, property x-pcie-err-unc-mask was introduced to
+control when PCI_ERR_UNCOR_MASK is enabled. This property is enabled by
+default, but is disabled if machine type <= 7.2.
+
+Fixes: 010746ae1d ("hw/pci/aer: Implement PCI_ERR_UNCOR_MASK register")
+Suggested-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Leonardo Bras <leobras@redhat.com>
+Reviewed-by: Jonathan Cameron <Jonathan.Cameron@huawei.com>
+Reviewed-by: Peter Xu <peterx@redhat.com>
+Reviewed-by: Juan Quintela <quintela@redhat.com>
+(picked up from https://lists.nongnu.org/archive/html/qemu-devel/2023-05/msg00350.html)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/core/machine.c    |  1 +
+ hw/pci/pci.c         |  2 ++
+ hw/pci/pcie_aer.c    | 11 +++++++----
+ include/hw/pci/pci.h |  2 ++
+ 4 files changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/hw/core/machine.c b/hw/core/machine.c
+index cd13b8b0a3..5060119952 100644
+--- a/hw/core/machine.c
++++ b/hw/core/machine.c
+@@ -43,6 +43,7 @@ GlobalProperty hw_compat_7_2[] = {
+     { "e1000e", "migrate-timadj", "off" },
+     { "virtio-mem", "x-early-migration", "false" },
+     { "migration", "x-preempt-pre-7-2", "true" },
++    { TYPE_PCI_DEVICE, "x-pcie-err-unc-mask", "off" },
+ };
+ const size_t hw_compat_7_2_len = G_N_ELEMENTS(hw_compat_7_2);
+ 
+diff --git a/hw/pci/pci.c b/hw/pci/pci.c
+index def5000e7b..8ad4349e96 100644
+--- a/hw/pci/pci.c
++++ b/hw/pci/pci.c
+@@ -79,6 +79,8 @@ static Property pci_props[] = {
+     DEFINE_PROP_STRING("failover_pair_id", PCIDevice,
+                        failover_pair_id),
+     DEFINE_PROP_UINT32("acpi-index",  PCIDevice, acpi_index, 0),
++    DEFINE_PROP_BIT("x-pcie-err-unc-mask", PCIDevice, cap_present,
++                    QEMU_PCIE_ERR_UNC_MASK_BITNR, true),
+     DEFINE_PROP_END_OF_LIST()
+ };
+ 
+diff --git a/hw/pci/pcie_aer.c b/hw/pci/pcie_aer.c
+index 103667c368..374d593ead 100644
+--- a/hw/pci/pcie_aer.c
++++ b/hw/pci/pcie_aer.c
+@@ -112,10 +112,13 @@ int pcie_aer_init(PCIDevice *dev, uint8_t cap_ver, uint16_t offset,
+ 
+     pci_set_long(dev->w1cmask + offset + PCI_ERR_UNCOR_STATUS,
+                  PCI_ERR_UNC_SUPPORTED);
+-    pci_set_long(dev->config + offset + PCI_ERR_UNCOR_MASK,
+-                 PCI_ERR_UNC_MASK_DEFAULT);
+-    pci_set_long(dev->wmask + offset + PCI_ERR_UNCOR_MASK,
+-                 PCI_ERR_UNC_SUPPORTED);
++
++    if (dev->cap_present & QEMU_PCIE_ERR_UNC_MASK) {
++        pci_set_long(dev->config + offset + PCI_ERR_UNCOR_MASK,
++                     PCI_ERR_UNC_MASK_DEFAULT);
++        pci_set_long(dev->wmask + offset + PCI_ERR_UNCOR_MASK,
++                     PCI_ERR_UNC_SUPPORTED);
++    }
+ 
+     pci_set_long(dev->config + offset + PCI_ERR_UNCOR_SEVER,
+                  PCI_ERR_UNC_SEVERITY_DEFAULT);
+diff --git a/include/hw/pci/pci.h b/include/hw/pci/pci.h
+index d5a40cd058..6dc6742fc4 100644
+--- a/include/hw/pci/pci.h
++++ b/include/hw/pci/pci.h
+@@ -207,6 +207,8 @@ enum {
+     QEMU_PCIE_EXTCAP_INIT = (1 << QEMU_PCIE_EXTCAP_INIT_BITNR),
+ #define QEMU_PCIE_CXL_BITNR 10
+     QEMU_PCIE_CAP_CXL = (1 << QEMU_PCIE_CXL_BITNR),
++#define QEMU_PCIE_ERR_UNC_MASK_BITNR 11
++    QEMU_PCIE_ERR_UNC_MASK = (1 << QEMU_PCIE_ERR_UNC_MASK_BITNR),
+ };
+ 
+ typedef struct PCIINTxRoute {

@@ -35,10 +35,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  5 files changed, 79 insertions(+), 182 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 6a6ed6d0e7..bcf5849196 100644
+index ecbebd39ac..56f39b14d4 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1028,7 +1028,7 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+@@ -1030,7 +1030,7 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
                                 !!read_only, read_only_mode, errp);
  }
  
@@ -47,7 +47,7 @@ index 6a6ed6d0e7..bcf5849196 100644
  {
      Error *error = NULL;
  
-@@ -1037,7 +1037,7 @@ void hmp_backup_cancel(Monitor *mon, const QDict *qdict)
+@@ -1039,7 +1039,7 @@ void hmp_backup_cancel(Monitor *mon, const QDict *qdict)
      hmp_handle_error(mon, error);
  }
  
@@ -119,7 +119,7 @@ index 4ce7bc0b5e..0923037dec 100644
  static void proxmox_backup_schedule_wake(void *data) {
      CoCtxData *waker = (CoCtxData *)data;
 diff --git a/pve-backup.c b/pve-backup.c
-index 5c9c153e31..378e4a9a63 100644
+index e9264e5025..4536650b24 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -356,7 +356,7 @@ static void job_cancel_bh(void *opaque) {

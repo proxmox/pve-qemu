@@ -15,10 +15,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  5 files changed, 47 insertions(+), 9 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index fb881056e9..25ac598980 100644
+index f852c70611..ac23f21eef 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1053,6 +1053,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1055,6 +1055,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
          NULL, // PBS key_password
          NULL, // PBS master_keyfile
          NULL, // PBS fingerprint
@@ -172,7 +172,7 @@ index 2f834cf42e..f03d9bab8d 100644
          fprintf(stderr, "restore failed: %s\n", pbs_error);
          return -1;
 diff --git a/pve-backup.c b/pve-backup.c
-index 504c11657a..809ff6d134 100644
+index 0d8bf1c332..8a4ecba394 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -12,6 +12,8 @@

@@ -21,10 +21,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 11 insertions(+)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index bcf5849196..fb881056e9 100644
+index 56f39b14d4..f852c70611 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1051,6 +1051,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1053,6 +1053,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
          NULL, // PBS password
          NULL, // PBS keyfile
          NULL, // PBS key_password
@@ -33,7 +33,7 @@ index bcf5849196..fb881056e9 100644
          NULL, // PBS backup-id
          false, 0, // PBS backup-time
 diff --git a/pve-backup.c b/pve-backup.c
-index 378e4a9a63..504c11657a 100644
+index 4536650b24..0d8bf1c332 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -531,6 +531,7 @@ UuidInfo coroutine_fn *qmp_backup(

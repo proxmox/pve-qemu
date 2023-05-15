@@ -48,10 +48,10 @@ index f580f95395..5bcebb934b 100644
  softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  softmmu_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 2846083546..947d4f3df0 100644
+index ca2599de44..d50e99df26 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1027,3 +1027,36 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+@@ -1029,3 +1029,36 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
      qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
                                 !!read_only, read_only_mode, errp);
  }
@@ -89,7 +89,7 @@ index 2846083546..947d4f3df0 100644
 +    hmp_handle_error(mon, error);
 +}
 diff --git a/blockdev.c b/blockdev.c
-index 47c70eeb91..3b95f54b64 100644
+index 9a010f3a86..b9505c95d3 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -37,6 +37,7 @@
@@ -187,7 +187,7 @@ index c012bad741..2e504db706 100644
  void hmp_device_add(Monitor *mon, const QDict *qdict);
  void hmp_device_del(Monitor *mon, const QDict *qdict);
 diff --git a/meson.build b/meson.build
-index b9bc31b01c..b12ef9f8d4 100644
+index 603cdb97bb..d307d8eabf 100644
 --- a/meson.build
 +++ b/meson.build
 @@ -1528,6 +1528,7 @@ keyutils = dependency('libkeyutils', required: false,
@@ -510,7 +510,7 @@ index 0000000000..1dda8b7d8f
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..bb51c030bd
+index 0000000000..389d6c84a0
 --- /dev/null
 +++ b/pve-backup.c
 @@ -0,0 +1,938 @@
@@ -1328,7 +1328,7 @@ index 0000000000..bb51c030bd
 +        l = g_list_next(l);
 +
 +        if (di->target) {
-+            bdrv_unref(di->target);
++            bdrv_co_unref(di->target);
 +        }
 +
 +        if (di->targetfile[0]) {

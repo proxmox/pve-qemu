@@ -21,10 +21,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 52 insertions(+), 12 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index bcba630f12..6a6ed6d0e7 100644
+index cda5de792b..ecbebd39ac 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1054,7 +1054,9 @@ void hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1056,7 +1056,9 @@ void hmp_backup(Monitor *mon, const QDict *qdict)
          NULL, // PBS fingerprint
          NULL, // PBS backup-id
          false, 0, // PBS backup-time
@@ -36,7 +36,7 @@ index bcba630f12..6a6ed6d0e7 100644
          NULL, NULL,
          devlist, qdict_haskey(qdict, "speed"), speed, &error);
 diff --git a/pve-backup.c b/pve-backup.c
-index cfdeb50f23..f1eacbcaf6 100644
+index c4cbff7fb1..95f742e1d1 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -10,6 +10,7 @@

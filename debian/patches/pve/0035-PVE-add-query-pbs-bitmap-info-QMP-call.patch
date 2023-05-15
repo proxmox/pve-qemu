@@ -69,7 +69,7 @@ index 087161a967..9a67e544ce 100644
                             info->zero_bytes, zero_per);
  
 diff --git a/pve-backup.c b/pve-backup.c
-index c6fee40a67..d4abe6e703 100644
+index 9eb8645e63..2db35f90e0 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -48,6 +48,7 @@ static struct PVEBackupState {
