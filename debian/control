@@ -2,9 +2,9 @@ Source: pve-qemu-kvm
 Section: admin
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
-Build-Depends: autotools-dev,
+Build-Depends: debhelper-compat (= 13),
+               autotools-dev,
                check,
-               debhelper (>= 9),
                libacl1-dev,
                libaio-dev,
                libattr1-dev,
