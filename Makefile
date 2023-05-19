@@ -37,6 +37,9 @@ $(DEB): $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -b -us -uc -j
 	lintian $(DEBS)
 
+sbuild: $(DSC)
+	sbuild $(DSC)
+
 $(ORIG_SRC_TAR): $(BUILDDIR)
 	tar czf $(ORIG_SRC_TAR) --exclude="$(BUILDDIR)/debian" $(BUILDDIR)
 
