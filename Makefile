@@ -1,5 +1,4 @@
-include /usr/share/dpkg/pkg-info.mk
-include /usr/share/dpkg/architecture.mk
+include /usr/share/dpkg/default.mk
 
 PACKAGE = pve-qemu-kvm
 
@@ -48,8 +47,9 @@ update:
 	git add keycodemapdb
 
 .PHONY: upload
+upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
 upload: $(DEBS)
-	tar cf - ${DEBS} | ssh repoman@repo.proxmox.com upload --product pve --dist bullseye
+	tar cf - ${DEBS} | ssh repoman@repo.proxmox.com upload --product pve --dist $(UPLOAD_DIST)
 
 .PHONY: distclean clean
 distclean: clean
