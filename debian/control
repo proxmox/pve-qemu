@@ -64,8 +64,8 @@ Depends: ceph-common (>= 0.48),
          libuuid1,
          ${misc:Depends},
          ${shlibs:Depends},
-Recommends: numactl
-Suggests: libgl1
+Recommends: numactl,
+Suggests: libgl1,
 Conflicts: kvm,
            pve-kvm,
            pve-qemu-kvm-2.6.18,
@@ -73,10 +73,10 @@ Conflicts: kvm,
            qemu-kvm,
            qemu-system-arm,
            qemu-system-common,
-           qemu-system-x86,
            qemu-system-data,
+           qemu-system-x86,
            qemu-utils,
-Provides: qemu-system-arm, qemu-system-x86, qemu-utils
+Provides: qemu-system-arm, qemu-system-x86, qemu-utils,
 Replaces: pve-kvm,
           pve-qemu-kvm-2.6.18,
           qemu-system-arm,
@@ -90,6 +90,6 @@ Description: Full virtualization on x86 hardware
 Package: pve-qemu-kvm-dbg
 Architecture: any
 Section: debug
-Depends: pve-qemu-kvm (= ${binary:Version})
+Depends: pve-qemu-kvm (= ${binary:Version}),
 Description: pve qemu debugging symbols
  This package contains the debugging symbols for pve-qemu-kvm.

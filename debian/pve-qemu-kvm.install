@@ -1,7 +1,6 @@
-# install the userspace utilities
-debian/kvm-ifup etc/kvm/
-debian/kvm-ifdown etc/kvm/
-
 #install ovmf uefi rom
 debian/OVMF_CODE-pure-efi.fd usr/share/kvm/
 debian/OVMF_VARS-pure-efi.fd usr/share/kvm/
+debian/kvm-ifdown etc/kvm/
+# install the userspace utilities
+debian/kvm-ifup etc/kvm/
