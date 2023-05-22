@@ -20,6 +20,7 @@ submodule:
 	test -f "${SRCDIR}/configure" || git submodule update --init --recursive
 
 PC_BIOS_FW_PURGE_LIST_IN = \
+	hppa-firmware.img \
 	openbios-ppc \
 	openbios-sparc32 \
 	openbios-sparc64 \
