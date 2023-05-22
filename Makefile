@@ -23,13 +23,13 @@ $(BUILDDIR): keycodemapdb | submodule
 	# check if qemu/ was used for a build
 	# if so, please run 'make distclean' in the submodule and try again
 	test ! -f $(SRCDIR)/build/config.status
-	rm -rf $(BUILDDIR).tmp $(BUILDDIR)
-	cp -a $(SRCDIR) $(BUILDDIR).tmp
-	cp -a debian $(BUILDDIR).tmp/debian
-	rm -rf $(BUILDDIR).tmp/ui/keycodemapdb
-	cp -a keycodemapdb $(BUILDDIR).tmp/ui/
-	echo "git clone git://git.proxmox.com/git/pve-qemu.git\\ngit checkout $(GITVERSION)" > $(BUILDDIR).tmp/debian/SOURCE
-	mv $(BUILDDIR).tmp $(BUILDDIR)
+	rm -rf $@.tmp $@
+	cp -a $(SRCDIR) $@.tmp
+	cp -a debian $@.tmp/debian
+	rm -rf $@.tmp/ui/keycodemapdb
+	cp -a keycodemapdb $@.tmp/ui/
+	echo "git clone git://git.proxmox.com/git/pve-qemu.git\\ngit checkout $(GITVERSION)" > $@.tmp/debian/SOURCE
+	mv $@.tmp $@
 
 .PHONY: deb kvm
 deb kvm: $(DEBS)
