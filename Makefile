@@ -3,21 +3,21 @@ include /usr/share/dpkg/default.mk
 PACKAGE = pve-qemu-kvm
 
 SRCDIR := qemu
-BUILDDIR ?= ${PACKAGE}-${DEB_VERSION_UPSTREAM}
+BUILDDIR ?= $(PACKAGE)-$(DEB_VERSION_UPSTREAM)
 ORIG_SRC_TAR=$(PACKAGE)_$(DEB_VERSION_UPSTREAM).orig.tar.gz
 
 GITVERSION := $(shell git rev-parse HEAD)
 
 DSC=$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION).dsc
-DEB = ${PACKAGE}_${DEB_VERSION_UPSTREAM_REVISION}_${DEB_BUILD_ARCH}.deb
-DEB_DBG = ${PACKAGE}-dbg_${DEB_VERSION_UPSTREAM_REVISION}_${DEB_BUILD_ARCH}.deb
+DEB = $(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_BUILD_ARCH).deb
+DEB_DBG = $(PACKAGE)-dbg_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_BUILD_ARCH).deb
 DEBS = $(DEB) $(DEB_DBG)
 
 all: $(DEBS)
 
 .PHONY: submodule
 submodule:
-	test -f "${SRCDIR}/configure" || git submodule update --init --recursive
+	test -f "$(SRCDIR)/configure" || git submodule update --init --recursive
 
 PC_BIOS_FW_PURGE_LIST_IN = \
 	hppa-firmware.img \
@@ -86,7 +86,7 @@ update:
 .PHONY: upload
 upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
 upload: $(DEBS)
-	tar cf - ${DEBS} | ssh repoman@repo.proxmox.com upload --product pve --dist $(UPLOAD_DIST)
+	tar cf - $(DEBS) | ssh repoman@repo.proxmox.com upload --product pve --dist $(UPLOAD_DIST)
 
 .PHONY: distclean clean
 distclean: clean
