@@ -24,4 +24,5 @@ while (<STDIN>) {
 
 die "no QEMU machine types detected from STDIN input" if scalar (@$machines) <= 0;
 
-print to_json($machines, { utf8 => 1 }) or die "$!\n";
+print to_json($machines, { utf8 => 1, canonical => 1 })
+    or die "failed to encode detected machines as JSON - $!\n";
