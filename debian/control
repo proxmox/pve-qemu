@@ -3,7 +3,6 @@ Section: admin
 Priority: optional
 Maintainer: Proxmox Support Team <support@proxmox.com>
 Build-Depends: debhelper-compat (= 13),
-               autotools-dev,
                check,
                libacl1-dev,
                libaio-dev,
@@ -39,8 +38,6 @@ Build-Depends: debhelper-compat (= 13),
                python3-sphinx,
                python3-sphinx-rtd-theme,
                quilt,
-               texi2html,
-               texinfo,
                uuid-dev,
                xfslibs-dev,
 Standards-Version: 3.7.2
