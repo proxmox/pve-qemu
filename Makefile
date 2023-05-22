@@ -45,11 +45,13 @@ $(ORIG_SRC_TAR): $(BUILDDIR)
 	tar czf $(ORIG_SRC_TAR) --exclude="$(BUILDDIR)/debian" $(BUILDDIR)
 
 .PHONY: dsc
-dsc: $(DSC)
-$(DSC): $(ORIG_SRC_TAR) $(BUILDDIR)
-	rm -f *.dsc
-	cd $(BUILDDIR); dpkg-buildpackage -S -us -uc -d
+dsc:
+	rm -rf *.dsc $(BUILDDIR)
+	$(MAKE) $(DSC)
 	lintian $(DSC)
+
+$(DSC): $(ORIG_SRC_TAR) $(BUILDDIR)
+	cd $(BUILDDIR); dpkg-buildpackage -S -us -uc -d
 
 .PHONY: update
 update:
