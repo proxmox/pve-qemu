@@ -19,6 +19,22 @@ all: $(DEBS)
 submodule:
 	test -f "${SRCDIR}/configure" || git submodule update --init --recursive
 
+PC_BIOS_FW_PURGE_LIST_IN = \
+	openbios-ppc \
+	openbios-sparc32 \
+	openbios-sparc64 \
+	palcode-clipper \
+	s390-ccw.img \
+	s390-netboot.img \
+	u-boot.e500 \
+	.*\.dtb \
+	qemu_vga.ndrv \
+	slof.bin \
+	opensbi-riscv.*-generic-fw_dynamic.bin \
+
+BLOB_PURGE_SED_CMDS = $(foreach FILE,$(PC_BIOS_FW_PURGE_LIST_IN),-e "/$(FILE)/d")
+BLOB_PURGE_FILTER = $(foreach FILE,$(PC_BIOS_FW_PURGE_LIST_IN),-e "$(FILE)")
+
 $(BUILDDIR): keycodemapdb | submodule
 	# check if qemu/ was used for a build
 	# if so, please run 'make distclean' in the submodule and try again
@@ -28,6 +44,8 @@ $(BUILDDIR): keycodemapdb | submodule
 	cp -a debian $@.tmp/debian
 	rm -rf $@.tmp/ui/keycodemapdb
 	cp -a keycodemapdb $@.tmp/ui/
+	find $@.tmp/pc-bios -type f | grep $(BLOB_PURGE_FILTER) | xargs rm -f
+	sed -i $(BLOB_PURGE_SED_CMDS) $@.tmp/pc-bios/meson.build
 	echo "git clone git://git.proxmox.com/git/pve-qemu.git\\ngit checkout $(GITVERSION)" > $@.tmp/debian/SOURCE
 	mv $@.tmp $@
 
