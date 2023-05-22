@@ -87,6 +87,9 @@ endif
 	--enable-virtiofsd \
 	--enable-zstd
 
+build: build-arch build-indep
+build-arch: build-stamp
+build-indep: build-stamp
 build: build-stamp
 
 build-stamp: ${BUILDDIR}/config.status
