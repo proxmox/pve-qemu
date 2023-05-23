@@ -17,16 +17,8 @@ machinefile := $(destdir)/usr/share/kvm/machine-versions-x86_64.json
 # default QEMU out-of-tree build directory is ./build
 BUILDDIR=build
 
-CFLAGS = -Wall
-
-# FIXME: There is a second -02 added because of meson.build in the subproject
-# and that is appended after -O0 from here (last -O wins), so supporting noopt
-# doesn't work like this.
-ifneq (,$(findstring noopt,$(DEB_BUILD_OPTIONS)))
-	CFLAGS += -O0
-else
-	CFLAGS += -O2
-endif
+# FIXME: pass to configure as --extra-cflags=CFLAGS ?! also LDFLAGS?
+CFLAGS += -Wall
 
 export CFLAGS
 
