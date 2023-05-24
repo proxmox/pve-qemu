@@ -441,10 +441,10 @@ index 4ec70acf95..47118bf83e 100644
        'nvme-io_uring': { 'type': 'BlockdevOptionsNvmeIoUring',
                           'if': 'CONFIG_BLKIO' },
 diff --git a/qapi/pragma.json b/qapi/pragma.json
-index f2097b9020..5ab1890519 100644
+index 325e684411..b6079f6a0e 100644
 --- a/qapi/pragma.json
 +++ b/qapi/pragma.json
-@@ -47,6 +47,7 @@
+@@ -45,6 +45,7 @@
          'BlockInfo',                # query-block
          'BlockdevAioOptions',       # blockdev-add, -blockdev
          'BlockdevDriver',           # blockdev-add, query-blockstats, ...

@@ -138,10 +138,10 @@ index 604b686e59..15f5f86683 100644
  ##
  # @query-balloon:
 diff --git a/qapi/pragma.json b/qapi/pragma.json
-index 29233db825..f2097b9020 100644
+index 7f810b0e97..325e684411 100644
 --- a/qapi/pragma.json
 +++ b/qapi/pragma.json
-@@ -37,6 +37,7 @@
+@@ -35,6 +35,7 @@
      'member-name-exceptions': [     # visible in:
          'ACPISlotType',             # query-acpi-ospm-status
          'AcpiTableOptions',         # -acpitable
