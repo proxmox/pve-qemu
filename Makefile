@@ -44,6 +44,7 @@ $(BUILDDIR): keycodemapdb | submodule
 	cp -a $(SRCDIR) $@.tmp
 	cp -a debian $@.tmp/debian
 	rm -rf $@.tmp/ui/keycodemapdb
+	rm -rf $@.tmp/roms/edk2 # packaged separately
 	cp -a keycodemapdb $@.tmp/ui/
 	find $@.tmp/pc-bios -type f | grep $(BLOB_PURGE_FILTER) | xargs rm -f
 	sed -i $(BLOB_PURGE_SED_CMDS) $@.tmp/pc-bios/meson.build
