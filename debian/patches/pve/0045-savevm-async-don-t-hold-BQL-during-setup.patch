@@ -13,7 +13,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 2 deletions(-)
 
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index effe6d1e0d..f006a8e4d4 100644
+index ea3b2f36a6..dd7744ab66 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
 @@ -403,10 +403,8 @@ void qmp_savevm_start(const char *statefile, Error **errp)

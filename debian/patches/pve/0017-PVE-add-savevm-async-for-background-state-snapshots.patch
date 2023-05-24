@@ -31,17 +31,17 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hmp-commands-info.hx         |  13 +
- hmp-commands.hx              |  33 +++
+ hmp-commands.hx              |  17 ++
  include/migration/snapshot.h |   2 +
- include/monitor/hmp.h        |   5 +
+ include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 548 +++++++++++++++++++++++++++++++++++
- monitor/hmp-cmds.c           |  58 ++++
+ migration/savevm-async.c     | 533 +++++++++++++++++++++++++++++++++++
+ monitor/hmp-cmds.c           |  38 +++
  qapi/migration.json          |  34 +++
- qapi/misc.json               |  32 ++
+ qapi/misc.json               |  16 ++
  qemu-options.hx              |  12 +
  softmmu/vl.c                 |  10 +
- 11 files changed, 748 insertions(+)
+ 11 files changed, 679 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -69,10 +69,10 @@ index 47d63d26db..a166bff3d5 100644
          .name       = "balloon",
          .args_type  = "",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index bb85ee1d26..b66d7fc4ab 100644
+index bb85ee1d26..d9f9f42d11 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
-@@ -1846,3 +1846,36 @@ SRST
+@@ -1846,3 +1846,20 @@ SRST
    List event channels in the guest
  ERST
  #endif
@@ -83,22 +83,6 @@ index bb85ee1d26..b66d7fc4ab 100644
 +        .params     = "[statefile]",
 +        .help       = "Prepare for snapshot and halt VM. Save VM state to statefile.",
 +        .cmd = hmp_savevm_start,
-+    },
-+
-+    {
-+        .name       = "snapshot-drive",
-+        .args_type  = "device:s,name:s",
-+        .params     = "device name",
-+        .help       = "Create internal snapshot.",
-+        .cmd = hmp_snapshot_drive,
-+    },
-+
-+    {
-+        .name       = "delete-drive-snapshot",
-+        .args_type  = "device:s,name:s",
-+        .params     = "device name",
-+        .help       = "Delete internal snapshot.",
-+        .cmd = hmp_delete_drive_snapshot,
 +    },
 +
 +    {
@@ -121,7 +105,7 @@ index e72083b117..c846d37806 100644
 +
  #endif
 diff --git a/include/monitor/hmp.h b/include/monitor/hmp.h
-index fdb69b7f9c..c012bad741 100644
+index fdb69b7f9c..fdf6b45fb8 100644
 --- a/include/monitor/hmp.h
 +++ b/include/monitor/hmp.h
 @@ -28,6 +28,7 @@ void hmp_info_status(Monitor *mon, const QDict *qdict);
@@ -132,13 +116,11 @@ index fdb69b7f9c..c012bad741 100644
  void hmp_info_migrate(Monitor *mon, const QDict *qdict);
  void hmp_info_migrate_capabilities(Monitor *mon, const QDict *qdict);
  void hmp_info_migrate_parameters(Monitor *mon, const QDict *qdict);
-@@ -94,6 +95,10 @@ void hmp_closefd(Monitor *mon, const QDict *qdict);
+@@ -94,6 +95,8 @@ void hmp_closefd(Monitor *mon, const QDict *qdict);
  void hmp_mouse_move(Monitor *mon, const QDict *qdict);
  void hmp_mouse_button(Monitor *mon, const QDict *qdict);
  void hmp_mouse_set(Monitor *mon, const QDict *qdict);
 +void hmp_savevm_start(Monitor *mon, const QDict *qdict);
-+void hmp_snapshot_drive(Monitor *mon, const QDict *qdict);
-+void hmp_delete_drive_snapshot(Monitor *mon, const QDict *qdict);
 +void hmp_savevm_end(Monitor *mon, const QDict *qdict);
  void hmp_sendkey(Monitor *mon, const QDict *qdict);
  void coroutine_fn hmp_screendump(Monitor *mon, const QDict *qdict);
@@ -157,10 +139,10 @@ index 8a142fc7a9..a7824b5266 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..c5db9e9c1e
+index 0000000000..ac1fac6378
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,548 @@
+@@ -0,0 +1,533 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -640,21 +622,6 @@ index 0000000000..c5db9e9c1e
 +    DPRINTF("savevm-end: cleanup done\n");
 +}
 +
-+// FIXME: Deprecated
-+void qmp_snapshot_drive(const char *device, const char *name, Error **errp)
-+{
-+    // Compatibility to older qemu-server.
-+    qmp_blockdev_snapshot_internal_sync(device, name, errp);
-+}
-+
-+// FIXME: Deprecated
-+void qmp_delete_drive_snapshot(const char *device, const char *name,
-+                               Error **errp)
-+{
-+    // Compatibility to older qemu-server.
-+    (void)qmp_blockdev_snapshot_delete_internal_sync(device, NULL, name, errp);
-+}
-+
 +int load_snapshot_from_blockdev(const char *filename, Error **errp)
 +{
 +    BlockBackend *be;
@@ -710,7 +677,7 @@ index 0000000000..c5db9e9c1e
 +    return ret;
 +}
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 6c559b48c8..435f9334f9 100644
+index 6c559b48c8..91be698308 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
 @@ -22,6 +22,7 @@
@@ -721,7 +688,7 @@ index 6c559b48c8..435f9334f9 100644
  #include "qapi/qapi-commands-misc.h"
  #include "qapi/qmp/qdict.h"
  #include "qapi/qmp/qerror.h"
-@@ -443,3 +444,60 @@ void hmp_info_mtree(Monitor *mon, const QDict *qdict)
+@@ -443,3 +444,40 @@ void hmp_info_mtree(Monitor *mon, const QDict *qdict)
  
      mtree_info(flatview, dispatch_tree, owner, disabled);
  }
@@ -732,26 +699,6 @@ index 6c559b48c8..435f9334f9 100644
 +    const char *statefile = qdict_get_try_str(qdict, "statefile");
 +
 +    qmp_savevm_start(statefile, &errp);
-+    hmp_handle_error(mon, errp);
-+}
-+
-+void hmp_snapshot_drive(Monitor *mon, const QDict *qdict)
-+{
-+    Error *errp = NULL;
-+    const char *name = qdict_get_str(qdict, "name");
-+    const char *device = qdict_get_str(qdict, "device");
-+
-+    qmp_snapshot_drive(device, name, &errp);
-+    hmp_handle_error(mon, errp);
-+}
-+
-+void hmp_delete_drive_snapshot(Monitor *mon, const QDict *qdict)
-+{
-+    Error *errp = NULL;
-+    const char *name = qdict_get_str(qdict, "name");
-+    const char *device = qdict_get_str(qdict, "device");
-+
-+    qmp_delete_drive_snapshot(device, name, &errp);
 +    hmp_handle_error(mon, errp);
 +}
 +
@@ -828,10 +775,10 @@ index c84fa10e86..1702b92553 100644
  # @query-migrate:
  #
 diff --git a/qapi/misc.json b/qapi/misc.json
-index 6ddd16ea28..098c9bbe93 100644
+index 6ddd16ea28..e5681ae8a2 100644
 --- a/qapi/misc.json
 +++ b/qapi/misc.json
-@@ -469,6 +469,38 @@
+@@ -469,6 +469,22 @@
  ##
  { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
  
@@ -842,22 +789,6 @@ index 6ddd16ea28..098c9bbe93 100644
 +#
 +##
 +{ 'command': 'savevm-start', 'data': { '*statefile': 'str' } }
-+
-+##
-+# @snapshot-drive:
-+#
-+# Create an internal drive snapshot.
-+#
-+##
-+{ 'command': 'snapshot-drive', 'data': { 'device': 'str', 'name': 'str' } }
-+
-+##
-+# @delete-drive-snapshot:
-+#
-+# Delete a drive snapshot.
-+#
-+##
-+{ 'command': 'delete-drive-snapshot', 'data': { 'device': 'str', 'name': 'str' } }
 +
 +##
 +# @savevm-end:

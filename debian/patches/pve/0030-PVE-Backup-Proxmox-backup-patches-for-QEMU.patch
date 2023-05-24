@@ -203,7 +203,7 @@ index a166bff3d5..4b75966c2e 100644
      {
          .name       = "usernet",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index b66d7fc4ab..896430dae8 100644
+index d9f9f42d11..775518fb09 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
 @@ -101,6 +101,37 @@ ERST
@@ -245,7 +245,7 @@ index b66d7fc4ab..896430dae8 100644
  
      {
 diff --git a/include/monitor/hmp.h b/include/monitor/hmp.h
-index c012bad741..2e504db706 100644
+index fdf6b45fb8..e01b2201d8 100644
 --- a/include/monitor/hmp.h
 +++ b/include/monitor/hmp.h
 @@ -32,6 +32,7 @@ void hmp_info_savevm(Monitor *mon, const QDict *qdict);
@@ -278,7 +278,7 @@ index 603cdb97bb..d307d8eabf 100644
  # libselinux
  selinux = dependency('libselinux',
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 435f9334f9..9a67e544ce 100644
+index 91be698308..5b9c231a4c 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
 @@ -21,6 +21,7 @@
