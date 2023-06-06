@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alexander Bulekov <alxndr@bu.edu>
+Date: Thu, 27 Apr 2023 17:10:12 -0400
+Subject: [PATCH] raven: disable reentrancy detection for iomem
+
+As the code is designed for re-entrant calls from raven_io_ops to
+pci-conf, mark raven_io_ops as reentrancy-safe.
+
+Signed-off-by: Alexander Bulekov <alxndr@bu.edu>
+Message-Id: <20230427211013.2994127-8-alxndr@bu.edu>
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+(cherry-picked from commit 6dad5a6810d9c60ca320d01276f6133bbcfa1fc7)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/pci-host/raven.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/hw/pci-host/raven.c b/hw/pci-host/raven.c
+index 072ffe3c5e..9a11ac4b2b 100644
+--- a/hw/pci-host/raven.c
++++ b/hw/pci-host/raven.c
+@@ -294,6 +294,13 @@ static void raven_pcihost_initfn(Object *obj)
+     memory_region_init(&s->pci_memory, obj, "pci-memory", 0x3f000000);
+     address_space_init(&s->pci_io_as, &s->pci_io, "raven-io");
+ 
++    /*
++     * Raven's raven_io_ops use the address-space API to access pci-conf-idx
++     * (which is also owned by the raven device). As such, mark the
++     * pci_io_non_contiguous as re-entrancy safe.
++     */
++    s->pci_io_non_contiguous.disable_reentrancy_guard = true;
++
+     /* CPU address space */
+     memory_region_add_subregion(address_space_mem, PCI_IO_BASE_ADDR,
+                                 &s->pci_io);
