@@ -22,7 +22,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/ui/console.c b/ui/console.c
-index 6e8a3cdc62..594517ecdb 100644
+index e173731e20..7461446e71 100644
 --- a/ui/console.c
 +++ b/ui/console.c
 @@ -2306,7 +2306,7 @@ QEMUCursor *qemu_console_get_cursor(QemuConsole *con)

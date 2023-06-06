@@ -15,10 +15,10 @@ Signed-off-by: Alexander Bulekov <alxndr@bu.edu>
  1 file changed, 6 insertions(+)
 
 diff --git a/hw/scsi/lsi53c895a.c b/hw/scsi/lsi53c895a.c
-index af93557a9a..db27872963 100644
+index bbf32d3f73..17af67935f 100644
 --- a/hw/scsi/lsi53c895a.c
 +++ b/hw/scsi/lsi53c895a.c
-@@ -2302,6 +2302,12 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
+@@ -2313,6 +2313,12 @@ static void lsi_scsi_realize(PCIDevice *dev, Error **errp)
      memory_region_init_io(&s->io_io, OBJECT(s), &lsi_io_ops, s,
                            "lsi-io", 256);
  
