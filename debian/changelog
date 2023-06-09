@@ -1,3 +1,12 @@
+pve-qemu-kvm (8.0.2-2) bookworm; urgency=medium
+
+  * drop custom get_link_status QMP command, was never really used.
+
+  * drop custom & deprecated drive snapshot QMP commands, we use a better
+    alternative since a while.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 09 Jun 2023 07:57:56 +0200
+
 pve-qemu-kvm (8.0.2-1) bookworm; urgency=medium
 
   * update to QEMU stable release 8.0.2
