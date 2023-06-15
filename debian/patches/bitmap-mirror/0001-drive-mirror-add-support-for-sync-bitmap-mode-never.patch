@@ -254,7 +254,7 @@ index 663e2b7002..9099c75992 100644
                       errp);
      if (!job) {
 diff --git a/blockdev.c b/blockdev.c
-index e464daea58..1010b60804 100644
+index e464daea58..50e4a9c682 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -2942,6 +2942,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
@@ -279,7 +279,7 @@ index e464daea58..1010b60804 100644
          sync = MIRROR_SYNC_MODE_FULL;
      }
  
-+    if (bitmap) {
++    if (bitmap_name) {
 +        if (granularity) {
 +            error_setg(errp, "Granularity and bitmap cannot both be set");
 +            return;

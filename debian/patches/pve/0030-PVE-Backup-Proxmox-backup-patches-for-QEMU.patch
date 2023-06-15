@@ -166,7 +166,7 @@ index ca2599de44..636509b83e 100644
 +    hmp_handle_error(mon, error);
 +}
 diff --git a/blockdev.c b/blockdev.c
-index 9a010f3a86..b9505c95d3 100644
+index bdae211a54..315a27fc09 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -37,6 +37,7 @@
