@@ -1,3 +1,9 @@
+pve-qemu-kvm (8.0.2-3) bookworm; urgency=medium
+
+  * fix regression in QEMU 8.0 for drive mirror with bitmap
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 15 Jun 2023 13:57:46 +0200
+
 pve-qemu-kvm (8.0.2-2) bookworm; urgency=medium
 
   * drop custom get_link_status QMP command, was never really used.
