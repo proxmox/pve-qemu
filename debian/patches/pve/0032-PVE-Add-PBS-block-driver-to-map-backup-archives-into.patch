@@ -390,10 +390,10 @@ index a62a3e6be9..1ac0feb46b 100755
  # XXX: suppress that
  if [ "$bsd" = "yes" ] ; then
 diff --git a/meson.build b/meson.build
-index afd105001e..d01ee5d489 100644
+index 32ab849ce6..69afe3441b 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -4037,7 +4037,7 @@ summary_info += {'bzip2 support':     libbzip2}
+@@ -4041,7 +4041,7 @@ summary_info += {'bzip2 support':     libbzip2}
  summary_info += {'lzfse support':     liblzfse}
  summary_info += {'zstd support':      zstd}
  summary_info += {'NUMA host support': numa}

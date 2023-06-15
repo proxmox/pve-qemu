@@ -266,7 +266,7 @@ index fdf6b45fb8..e01b2201d8 100644
  void hmp_device_add(Monitor *mon, const QDict *qdict);
  void hmp_device_del(Monitor *mon, const QDict *qdict);
 diff --git a/meson.build b/meson.build
-index 603cdb97bb..d307d8eabf 100644
+index 38a4e2bcef..443b3238f9 100644
 --- a/meson.build
 +++ b/meson.build
 @@ -1528,6 +1528,7 @@ keyutils = dependency('libkeyutils', required: false,

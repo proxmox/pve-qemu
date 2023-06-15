@@ -802,10 +802,10 @@ index 6ddd16ea28..e5681ae8a2 100644
  # @CommandLineParameterType:
  #
 diff --git a/qemu-options.hx b/qemu-options.hx
-index 59bdf67a2c..fc6cb23dd9 100644
+index fdddfab6ff..fdd551c2bb 100644
 --- a/qemu-options.hx
 +++ b/qemu-options.hx
-@@ -4378,6 +4378,18 @@ SRST
+@@ -4398,6 +4398,18 @@ SRST
      Start right away with a saved state (``loadvm`` in monitor)
  ERST
  

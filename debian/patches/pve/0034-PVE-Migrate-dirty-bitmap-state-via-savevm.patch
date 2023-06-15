@@ -53,7 +53,7 @@ index a7824b5266..de6a271b58 100644
  softmmu_ss.add(files(
    'block-dirty-bitmap.c',
 diff --git a/migration/migration.c b/migration/migration.c
-index bda4789193..c8318aa258 100644
+index 99f86bd6c2..db229e72c9 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
 @@ -245,6 +245,7 @@ void migration_object_init(void)

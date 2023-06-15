@@ -14,10 +14,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  2 files changed, 11 insertions(+)
 
 diff --git a/qemu-options.hx b/qemu-options.hx
-index fc6cb23dd9..3ccedf7c45 100644
+index fdd551c2bb..4eb43b7bc5 100644
 --- a/qemu-options.hx
 +++ b/qemu-options.hx
-@@ -1150,6 +1150,9 @@ backend describes how QEMU handles the data.
+@@ -1162,6 +1162,9 @@ legacy PC, they are not recommended for modern configurations.
  
  ERST
  
