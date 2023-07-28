@@ -67,10 +67,10 @@ index a8dfd8fefd..fa9b0b0f10 100644
       * must_precopy:
       * - must be migrated in precopy or in stopped state
 diff --git a/migration/block-dirty-bitmap.c b/migration/block-dirty-bitmap.c
-index a6440929fa..69fab3275c 100644
+index 509f3df0a6..42dc4a8d61 100644
 --- a/migration/block-dirty-bitmap.c
 +++ b/migration/block-dirty-bitmap.c
-@@ -1214,10 +1214,17 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
+@@ -1220,10 +1220,17 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
  {
      DBMSaveState *s = &((DBMState *)opaque)->save;
      SaveBitmapState *dbms = NULL;
@@ -90,7 +90,7 @@ index a6440929fa..69fab3275c 100644
          return -1;
      }
  
-@@ -1225,7 +1232,9 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
+@@ -1231,7 +1238,9 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
          send_bitmap_start(f, s, dbms);
      }
      qemu_put_bitmap_flags(f, DIRTY_BITMAP_MIG_FLAG_EOS);
