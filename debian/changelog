@@ -1,3 +1,10 @@
+pve-qemu-kvm (8.0.2-4) bookworm; urgency=medium
+
+  * fix resume for snapshot and hibernate in combination with iothread and
+    dirty bitmap
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 28 Jul 2023 12:58:22 +0200
+
 pve-qemu-kvm (8.0.2-3) bookworm; urgency=medium
 
   * fix regression in QEMU 8.0 for drive mirror with bitmap
