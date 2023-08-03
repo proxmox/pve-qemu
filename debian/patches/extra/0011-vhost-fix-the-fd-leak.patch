@@ -1,0 +1,29 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Li Feng <fengli@smartx.com>
+Date: Mon, 31 Jul 2023 20:10:06 +0800
+Subject: [PATCH] vhost: fix the fd leak
+
+When the vhost-user reconnect to the backend, the notifer should be
+cleanup. Otherwise, the fd resource will be exhausted.
+
+Fixes: f9a09ca3ea ("vhost: add support for configure interrupt")
+
+Signed-off-by: Li Feng <fengli@smartx.com>
+Reviewed-by: Raphael Norwitz <raphael.norwitz@nutanix.com>
+---
+ hw/virtio/vhost.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/hw/virtio/vhost.c b/hw/virtio/vhost.c
+index a266396576..8e3311781f 100644
+--- a/hw/virtio/vhost.c
++++ b/hw/virtio/vhost.c
+@@ -2034,6 +2034,8 @@ void vhost_dev_stop(struct vhost_dev *hdev, VirtIODevice *vdev, bool vrings)
+     event_notifier_test_and_clear(
+         &hdev->vqs[VHOST_QUEUE_NUM_CONFIG_INR].masked_config_notifier);
+     event_notifier_test_and_clear(&vdev->config_notifier);
++    event_notifier_cleanup(
++        &hdev->vqs[VHOST_QUEUE_NUM_CONFIG_INR].masked_config_notifier);
+ 
+     trace_vhost_dev_stop(hdev, vdev->name, vrings);
+ 

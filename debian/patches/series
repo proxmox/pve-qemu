@@ -8,6 +8,7 @@ extra/0007-bcm2835_property-disable-reentrancy-detection-for-io.patch
 extra/0008-raven-disable-reentrancy-detection-for-iomem.patch
 extra/0009-apic-disable-reentrancy-detection-for-apic-msi.patch
 extra/0010-migration-block-dirty-bitmap-fix-loading-bitmap-when.patch
+extra/0011-vhost-fix-the-fd-leak.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
