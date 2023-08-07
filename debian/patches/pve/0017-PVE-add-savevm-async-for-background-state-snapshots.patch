@@ -275,7 +275,7 @@ index 0000000000..ac1fac6378
 +    return ret;
 +}
 +
-+static void save_snapshot_error(const char *fmt, ...)
++static void G_GNUC_PRINTF(1, 2) save_snapshot_error(const char *fmt, ...)
 +{
 +    va_list ap;
 +    char *msg;

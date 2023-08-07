@@ -2314,13 +2314,13 @@ index 0000000000..304f02bc84
 +        ret = blk_co_preadv(job->target, start * VMA_CLUSTER_SIZE,
 +                            readlen, &qiov, 0);
 +        if (ret < 0) {
-+            vma_writer_set_error(job->vmaw, "read error", -1);
++            vma_writer_set_error(job->vmaw, "read error");
 +            goto out;
 +        }
 +
 +        size_t zb = 0;
 +        if (vma_writer_write(job->vmaw, job->dev_id, start, buf, &zb) < 0) {
-+            vma_writer_set_error(job->vmaw, "backup_dump_cb vma_writer_write failed", -1);
++            vma_writer_set_error(job->vmaw, "backup_dump_cb vma_writer_write failed");
 +            goto out;
 +        }
 +    }
@@ -2757,7 +2757,7 @@ index 0000000000..1b62859165
 +int coroutine_fn vma_writer_flush_output(VmaWriter *vmaw);
 +
 +int vma_writer_get_status(VmaWriter *vmaw, VmaStatus *status);
-+void vma_writer_set_error(VmaWriter *vmaw, const char *fmt, ...);
++void vma_writer_set_error(VmaWriter *vmaw, const char *fmt, ...) G_GNUC_PRINTF(2, 3);
 +
 +
 +VmaReader *vma_reader_create(const char *filename, Error **errp);
