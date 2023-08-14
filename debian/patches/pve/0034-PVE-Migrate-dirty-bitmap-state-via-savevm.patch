@@ -175,10 +175,10 @@ index 0000000000..887e998b9e
 +                         NULL);
 +}
 diff --git a/pve-backup.c b/pve-backup.c
-index dd72ee0ed6..cb5312fff3 100644
+index 10ca8a0b1d..0a5ce2cab8 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -1090,6 +1090,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1102,6 +1102,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->pbs_library_version = g_strdup(proxmox_backup_qemu_version());
      ret->pbs_dirty_bitmap = true;
      ret->pbs_dirty_bitmap_savevm = true;

@@ -79,7 +79,8 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
      adapt for new job lock mechanism replacing AioContext locks
      adapt to QAPI changes
      improve canceling
-     allow passing max-workers setting]
+     allow passing max-workers setting
+     use malloc_trim after backup]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build              |    5 +
@@ -92,11 +93,11 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1097 ++++++++++++++++++++++++++++++++
+ pve-backup.c                   | 1109 ++++++++++++++++++++++++++++++++
  qapi/block-core.json           |  226 +++++++
  qapi/common.json               |   13 +
  qapi/machine.json              |   15 +-
- 14 files changed, 1711 insertions(+), 13 deletions(-)
+ 14 files changed, 1723 insertions(+), 13 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
@@ -587,10 +588,10 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..dd72ee0ed6
+index 0000000000..10ca8a0b1d
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1097 @@
+@@ -0,0 +1,1109 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -604,6 +605,10 @@ index 0000000000..dd72ee0ed6
 +#include "qapi/qapi-commands-block.h"
 +#include "qapi/qmp/qerror.h"
 +#include "qemu/cutils.h"
++
++#if defined(CONFIG_MALLOC_TRIM)
++#include <malloc.h>
++#endif
 +
 +#include <proxmox-backup-qemu.h>
 +
@@ -869,6 +874,14 @@ index 0000000000..dd72ee0ed6
 +    backup_state.stat.end_time = time(NULL);
 +    backup_state.stat.finishing = false;
 +    qemu_mutex_unlock(&backup_state.stat.lock);
++
++#if defined(CONFIG_MALLOC_TRIM)
++    /*
++     * Try to reclaim memory for buffers (and, in case of PBS, Rust futures), etc.
++     * Won't happen by default if there is fragmentation.
++     */
++    malloc_trim(4 * 1024 * 1024);
++#endif
 +}
 +
 +static void coroutine_fn pvebackup_co_complete_stream(void *opaque)
