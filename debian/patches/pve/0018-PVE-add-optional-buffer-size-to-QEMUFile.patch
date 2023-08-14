@@ -192,7 +192,7 @@ index 9d0155a2a1..cc06240e8d 100644
  int qemu_fclose(QEMUFile *f);
  
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index ac1fac6378..ea3b2f36a6 100644
+index aa2017d496..b97f2c4f14 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
 @@ -380,7 +380,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)

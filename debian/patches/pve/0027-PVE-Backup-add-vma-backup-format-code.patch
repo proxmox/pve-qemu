@@ -1735,7 +1735,7 @@ index 0000000000..ac7da237d0
 +}
 diff --git a/vma.c b/vma.c
 new file mode 100644
-index 0000000000..304f02bc84
+index 0000000000..c76ecefa0f
 --- /dev/null
 +++ b/vma.c
 @@ -0,0 +1,878 @@
@@ -2619,7 +2619,7 @@ index 0000000000..304f02bc84
 +}
 diff --git a/vma.h b/vma.h
 new file mode 100644
-index 0000000000..1b62859165
+index 0000000000..86d2873aa5
 --- /dev/null
 +++ b/vma.h
 @@ -0,0 +1,150 @@

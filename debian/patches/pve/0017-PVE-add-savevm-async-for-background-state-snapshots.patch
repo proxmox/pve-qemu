@@ -139,7 +139,7 @@ index 8a142fc7a9..a7824b5266 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..ac1fac6378
+index 0000000000..aa2017d496
 --- /dev/null
 +++ b/migration/savevm-async.c
 @@ -0,0 +1,533 @@
