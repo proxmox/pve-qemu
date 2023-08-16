@@ -1,3 +1,12 @@
+pve-qemu-kvm (8.0.2-5) bookworm; urgency=medium
+
+  * improve memory footprint after backup by not keeping as much memory
+    resident.
+
+  * fix file descriptor leak for vhost (used by default by vNICs).
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 16 Aug 2023 11:52:24 +0200
+
 pve-qemu-kvm (8.0.2-4) bookworm; urgency=medium
 
   * fix resume for snapshot and hibernate in combination with iothread and
