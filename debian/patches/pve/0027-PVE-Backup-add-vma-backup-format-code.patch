@@ -1735,10 +1735,10 @@ index 0000000000..ac7da237d0
 +}
 diff --git a/vma.c b/vma.c
 new file mode 100644
-index 0000000000..c76ecefa0f
+index 0000000000..1604d955d8
 --- /dev/null
 +++ b/vma.c
-@@ -0,0 +1,878 @@
+@@ -0,0 +1,900 @@
 +/*
 + * VMA: Virtual Machine Archive
 + *
@@ -1772,7 +1772,7 @@ index 0000000000..c76ecefa0f
 +        "vma list <filename>\n"
 +        "vma config <filename> [-c config]\n"
 +        "vma create <filename> [-c config] pathname ...\n"
-+        "vma extract <filename> [-r <fifo>] <targetdir>\n"
++        "vma extract <filename> [-d <drive-list>] [-r <fifo>] <targetdir>\n"
 +        "vma verify <filename> [-v]\n"
 +        ;
 +
@@ -1917,9 +1917,10 @@ index 0000000000..c76ecefa0f
 +    const char *filename;
 +    const char *dirname;
 +    const char *readmap = NULL;
++    const gchar **drive_list = NULL;
 +
 +    for (;;) {
-+        c = getopt(argc, argv, "hvr:");
++        c = getopt(argc, argv, "hvd:r:");
 +        if (c == -1) {
 +            break;
 +        }
@@ -1927,6 +1928,9 @@ index 0000000000..c76ecefa0f
 +        case '?':
 +        case 'h':
 +            help();
++            break;
++        case 'd':
++            drive_list = g_strsplit(optarg, ",", 254);
 +            break;
 +        case 'r':
 +            readmap = optarg;
@@ -2064,12 +2068,12 @@ index 0000000000..c76ecefa0f
 +
 +    int i;
 +    int vmstate_fd = -1;
-+    guint8 vmstate_stream = 0;
++    bool drive_rename_bitmap[255];
++    memset(drive_rename_bitmap, 0, sizeof(drive_rename_bitmap));
 +
 +    for (i = 1; i < 255; i++) {
 +        VmaDeviceInfo *di = vma_reader_get_device_info(vmar, i);
 +        if (di && (strcmp(di->devname, "vmstate") == 0)) {
-+            vmstate_stream = i;
 +            char *statefn = g_strdup_printf("%s/vmstate.bin", dirname);
 +            vmstate_fd = open(statefn, O_WRONLY|O_CREAT|O_EXCL, 0644);
 +            if (vmstate_fd < 0) {
@@ -2089,7 +2093,21 @@ index 0000000000..c76ecefa0f
 +
 +            BlockBackend *blk = NULL;
 +
-+            if (readmap) {
++            if (drive_list) {
++                skip = true;
++                int j;
++                for (j = 0; drive_list[j]; j++) {
++                    if (strcmp(drive_list[j], di->devname) == 0) {
++                        skip = false;
++                        drive_rename_bitmap[i] = true;
++                        break;
++                    }
++                }
++            } else {
++                drive_rename_bitmap[i] = true;
++            }
++
++            if (!skip && readmap) {
 +                RestoreMap *map;
 +                map = (RestoreMap *)g_hash_table_lookup(devmap, di->devname);
 +                if (map == NULL) {
@@ -2102,7 +2120,7 @@ index 0000000000..c76ecefa0f
 +                cache = map->cache;
 +                write_zero = map->write_zero;
 +                skip = map->skip;
-+            } else {
++            } else if (!skip) {
 +                devfn = g_strdup_printf("%s/tmp-disk-%s.raw",
 +                                        dirname, di->devname);
 +                printf("DEVINFO %s %zd\n", devfn, di->size);
@@ -2183,6 +2201,10 @@ index 0000000000..c76ecefa0f
 +        }
 +    }
 +
++    if (drive_list) {
++        g_strfreev(drive_list);
++    }
++
 +    if (vma_reader_restore(vmar, vmstate_fd, verbose, &errp) < 0) {
 +        g_error("restore failed - %s", error_get_pretty(errp));
 +    }
@@ -2190,7 +2212,7 @@ index 0000000000..c76ecefa0f
 +    if (!readmap) {
 +        for (i = 1; i < 255; i++) {
 +            VmaDeviceInfo *di = vma_reader_get_device_info(vmar, i);
-+            if (di && (i != vmstate_stream)) {
++            if (di && drive_rename_bitmap[i]) {
 +                char *tmpfn = g_strdup_printf("%s/tmp-disk-%s.raw",
 +                                              dirname, di->devname);
 +                char *fn = g_strdup_printf("%s/disk-%s.raw",
