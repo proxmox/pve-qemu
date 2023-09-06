@@ -1,3 +1,19 @@
+pve-qemu-kvm (8.0.2-6) bookworm; urgency=medium
+
+  * fix #1534: vma: add extract-filter for disk images allowing users to pass
+    a comma separated list of the disks they want to extract from an archive.
+
+  * backup: create jobs in a drained section to avoid subtle bugs where
+    something interferes with the block-copy-state bitmap on initialization
+
+  * backup: drop experimental, and since a while also fully broken, directory
+    backup format (BACKUP_FORMAT_DIR). This format was never exposed via the
+    Proxmox VE API, but only available via QMP, as its broken since QEMU 8 and
+    we got zero reports about that, it's safe to assume that there are no
+    public users, so just remove it completely.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 06 Sep 2023 17:03:59 +0200
+
 pve-qemu-kvm (8.0.2-5) bookworm; urgency=medium
 
   * improve memory footprint after backup by not keeping as much memory
