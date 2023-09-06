@@ -175,10 +175,10 @@ index 0000000000..887e998b9e
 +                         NULL);
 +}
 diff --git a/pve-backup.c b/pve-backup.c
-index c5454e7acc..30bc6ff9ed 100644
+index 8ff0d88297..53f5c5e311 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -1106,6 +1106,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1060,6 +1060,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->pbs_library_version = g_strdup(proxmox_backup_qemu_version());
      ret->pbs_dirty_bitmap = true;
      ret->pbs_dirty_bitmap_savevm = true;
@@ -187,10 +187,10 @@ index c5454e7acc..30bc6ff9ed 100644
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 47118bf83e..809f3c61bc 100644
+index d601fb4ab2..16be1e02ec 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -984,6 +984,11 @@
+@@ -987,6 +987,11 @@
  # @pbs-dirty-bitmap-savevm: True if 'dirty-bitmaps' migration capability can
  #                           safely be set for savevm-async.
  #
@@ -202,7 +202,7 @@ index 47118bf83e..809f3c61bc 100644
  # @pbs-masterkey: True if the QMP backup call supports the 'master_keyfile'
  #                 parameter.
  #
-@@ -994,6 +999,7 @@
+@@ -997,6 +1002,7 @@
    'data': { 'pbs-dirty-bitmap': 'bool',
              'query-bitmap-info': 'bool',
              'pbs-dirty-bitmap-savevm': 'bool',

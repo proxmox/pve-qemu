@@ -403,10 +403,10 @@ index 32ab849ce6..69afe3441b 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libudev':           libudev}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 4ec70acf95..47118bf83e 100644
+index 985859ddee..d601fb4ab2 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3301,6 +3301,7 @@
+@@ -3304,6 +3304,7 @@
              'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
              'raw', 'rbd',
              { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
@@ -414,7 +414,7 @@ index 4ec70acf95..47118bf83e 100644
              'ssh', 'throttle', 'vdi', 'vhdx',
              { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
              { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
-@@ -3377,6 +3378,17 @@
+@@ -3380,6 +3381,17 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -432,7 +432,7 @@ index 4ec70acf95..47118bf83e 100644
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -4750,6 +4762,7 @@
+@@ -4753,6 +4765,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',

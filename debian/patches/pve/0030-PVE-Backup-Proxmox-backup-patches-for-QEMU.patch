@@ -85,20 +85,20 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build              |    5 +
- block/monitor/block-hmp-cmds.c |   40 ++
+ block/monitor/block-hmp-cmds.c |   39 ++
  blockdev.c                     |    1 +
  hmp-commands-info.hx           |   14 +
- hmp-commands.hx                |   31 +
+ hmp-commands.hx                |   29 +
  include/monitor/hmp.h          |    3 +
  meson.build                    |    1 +
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1113 ++++++++++++++++++++++++++++++++
- qapi/block-core.json           |  226 +++++++
+ pve-backup.c                   | 1067 ++++++++++++++++++++++++++++++++
+ qapi/block-core.json           |  229 +++++++
  qapi/common.json               |   13 +
  qapi/machine.json              |   15 +-
- 14 files changed, 1727 insertions(+), 13 deletions(-)
+ 14 files changed, 1681 insertions(+), 13 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
@@ -120,10 +120,10 @@ index f580f95395..5bcebb934b 100644
  softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  softmmu_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index ca2599de44..636509b83e 100644
+index ca2599de44..6efe28cef5 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1029,3 +1029,43 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+@@ -1029,3 +1029,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
      qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
                                 !!read_only, read_only_mode, errp);
  }
@@ -141,7 +141,6 @@ index ca2599de44..636509b83e 100644
 +{
 +    Error *error = NULL;
 +
-+    int dir = qdict_get_try_bool(qdict, "directory", 0);
 +    const char *backup_file = qdict_get_str(qdict, "backupfile");
 +    const char *devlist = qdict_get_try_str(qdict, "devlist");
 +    int64_t speed = qdict_get_try_int(qdict, "speed", 0);
@@ -159,7 +158,7 @@ index ca2599de44..636509b83e 100644
 +        false, false, // PBS use-dirty-bitmap
 +        false, false, // PBS compress
 +        false, false, // PBS encrypt
-+        true, dir ? BACKUP_FORMAT_DIR : BACKUP_FORMAT_VMA,
++        true, BACKUP_FORMAT_VMA,
 +        NULL, NULL,
 +        devlist, qdict_haskey(qdict, "speed"), speed,
 +        false, 0, // BackupPerf max-workers
@@ -205,10 +204,10 @@ index a166bff3d5..4b75966c2e 100644
      {
          .name       = "usernet",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index d9f9f42d11..775518fb09 100644
+index d9f9f42d11..ddb9678dc3 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
-@@ -101,6 +101,37 @@ ERST
+@@ -101,6 +101,35 @@ ERST
  SRST
  ``block_stream``
    Copy data from a backing file into a block device.
@@ -216,11 +215,9 @@ index d9f9f42d11..775518fb09 100644
 +
 +   {
 +        .name       = "backup",
-+        .args_type  = "directory:-d,backupfile:s,speed:o?,devlist:s?",
-+        .params     = "[-d] backupfile [speed [devlist]]",
-+        .help       = "create a VM Backup."
-+		    "\n\t\t\t Use -d to dump data into a directory instead"
-+		    "\n\t\t\t of using VMA format.",
++        .args_type  = "backupfile:s,speed:o?,devlist:s?",
++        .params     = "backupfile [speed [devlist]]",
++        .help       = "create a VM backup (VMA format).",
 +        .cmd = hmp_backup,
 +        .coroutine  = true,
 +    },
@@ -589,10 +586,10 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..c5454e7acc
+index 0000000000..8ff0d88297
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1113 @@
+@@ -0,0 +1,1067 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -1034,7 +1031,6 @@ index 0000000000..c5454e7acc
 +    const char *file,
 +    const char *name,
 +    BackupFormat format,
-+    const char *backup_dir,
 +    VmaWriter *vmaw,
 +    ProxmoxBackupHandle *pbs,
 +    Error **errp)
@@ -1060,13 +1056,6 @@ index 0000000000..c5454e7acc
 +    } else if (format == BACKUP_FORMAT_PBS) {
 +        if (proxmox_backup_co_add_config(pbs, name, (unsigned char *)cdata, clen, errp) < 0)
 +            goto err;
-+    } else if (format == BACKUP_FORMAT_DIR) {
-+        char config_path[PATH_MAX];
-+        snprintf(config_path, PATH_MAX, "%s/%s", backup_dir, name);
-+        if (!g_file_set_contents(config_path, cdata, clen, &err)) {
-+            error_setg(errp, "unable to write config file '%s'", config_path);
-+            goto err;
-+        }
 +    }
 +
 + out:
@@ -1206,7 +1195,6 @@ index 0000000000..c5454e7acc
 +
 +    BlockBackend *blk;
 +    BlockDriverState *bs = NULL;
-+    const char *backup_dir = NULL;
 +    Error *local_err = NULL;
 +    uuid_t uuid;
 +    VmaWriter *vmaw = NULL;
@@ -1446,54 +1434,21 @@ index 0000000000..c5454e7acc
 +                goto err_mutex;
 +            }
 +        }
-+    } else if (format == BACKUP_FORMAT_DIR) {
-+        if (mkdir(backup_file, 0640) != 0) {
-+            error_setg_errno(errp, errno, "can't create directory '%s'\n",
-+                             backup_file);
-+            goto err_mutex;
-+        }
-+        backup_dir = backup_file;
-+
-+        l = di_list;
-+        while (l) {
-+            PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
-+            l = g_list_next(l);
-+
-+            const char *devname = bdrv_get_device_name(di->bs);
-+            snprintf(di->targetfile, PATH_MAX, "%s/%s.raw", backup_dir, devname);
-+
-+            int flags = BDRV_O_RDWR;
-+            bdrv_img_create(di->targetfile, "raw", NULL, NULL, NULL,
-+                            di->size, flags, false, &local_err);
-+            if (local_err) {
-+                error_propagate(errp, local_err);
-+                goto err_mutex;
-+            }
-+
-+            di->target = bdrv_co_open(di->targetfile, NULL, NULL, flags, &local_err);
-+            if (!di->target) {
-+                error_propagate(errp, local_err);
-+                goto err_mutex;
-+            }
-+        }
 +    } else {
 +        error_set(errp, ERROR_CLASS_GENERIC_ERROR, "unknown backup format");
 +        goto err_mutex;
 +    }
 +
-+
 +    /* add configuration file to archive */
 +    if (config_file) {
-+        if (pvebackup_co_add_config(config_file, config_name, format, backup_dir,
-+                                    vmaw, pbs, errp) != 0) {
++        if (pvebackup_co_add_config(config_file, config_name, format, vmaw, pbs, errp) != 0) {
 +            goto err_mutex;
 +        }
 +    }
 +
 +    /* add firewall file to archive */
 +    if (firewall_file) {
-+        if (pvebackup_co_add_config(firewall_file, firewall_name, format, backup_dir,
-+                                    vmaw, pbs, errp) != 0) {
++        if (pvebackup_co_add_config(firewall_file, firewall_name, format, vmaw, pbs, errp) != 0) {
 +            goto err_mutex;
 +        }
 +    }
@@ -1606,10 +1561,6 @@ index 0000000000..c5454e7acc
 +        backup_state.pbs = NULL;
 +    }
 +
-+    if (backup_dir) {
-+        rmdir(backup_dir);
-+    }
-+
 +    qemu_co_mutex_unlock(&backup_state.backup_mutex);
 +    return NULL;
 +}
@@ -1707,10 +1658,10 @@ index 0000000000..c5454e7acc
 +    return ret;
 +}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 542add004b..4ec70acf95 100644
+index 542add004b..985859ddee 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -835,6 +835,232 @@
+@@ -835,6 +835,235 @@
  { 'command': 'query-block', 'returns': ['BlockInfo'],
    'allow-preconfig': true }
  
@@ -1760,9 +1711,12 @@ index 542add004b..4ec70acf95 100644
 +# An enumeration of supported backup formats.
 +#
 +# @vma: Proxmox vma backup format
++#
++# @pbs: Proxmox backup server format
++#
 +##
 +{ 'enum': 'BackupFormat',
-+  'data': [ 'vma', 'dir', 'pbs' ] }
++  'data': [ 'vma', 'pbs' ] }
 +
 +##
 +# @backup:
