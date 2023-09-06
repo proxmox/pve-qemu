@@ -80,7 +80,8 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
      adapt to QAPI changes
      improve canceling
      allow passing max-workers setting
-     use malloc_trim after backup]
+     use malloc_trim after backup
+     create jobs in a drained section]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build              |    5 +
@@ -93,11 +94,11 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1109 ++++++++++++++++++++++++++++++++
+ pve-backup.c                   | 1113 ++++++++++++++++++++++++++++++++
  qapi/block-core.json           |  226 +++++++
  qapi/common.json               |   13 +
  qapi/machine.json              |   15 +-
- 14 files changed, 1723 insertions(+), 13 deletions(-)
+ 14 files changed, 1727 insertions(+), 13 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
@@ -588,10 +589,10 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..10ca8a0b1d
+index 0000000000..c5454e7acc
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1109 @@
+@@ -0,0 +1,1113 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -1116,11 +1117,15 @@ index 0000000000..10ca8a0b1d
 +        AioContext *aio_context = bdrv_get_aio_context(di->bs);
 +        aio_context_acquire(aio_context);
 +
++        bdrv_drained_begin(di->bs);
++
 +        BlockJob *job = backup_job_create(
 +            NULL, di->bs, di->target, backup_state.speed, sync_mode, di->bitmap,
 +            bitmap_mode, false, NULL, &backup_state.perf, BLOCKDEV_ON_ERROR_REPORT,
 +            BLOCKDEV_ON_ERROR_REPORT, JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn,
 +            &local_err);
++
++        bdrv_drained_end(di->bs);
 +
 +        aio_context_release(aio_context);
 +
