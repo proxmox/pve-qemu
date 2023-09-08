@@ -586,7 +586,7 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..8ff0d88297
+index 0000000000..21441b2f97
 --- /dev/null
 +++ b/pve-backup.c
 @@ -0,0 +1,1067 @@
@@ -700,7 +700,7 @@ index 0000000000..8ff0d88297
 +    return error_or_canceled;
 +}
 +
-+static void pvebackup_add_transfered_bytes(size_t transferred, size_t zero_bytes, size_t reused)
++static void pvebackup_add_transferred_bytes(size_t transferred, size_t zero_bytes, size_t reused)
 +{
 +    qemu_mutex_lock(&backup_state.stat.lock);
 +    backup_state.stat.zero_bytes += zero_bytes;
@@ -761,7 +761,7 @@ index 0000000000..8ff0d88297
 +    }
 +
 +    qemu_co_mutex_unlock(&backup_state.dump_callback_mutex);
-+    pvebackup_add_transfered_bytes(size, is_zero_block ? size : 0, reused);
++    pvebackup_add_transferred_bytes(size, is_zero_block ? size : 0, reused);
 +
 +    return size;
 +}
@@ -819,11 +819,11 @@ index 0000000000..8ff0d88297
 +        } else {
 +            if (remaining >= VMA_CLUSTER_SIZE) {
 +                assert(ret == VMA_CLUSTER_SIZE);
-+                pvebackup_add_transfered_bytes(VMA_CLUSTER_SIZE, zero_bytes, 0);
++                pvebackup_add_transferred_bytes(VMA_CLUSTER_SIZE, zero_bytes, 0);
 +                remaining -= VMA_CLUSTER_SIZE;
 +            } else {
 +                assert(ret == remaining);
-+                pvebackup_add_transfered_bytes(remaining, zero_bytes, 0);
++                pvebackup_add_transferred_bytes(remaining, zero_bytes, 0);
 +                remaining = 0;
 +            }
 +        }

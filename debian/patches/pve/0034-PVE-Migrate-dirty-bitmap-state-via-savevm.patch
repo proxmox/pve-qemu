@@ -175,7 +175,7 @@ index 0000000000..887e998b9e
 +                         NULL);
 +}
 diff --git a/pve-backup.c b/pve-backup.c
-index 8ff0d88297..53f5c5e311 100644
+index 21441b2f97..5e5c37e06d 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -1060,6 +1060,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
