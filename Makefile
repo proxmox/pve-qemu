@@ -17,7 +17,10 @@ all: $(DEBS)
 
 .PHONY: submodule
 submodule:
-	test -f "$(SRCDIR)/configure" || git submodule update --init --recursive
+ifeq ($(shell test -f "$(SRCDIR)/configure" && echo 1 || echo 0), 0)
+	git submodule update --init --recursive
+	cd $(SRCDIR); meson subprojects download
+endif
 
 PC_BIOS_FW_PURGE_LIST_IN = \
 	hppa-firmware.img \
