@@ -48,7 +48,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  6 files changed, 59 insertions(+), 5 deletions(-)
 
 diff --git a/include/monitor/monitor.h b/include/monitor/monitor.h
-index 033390f699..ad35d4fea8 100644
+index 965f5d5450..e04bd059b6 100644
 --- a/include/monitor/monitor.h
 +++ b/include/monitor/monitor.h
 @@ -16,6 +16,7 @@ extern QemuOptsList qemu_mon_opts;
@@ -60,10 +60,10 @@ index 033390f699..ad35d4fea8 100644
  void monitor_init_globals(void);
  void monitor_init_globals_core(void);
 diff --git a/monitor/monitor-internal.h b/monitor/monitor-internal.h
-index 53e3808054..a19f8cbc2b 100644
+index 252de85681..8db28f9272 100644
 --- a/monitor/monitor-internal.h
 +++ b/monitor/monitor-internal.h
-@@ -152,6 +152,13 @@ typedef struct {
+@@ -151,6 +151,13 @@ typedef struct {
      QemuMutex qmp_queue_lock;
      /* Input queue that holds all the parsed QMP requests */
      GQueue *qmp_requests;
@@ -78,10 +78,10 @@ index 53e3808054..a19f8cbc2b 100644
  
  /**
 diff --git a/monitor/monitor.c b/monitor/monitor.c
-index 8dc96f6af9..f3c38cb714 100644
+index dc352f9e9d..56e1307014 100644
 --- a/monitor/monitor.c
 +++ b/monitor/monitor.c
-@@ -135,6 +135,21 @@ bool monitor_cur_is_qmp(void)
+@@ -117,6 +117,21 @@ bool monitor_cur_is_qmp(void)
      return cur_mon && monitor_is_qmp(cur_mon);
  }
  
@@ -104,10 +104,10 @@ index 8dc96f6af9..f3c38cb714 100644
   * Is @mon is using readline?
   * Note: not all HMP monitors use readline, e.g., gdbserver has a
 diff --git a/monitor/qmp.c b/monitor/qmp.c
-index 092c527b6f..6b8cfcf6d8 100644
+index 6eee450fe4..c15bf1e1fc 100644
 --- a/monitor/qmp.c
 +++ b/monitor/qmp.c
-@@ -141,6 +141,8 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
+@@ -165,6 +165,8 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
      QDict *rsp;
      QDict *error;
  
@@ -116,7 +116,7 @@ index 092c527b6f..6b8cfcf6d8 100644
      rsp = qmp_dispatch(mon->commands, req, qmp_oob_enabled(mon),
                         &mon->common);
  
-@@ -156,7 +158,17 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
+@@ -180,7 +182,17 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
          }
      }
  
@@ -135,7 +135,7 @@ index 092c527b6f..6b8cfcf6d8 100644
      qobject_unref(rsp);
  }
  
-@@ -444,6 +456,7 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
+@@ -478,6 +490,7 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
  
      switch (event) {
      case CHR_EVENT_OPENED:
@@ -144,7 +144,7 @@ index 092c527b6f..6b8cfcf6d8 100644
          monitor_qmp_caps_reset(mon);
          data = qmp_greeting(mon);
 diff --git a/qapi/qmp-dispatch.c b/qapi/qmp-dispatch.c
-index 0990873ec8..e605003771 100644
+index 555528b6bb..3baa508b4b 100644
 --- a/qapi/qmp-dispatch.c
 +++ b/qapi/qmp-dispatch.c
 @@ -117,16 +117,28 @@ typedef struct QmpDispatchBH {
@@ -180,7 +180,7 @@ index 0990873ec8..e605003771 100644
      aio_co_wake(data->co);
  }
  
-@@ -231,6 +243,7 @@ QDict *qmp_dispatch(const QmpCommandList *cmds, QObject *request,
+@@ -231,6 +243,7 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
              .ret        = &ret,
              .errp       = &err,
              .co         = qemu_coroutine_self(),

@@ -26,23 +26,23 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 vma.h
 
 diff --git a/block/meson.build b/block/meson.build
-index 253fe49fa2..744b698a82 100644
+index 1833c71ce9..59b71ba9f3 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -47,6 +47,8 @@ block_ss.add(files(
+@@ -43,6 +43,8 @@ block_ss.add(files(
    'zeroinit.c',
  ), zstd, zlib, gnutls)
  
 +block_ss.add(files('../vma-writer.c'), libuuid)
 +
- softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
- softmmu_ss.add(files('block-ram-registrar.c'))
+ system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
+ system_ss.add(files('block-ram-registrar.c'))
  
 diff --git a/meson.build b/meson.build
-index 30447cfaef..38a4e2bcef 100644
+index a9c4f28247..cd95530d3b 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1527,6 +1527,8 @@ keyutils = dependency('libkeyutils', required: false,
+@@ -1778,6 +1778,8 @@ endif
  
  has_gettid = cc.has_function('gettid')
  
@@ -51,7 +51,7 @@ index 30447cfaef..38a4e2bcef 100644
  # libselinux
  selinux = dependency('libselinux',
                       required: get_option('selinux'),
-@@ -3650,6 +3652,9 @@ if have_tools
+@@ -3908,6 +3910,9 @@ if have_tools
                 dependencies: [blockdev, qemuutil, gnutls, selinux],
                 install: true)
  
@@ -936,7 +936,7 @@ index 0000000000..81a891c6b1
 +
 diff --git a/vma-writer.c b/vma-writer.c
 new file mode 100644
-index 0000000000..ac7da237d0
+index 0000000000..6b7af81cae
 --- /dev/null
 +++ b/vma-writer.c
 @@ -0,0 +1,793 @@
@@ -1146,10 +1146,10 @@ index 0000000000..ac7da237d0
 +{
 +    assert(qemu_in_coroutine());
 +    AioContext *ctx = qemu_get_current_aio_context();
-+    aio_set_fd_handler(ctx, fd, false, NULL, (IOHandler *)qemu_coroutine_enter,
-+                       NULL, NULL, qemu_coroutine_self());
++    aio_set_fd_handler(ctx, fd, NULL, (IOHandler *)qemu_coroutine_enter, NULL,
++                       NULL, qemu_coroutine_self());
 +    qemu_coroutine_yield();
-+    aio_set_fd_handler(ctx, fd, false, NULL, NULL, NULL, NULL, NULL);
++    aio_set_fd_handler(ctx, fd, NULL, NULL, NULL, NULL, NULL);
 +}
 +
 +static ssize_t coroutine_fn

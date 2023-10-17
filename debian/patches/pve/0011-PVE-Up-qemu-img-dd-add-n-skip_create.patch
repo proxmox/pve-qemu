@@ -65,10 +65,10 @@ index d1616c045a..b5b0bb4467 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index a57ceeddfe..06d814e39c 100644
+index 556535d9d5..289c78febb 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -5010,7 +5010,7 @@ static int img_dd(int argc, char **argv)
+@@ -5013,7 +5013,7 @@ static int img_dd(int argc, char **argv)
      const char *fmt = NULL;
      int64_t size = 0, readsize = 0;
      int64_t out_pos, in_pos;
@@ -77,7 +77,7 @@ index a57ceeddfe..06d814e39c 100644
      struct DdInfo dd = {
          .flags = 0,
          .count = 0,
-@@ -5048,7 +5048,7 @@ static int img_dd(int argc, char **argv)
+@@ -5051,7 +5051,7 @@ static int img_dd(int argc, char **argv)
          { 0, 0, 0, 0 }
      };
  
@@ -86,7 +86,7 @@ index a57ceeddfe..06d814e39c 100644
          if (c == EOF) {
              break;
          }
-@@ -5068,6 +5068,9 @@ static int img_dd(int argc, char **argv)
+@@ -5071,6 +5071,9 @@ static int img_dd(int argc, char **argv)
          case 'h':
              help();
              break;
@@ -96,7 +96,7 @@ index a57ceeddfe..06d814e39c 100644
          case 'U':
              force_share = true;
              break;
-@@ -5198,13 +5201,15 @@ static int img_dd(int argc, char **argv)
+@@ -5201,13 +5204,15 @@ static int img_dd(int argc, char **argv)
                                  size - in.bsz * in.offset, &error_abort);
          }
  

@@ -24,10 +24,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 block/pbs.c
 
 diff --git a/block/meson.build b/block/meson.build
-index 5bcebb934b..eece0d5743 100644
+index 6d468f89e5..becc99ac4e 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -54,6 +54,9 @@ block_ss.add(files(
+@@ -50,6 +50,9 @@ block_ss.add(files(
    '../pve-backup.c',
  ), libproxmox_backup_qemu)
  
@@ -35,8 +35,8 @@ index 5bcebb934b..eece0d5743 100644
 +block_ss.add(when: 'CONFIG_PBS_BDRV', if_true: libproxmox_backup_qemu)
 +
  
- softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
- softmmu_ss.add(files('block-ram-registrar.c'))
+ system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
+ system_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/pbs.c b/block/pbs.c
 new file mode 100644
 index 0000000000..a2211e0f3b
@@ -349,40 +349,40 @@ index 0000000000..a2211e0f3b
 +
 +block_init(bdrv_pbs_init);
 diff --git a/configure b/configure
-index a62a3e6be9..1ac0feb46b 100755
+index 133f4e3235..f5a830c1f3 100755
 --- a/configure
 +++ b/configure
-@@ -288,6 +288,7 @@ linux_user=""
+@@ -256,6 +256,7 @@ qemu_suffix="qemu"
+ softmmu="yes"
+ linux_user=""
  bsd_user=""
- pie=""
- coroutine=""
 +pbs_bdrv="yes"
  plugins="$default_feature"
- meson=""
  ninja=""
-@@ -873,6 +874,10 @@ for opt do
+ python=
+@@ -809,6 +810,10 @@ for opt do
    ;;
-   --with-coroutine=*) coroutine="$optarg"
+   --enable-download) download="enabled"; git_submodules_action=update;
    ;;
 +  --disable-pbs-bdrv) pbs_bdrv="no"
 +  ;;
 +  --enable-pbs-bdrv) pbs_bdrv="yes"
 +  ;;
-   --with-git=*) git="$optarg"
-   ;;
-   --with-git-submodules=*)
-@@ -1049,6 +1054,7 @@ cat << EOF
-   debug-info      debugging information
-   safe-stack      SafeStack Stack Smash Protection. Depends on
-                   clang/llvm and requires coroutine backend ucontext.
+   --enable-plugins) if test "$mingw32" = "yes"; then
+                         error_exit "TCG plugins not currently supported on Windows platforms"
+                     else
+@@ -959,6 +964,7 @@ cat << EOF
+   bsd-user        all BSD usermode emulation targets
+   pie             Position Independent Executables
+   debug-tcg       TCG debugging (default is disabled)
 +  pbs-bdrv        Proxmox backup server read-only block driver support
  
  NOTE: The object files are built at the place where configure is launched
  EOF
-@@ -2386,6 +2392,9 @@ echo "TARGET_DIRS=$target_list" >> $config_host_mak
- if test "$modules" = "yes"; then
-   echo "CONFIG_MODULES=y" >> $config_host_mak
+@@ -1744,6 +1750,9 @@ if test "$solaris" = "yes" ; then
  fi
+ echo "SRC_PATH=$source_path" >> $config_host_mak
+ echo "TARGET_DIRS=$target_list" >> $config_host_mak
 +if test "$pbs_bdrv" = "yes" ; then
 +  echo "CONFIG_PBS_BDRV=y" >> $config_host_mak
 +fi
@@ -390,10 +390,10 @@ index a62a3e6be9..1ac0feb46b 100755
  # XXX: suppress that
  if [ "$bsd" = "yes" ] ; then
 diff --git a/meson.build b/meson.build
-index 32ab849ce6..69afe3441b 100644
+index c3330310d9..cbfc9a43fb 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -4041,7 +4041,7 @@ summary_info += {'bzip2 support':     libbzip2}
+@@ -4319,7 +4319,7 @@ summary_info += {'bzip2 support':     libbzip2}
  summary_info += {'lzfse support':     liblzfse}
  summary_info += {'zstd support':      zstd}
  summary_info += {'NUMA host support': numa}
@@ -403,10 +403,10 @@ index 32ab849ce6..69afe3441b 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libudev':           libudev}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 985859ddee..d601fb4ab2 100644
+index 331c8336d1..a818d5f90f 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3304,6 +3304,7 @@
+@@ -3396,6 +3396,7 @@
              'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
              'raw', 'rbd',
              { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
@@ -414,7 +414,7 @@ index 985859ddee..d601fb4ab2 100644
              'ssh', 'throttle', 'vdi', 'vhdx',
              { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
              { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
-@@ -3380,6 +3381,17 @@
+@@ -3482,6 +3483,17 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -432,7 +432,7 @@ index 985859ddee..d601fb4ab2 100644
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -4753,6 +4765,7 @@
+@@ -4886,6 +4898,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',
