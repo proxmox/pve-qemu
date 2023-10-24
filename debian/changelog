@@ -1,3 +1,14 @@
+pve-qemu-kvm (8.1.2-1) bookworm; urgency=medium
+
+  * update submodule and patches to QEMU 8.1.2
+
+  * use QEMU's keycode-map-db again instead of our static copy from QEMU 6.0
+
+  * disable graph locking, newly introduced in the 8.1 release, as it has
+    still various deadlock issuess, e.g., during canceling backup jobs.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 24 Oct 2023 13:42:45 +0200
+
 pve-qemu-kvm (8.0.2-7) bookworm; urgency=medium
 
   * fix #2874: SATA: avoid unsolicited write to sector 0 during reset
