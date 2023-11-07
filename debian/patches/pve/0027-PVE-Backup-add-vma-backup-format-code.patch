@@ -16,10 +16,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  block/meson.build |   2 +
  meson.build       |   5 +
  vma-reader.c      | 867 ++++++++++++++++++++++++++++++++++++++++++++
- vma-writer.c      | 793 ++++++++++++++++++++++++++++++++++++++++
+ vma-writer.c      | 818 +++++++++++++++++++++++++++++++++++++++++
  vma.c             | 900 ++++++++++++++++++++++++++++++++++++++++++++++
  vma.h             | 150 ++++++++
- 6 files changed, 2717 insertions(+)
+ 6 files changed, 2742 insertions(+)
  create mode 100644 vma-reader.c
  create mode 100644 vma-writer.c
  create mode 100644 vma.c
@@ -936,10 +936,10 @@ index 0000000000..81a891c6b1
 +
 diff --git a/vma-writer.c b/vma-writer.c
 new file mode 100644
-index 0000000000..6b7af81cae
+index 0000000000..126b296647
 --- /dev/null
 +++ b/vma-writer.c
-@@ -0,0 +1,793 @@
+@@ -0,0 +1,818 @@
 +/*
 + * VMA: Virtual Machine Archive
 + *
@@ -955,6 +955,8 @@ index 0000000000..6b7af81cae
 +
 +#include "qemu/osdep.h"
 +#include <glib.h>
++#include <linux/magic.h>
++#include <sys/vfs.h>
 +#include <uuid/uuid.h>
 +
 +#include "vma.h"
@@ -963,6 +965,7 @@ index 0000000000..6b7af81cae
 +#include "qemu/main-loop.h"
 +#include "qemu/coroutine.h"
 +#include "qemu/cutils.h"
++#include "qemu/error-report.h"
 +#include "qemu/memalign.h"
 +
 +#define DEBUG_VMA 0
@@ -1198,6 +1201,23 @@ index 0000000000..6b7af81cae
 +    return (done == bytes) ? bytes : -1;
 +}
 +
++static bool is_path_tmpfs(const char *path) {
++    struct statfs fs;
++    int ret;
++
++    do {
++        ret = statfs(path, &fs);
++    } while (ret != 0 && errno == EINTR);
++
++    if (ret != 0) {
++        warn_report("statfs call for %s failed, assuming not tmpfs - %s\n",
++                    path, strerror(errno));
++        return false;
++    }
++
++    return fs.f_type == TMPFS_MAGIC;
++}
++
 +VmaWriter *vma_writer_create(const char *filename, uuid_t uuid, Error **errp)
 +{
 +    const char *p;
@@ -1247,8 +1267,13 @@ index 0000000000..6b7af81cae
 +            }
 +            /* try to use O_NONBLOCK */
 +            fcntl(vmaw->fd, F_SETFL, fcntl(vmaw->fd, F_GETFL)|O_NONBLOCK);
-+        } else  {
-+            oflags = O_NONBLOCK|O_DIRECT|O_WRONLY|O_EXCL;
++        } else {
++            gchar *dirname = g_path_get_dirname(filename);
++            oflags = O_NONBLOCK|O_WRONLY|O_EXCL;
++            if (!is_path_tmpfs(dirname)) {
++                oflags |= O_DIRECT;
++            }
++            g_free(dirname);
 +            vmaw->fd = qemu_create(filename, oflags, 0644, errp);
 +        }
 +
