@@ -1,3 +1,12 @@
+pve-qemu-kvm (8.1.2-2) bookworm; urgency=medium
+
+  * revert "x86: acpi: workaround Windows not handling name references in
+    Package properly" as that seems to have broken networking (and possibly
+    other things) one some localized variants of Windows (e.g., the German
+    versions).
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 17 Nov 2023 11:55:23 +0100
+
 pve-qemu-kvm (8.1.2-1) bookworm; urgency=medium
 
   * update submodule and patches to QEMU 8.1.2
