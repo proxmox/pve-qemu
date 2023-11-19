@@ -13,10 +13,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 2 deletions(-)
 
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index b97f2c4f14..87ea0573d3 100644
+index 80624fada8..b1d85a4b41 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
-@@ -403,10 +403,8 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+@@ -401,10 +401,8 @@ void qmp_savevm_start(const char *statefile, Error **errp)
      snap_state.state = SAVE_STATE_ACTIVE;
      snap_state.finalize_bh = qemu_bh_new(process_savevm_finalize, &snap_state);
      snap_state.co = qemu_coroutine_create(&process_savevm_co, NULL);

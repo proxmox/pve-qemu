@@ -17,7 +17,10 @@ all: $(DEBS)
 
 .PHONY: submodule
 submodule:
-	test -f "$(SRCDIR)/configure" || git submodule update --init --recursive
+ifeq ($(shell test -f "$(SRCDIR)/configure" && echo 1 || echo 0), 0)
+	git submodule update --init --recursive
+	cd $(SRCDIR); meson subprojects download
+endif
 
 PC_BIOS_FW_PURGE_LIST_IN = \
 	hppa-firmware.img \
@@ -36,16 +39,14 @@ PC_BIOS_FW_PURGE_LIST_IN = \
 BLOB_PURGE_SED_CMDS = $(foreach FILE,$(PC_BIOS_FW_PURGE_LIST_IN),-e "/$(FILE)/d")
 BLOB_PURGE_FILTER = $(foreach FILE,$(PC_BIOS_FW_PURGE_LIST_IN),-e "$(FILE)")
 
-$(BUILDDIR): keycodemapdb | submodule
+$(BUILDDIR): submodule
 	# check if qemu/ was used for a build
 	# if so, please run 'make distclean' in the submodule and try again
 	test ! -f $(SRCDIR)/build/config.status
 	rm -rf $@.tmp $@
 	cp -a $(SRCDIR) $@.tmp
 	cp -a debian $@.tmp/debian
-	rm -rf $@.tmp/ui/keycodemapdb
 	rm -rf $@.tmp/roms/edk2 # packaged separately
-	cp -a keycodemapdb $@.tmp/ui/
 	find $@.tmp/pc-bios -type f | grep $(BLOB_PURGE_FILTER) | xargs rm -f
 	sed -i $(BLOB_PURGE_SED_CMDS) $@.tmp/pc-bios/meson.build
 	echo "git clone git://git.proxmox.com/git/pve-qemu.git\\ngit checkout $(GITVERSION)" > $@.tmp/debian/SOURCE
@@ -72,17 +73,6 @@ dsc:
 
 $(DSC): $(ORIG_SRC_TAR) $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -S -us -uc -d
-
-.PHONY: update
-update:
-	cd $(SRCDIR) && git submodule deinit ui/keycodemapdb || true
-	rm -rf $(SRCDIR)/ui/keycodemapdb
-	mkdir $(SRCDIR)/ui/keycodemapdb
-	cd $(SRCDIR) && git submodule update --init ui/keycodemapdb
-	rm -rf keycodemapdb
-	mkdir keycodemapdb
-	cp -R $(SRCDIR)/ui/keycodemapdb/* keycodemapdb/
-	git add keycodemapdb
 
 .PHONY: upload
 upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)

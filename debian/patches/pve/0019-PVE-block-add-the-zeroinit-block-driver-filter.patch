@@ -13,17 +13,17 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 block/zeroinit.c
 
 diff --git a/block/meson.build b/block/meson.build
-index 382bec0e7d..253fe49fa2 100644
+index 529fc172c6..1833c71ce9 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -44,6 +44,7 @@ block_ss.add(files(
-   'vmdk.c',
-   'vpc.c',
+@@ -40,6 +40,7 @@ block_ss.add(files(
+   'throttle-groups.c',
+   'throttle.c',
    'write-threshold.c',
 +  'zeroinit.c',
  ), zstd, zlib, gnutls)
  
- softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
+ system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
 diff --git a/block/zeroinit.c b/block/zeroinit.c
 new file mode 100644
 index 0000000000..1257342724

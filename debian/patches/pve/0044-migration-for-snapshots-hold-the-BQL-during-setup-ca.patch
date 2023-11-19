@@ -52,7 +52,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  5 files changed, 38 insertions(+), 12 deletions(-)
 
 diff --git a/include/migration/register.h b/include/migration/register.h
-index a8dfd8fefd..fa9b0b0f10 100644
+index 90914f32f5..c728fd9120 100644
 --- a/include/migration/register.h
 +++ b/include/migration/register.h
 @@ -43,9 +43,9 @@ typedef struct SaveVMHandlers {
@@ -67,10 +67,10 @@ index a8dfd8fefd..fa9b0b0f10 100644
       * must_precopy:
       * - must be migrated in precopy or in stopped state
 diff --git a/migration/block-dirty-bitmap.c b/migration/block-dirty-bitmap.c
-index 509f3df0a6..42dc4a8d61 100644
+index 285dd1d148..f7ee5a74d9 100644
 --- a/migration/block-dirty-bitmap.c
 +++ b/migration/block-dirty-bitmap.c
-@@ -1220,10 +1220,17 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
+@@ -1219,10 +1219,17 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
  {
      DBMSaveState *s = &((DBMState *)opaque)->save;
      SaveBitmapState *dbms = NULL;
@@ -90,7 +90,7 @@ index 509f3df0a6..42dc4a8d61 100644
          return -1;
      }
  
-@@ -1231,7 +1238,9 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
+@@ -1230,7 +1237,9 @@ static int dirty_bitmap_save_setup(QEMUFile *f, void *opaque)
          send_bitmap_start(f, s, dbms);
      }
      qemu_put_bitmap_flags(f, DIRTY_BITMAP_MIG_FLAG_EOS);
@@ -102,10 +102,10 @@ index 509f3df0a6..42dc4a8d61 100644
  }
  
 diff --git a/migration/block.c b/migration/block.c
-index b2497bbd32..c9d55be642 100644
+index 86c2256a2b..8423e0c9f9 100644
 --- a/migration/block.c
 +++ b/migration/block.c
-@@ -716,21 +716,30 @@ static void block_migration_cleanup(void *opaque)
+@@ -725,21 +725,30 @@ static void block_migration_cleanup(void *opaque)
  static int block_save_setup(QEMUFile *f, void *opaque)
  {
      int ret;
@@ -140,10 +140,10 @@ index b2497bbd32..c9d55be642 100644
      if (ret) {
          return ret;
 diff --git a/migration/ram.c b/migration/ram.c
-index 79d881f735..0ecbbc3202 100644
+index 9040d66e61..01532c9fc9 100644
 --- a/migration/ram.c
 +++ b/migration/ram.c
-@@ -3117,8 +3117,16 @@ static void migration_bitmap_clear_discarded_pages(RAMState *rs)
+@@ -2895,8 +2895,16 @@ static void migration_bitmap_clear_discarded_pages(RAMState *rs)
  
  static void ram_init_bitmaps(RAMState *rs)
  {
@@ -162,7 +162,7 @@ index 79d881f735..0ecbbc3202 100644
      qemu_mutex_lock_ramlist();
  
      WITH_RCU_READ_LOCK_GUARD() {
-@@ -3130,7 +3138,9 @@ static void ram_init_bitmaps(RAMState *rs)
+@@ -2908,7 +2916,9 @@ static void ram_init_bitmaps(RAMState *rs)
          }
      }
      qemu_mutex_unlock_ramlist();
@@ -174,11 +174,11 @@ index 79d881f735..0ecbbc3202 100644
      /*
       * After an eventual first bitmap sync, fixup the initial bitmap
 diff --git a/migration/savevm.c b/migration/savevm.c
-index aa54a67fda..fc6a82a555 100644
+index a2cb8855e2..ea8b30a630 100644
 --- a/migration/savevm.c
 +++ b/migration/savevm.c
-@@ -1621,10 +1621,8 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
-     memset(&compression_counters, 0, sizeof(compression_counters));
+@@ -1625,10 +1625,8 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)
+     reset_vfio_bytes_transferred();
      ms->to_dst_file = f;
  
 -    qemu_mutex_unlock_iothread();

@@ -19,10 +19,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 1 insertion(+), 1 deletion(-)
 
 diff --git a/migration/block-dirty-bitmap.c b/migration/block-dirty-bitmap.c
-index 7eaf498439..509f3df0a6 100644
+index e1ae3b7316..285dd1d148 100644
 --- a/migration/block-dirty-bitmap.c
 +++ b/migration/block-dirty-bitmap.c
-@@ -539,7 +539,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
+@@ -540,7 +540,7 @@ static int add_bitmaps_to_list(DBMSaveState *s, BlockDriverState *bs,
  
          if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_DEFAULT, &local_err)) {
              error_report_err(local_err);

@@ -54,10 +54,10 @@ index 1b1dab5b17..d1616c045a 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index 0919fac1f1..c584de648c 100644
+index bb287d8538..09c0340d16 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -4885,10 +4885,12 @@ static int img_bitmap(int argc, char **argv)
+@@ -4888,10 +4888,12 @@ static int img_bitmap(int argc, char **argv)
  #define C_IF      04
  #define C_OF      010
  #define C_SKIP    020
@@ -70,7 +70,7 @@ index 0919fac1f1..c584de648c 100644
  };
  
  struct DdIo {
-@@ -4964,6 +4966,19 @@ static int img_dd_skip(const char *arg,
+@@ -4967,6 +4969,19 @@ static int img_dd_skip(const char *arg,
      return 0;
  }
  
@@ -90,7 +90,7 @@ index 0919fac1f1..c584de648c 100644
  static int img_dd(int argc, char **argv)
  {
      int ret = 0;
-@@ -5004,6 +5019,7 @@ static int img_dd(int argc, char **argv)
+@@ -5007,6 +5022,7 @@ static int img_dd(int argc, char **argv)
          { "if", img_dd_if, C_IF },
          { "of", img_dd_of, C_OF },
          { "skip", img_dd_skip, C_SKIP },
@@ -98,7 +98,7 @@ index 0919fac1f1..c584de648c 100644
          { NULL, NULL, 0 }
      };
      const struct option long_options[] = {
-@@ -5079,91 +5095,112 @@ static int img_dd(int argc, char **argv)
+@@ -5082,91 +5098,112 @@ static int img_dd(int argc, char **argv)
          arg = NULL;
      }
  
@@ -275,7 +275,7 @@ index 0919fac1f1..c584de648c 100644
      }
  
      if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
-@@ -5180,20 +5217,43 @@ static int img_dd(int argc, char **argv)
+@@ -5183,20 +5220,43 @@ static int img_dd(int argc, char **argv)
      in.buf = g_new(uint8_t, in.bsz);
  
      for (out_pos = 0; in_pos < size; ) {

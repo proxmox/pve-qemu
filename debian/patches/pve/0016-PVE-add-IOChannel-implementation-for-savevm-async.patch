@@ -269,14 +269,14 @@ index 0000000000..17ae2cb261
 +
 +#endif /* QIO_CHANNEL_SAVEVM_ASYNC_H */
 diff --git a/migration/meson.build b/migration/meson.build
-index 0d1bb9f96e..8a142fc7a9 100644
+index 1ae28523a1..37ddcb5d60 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
-@@ -13,6 +13,7 @@ softmmu_ss.add(files(
+@@ -13,6 +13,7 @@ system_ss.add(files(
    'block-dirty-bitmap.c',
    'channel.c',
    'channel-block.c',
 +  'channel-savevm-async.c',
-   'colo-failover.c',
-   'colo.c',
+   'dirtyrate.c',
    'exec.c',
+   'fd.c',

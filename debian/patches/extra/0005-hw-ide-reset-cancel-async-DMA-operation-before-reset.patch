@@ -68,10 +68,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 7 insertions(+), 7 deletions(-)
 
 diff --git a/hw/ide/core.c b/hw/ide/core.c
-index 08e1f0c3d7..148fccdef2 100644
+index 6a74afe564..289347af58 100644
 --- a/hw/ide/core.c
 +++ b/hw/ide/core.c
-@@ -2513,19 +2513,19 @@ static void ide_dummy_transfer_stop(IDEState *s)
+@@ -2515,19 +2515,19 @@ static void ide_dummy_transfer_stop(IDEState *s)
  
  void ide_bus_reset(IDEBus *bus)
  {

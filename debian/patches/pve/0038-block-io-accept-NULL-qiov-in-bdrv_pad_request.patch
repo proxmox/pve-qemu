@@ -17,17 +17,17 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 4 insertions(+)
 
 diff --git a/block/io.c b/block/io.c
-index 2e267a85ab..449a44bf20 100644
+index 055fcf7438..63f7b3ad3e 100644
 --- a/block/io.c
 +++ b/block/io.c
-@@ -1576,6 +1576,10 @@ static int bdrv_pad_request(BlockDriverState *bs,
- {
-     int ret;
+@@ -1710,6 +1710,10 @@ static int bdrv_pad_request(BlockDriverState *bs,
+     int sliced_niov;
+     size_t sliced_head, sliced_tail;
  
 +    if (!qiov) {
 +        return 0;
 +    }
 +
-     bdrv_check_qiov_request(*offset, *bytes, *qiov, *qiov_offset, &error_abort);
- 
-     if (!bdrv_init_padding(bs, *offset, *bytes, pad)) {
+     /* Should have been checked by the caller already */
+     ret = bdrv_check_request32(*offset, *bytes, *qiov, *qiov_offset);
+     if (ret < 0) {

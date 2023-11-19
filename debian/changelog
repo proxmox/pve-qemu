@@ -1,3 +1,29 @@
+pve-qemu-kvm (8.1.2-2) bookworm; urgency=medium
+
+  * revert "x86: acpi: workaround Windows not handling name references in
+    Package properly" as that seems to have broken networking (and possibly
+    other things) one some localized variants of Windows (e.g., the German
+    versions).
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 17 Nov 2023 11:55:23 +0100
+
+pve-qemu-kvm (8.1.2-1) bookworm; urgency=medium
+
+  * update submodule and patches to QEMU 8.1.2
+
+  * use QEMU's keycode-map-db again instead of our static copy from QEMU 6.0
+
+  * disable graph locking, newly introduced in the 8.1 release, as it has
+    still various deadlock issuess, e.g., during canceling backup jobs.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 24 Oct 2023 13:42:45 +0200
+
+pve-qemu-kvm (8.0.2-7) bookworm; urgency=medium
+
+  * fix #2874: SATA: avoid unsolicited write to sector 0 during reset
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 04 Oct 2023 08:33:35 +0200
+
 pve-qemu-kvm (8.0.2-6) bookworm; urgency=medium
 
   * fix #1534: vma: add extract-filter for disk images allowing users to pass

@@ -37,6 +37,7 @@ Build-Depends: debhelper-compat (= 13),
                python3-minimal,
                python3-sphinx,
                python3-sphinx-rtd-theme,
+               python3-venv,
                quilt,
                uuid-dev,
                xfslibs-dev,
@@ -79,6 +80,7 @@ Replaces: pve-kvm,
           qemu-system-arm,
           qemu-system-x86,
           qemu-utils,
+Breaks: qemu-server (<= 8.0.6)
 Description: Full virtualization on x86 hardware
  Using KVM, one can run multiple virtual PCs, each running unmodified Linux or
  Windows images. Each virtual machine has private virtualized hardware: a

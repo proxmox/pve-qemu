@@ -9,7 +9,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 11 insertions(+), 4 deletions(-)
 
 diff --git a/block/gluster.c b/block/gluster.c
-index 185a83e5e5..f11a40aa9e 100644
+index ad5fadbe79..d0011085c4 100644
 --- a/block/gluster.c
 +++ b/block/gluster.c
 @@ -43,7 +43,7 @@
@@ -24,7 +24,7 @@ index 185a83e5e5..f11a40aa9e 100644
 @@ -425,6 +425,7 @@ static struct glfs *qemu_gluster_glfs_init(BlockdevOptionsGluster *gconf,
      int old_errno;
      SocketAddressList *server;
-     unsigned long long port;
+     uint64_t port;
 +    const char *logfile;
  
      glfs = glfs_find_preopened(gconf->volume);
