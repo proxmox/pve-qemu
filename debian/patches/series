@@ -6,6 +6,8 @@ extra/0005-hw-ide-reset-cancel-async-DMA-operation-before-reset.patch
 extra/0006-Revert-Revert-graph-lock-Disable-locking-for-now.patch
 extra/0007-migration-states-workaround-snapshot-performance-reg.patch
 extra/0008-Revert-x86-acpi-workaround-Windows-not-handling-name.patch
+extra/0009-hw-ide-ahci-fix-legacy-software-reset.patch
+extra/0010-ui-vnc-clipboard-fix-inflate_buffer.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
