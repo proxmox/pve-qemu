@@ -20,7 +20,6 @@ Build-Depends: debhelper-compat (= 13),
                libnuma-dev,
                libpci-dev,
                libpixman-1-dev,
-               libproxmox-backup-qemu0-dev (>= 1.3.0),
                librbd-dev (>= 0.48),
                libsdl1.2-dev,
                libseccomp-dev,
@@ -80,7 +79,6 @@ Replaces: pve-kvm,
           qemu-system-arm,
           qemu-system-x86,
           qemu-utils,
-Breaks: qemu-server (<= 8.0.6)
 Description: Full virtualization on x86 hardware
  Using KVM, one can run multiple virtual PCs, each running unmodified Linux or
  Windows images. Each virtual machine has private virtualized hardware: a

@@ -1,8 +1,8 @@
 # also use aarch64 for 32 bit arm
 usr/bin/qemu-system-aarch64 usr/bin/qemu-system-arm
-usr/bin/qemu-system-x86_64 usr/bin/kvm
 # qemu-system-i386 and qemu-system-x86_64 provides the same hardware emulation
 usr/bin/qemu-system-x86_64 usr/bin/qemu-system-i386
+usr/bin/qemu-system-loongarch64 usr/bin/kvm
 # upstream provides a qemu man page,
 # we symlink to kvm for backward compatibility
 # and to qemu-system-{i386,x86_64} to fullfill our 'Provides: qemu-system-x86'

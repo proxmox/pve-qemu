@@ -1,0 +1,944 @@
+diff --git a/linux-headers/asm-loongarch/kvm.h b/linux-headers/asm-loongarch/kvm.h
+new file mode 100644
+index 0000000000..5e72b83372
+--- /dev/null
++++ b/linux-headers/asm-loongarch/kvm.h
+@@ -0,0 +1,100 @@
++/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
++/*
++ * Copyright (C) 2023 Loongson Technology Corporation Limited
++ */
++
++#ifndef __UAPI_ASM_LOONGARCH_KVM_H
++#define __UAPI_ASM_LOONGARCH_KVM_H
++
++#include <linux/types.h>
++
++/*
++ * KVM Loongarch specific structures and definitions.
++ */
++
++#define __KVM_HAVE_READONLY_MEM
++
++#define KVM_COALESCED_MMIO_PAGE_OFFSET 1
++
++/*
++ * for KVM_GET_REGS and KVM_SET_REGS
++ */
++struct kvm_regs {
++	/* out (KVM_GET_REGS) / in (KVM_SET_REGS) */
++	__u64 gpr[32];
++	__u64 pc;
++};
++
++/*
++ * for KVM_GET_FPU and KVM_SET_FPU
++ */
++struct kvm_fpu {
++	__u32 fcsr;
++	__u32 none;
++	__u64 fcc;    /* 8x8 */
++	struct kvm_fpureg {
++		__u64 val64[4];
++	} fpr[32];
++};
++
++/*
++ * For LoongArch, we use KVM_SET_ONE_REG and KVM_GET_ONE_REG to access various
++ * registers.  The id field is broken down as follows:
++ *
++ *  bits[63..52] - As per linux/kvm.h
++ *  bits[51..32] - Must be zero.
++ *  bits[31..16] - Register set.
++ *
++ * Register set = 0: GP registers from kvm_regs (see definitions below).
++ *
++ * Register set = 1: CSR registers.
++ *
++ * Register set = 2: KVM specific registers (see definitions below).
++ *
++ * Register set = 3: FPU / SIMD registers (see definitions below).
++ *
++ * Other sets registers may be added in the future.  Each set would
++ * have its own identifier in bits[31..16].
++ */
++
++#define KVM_REG_LOONGARCH_GP		(KVM_REG_LOONGARCH | 0x00000ULL)
++#define KVM_REG_LOONGARCH_CSR		(KVM_REG_LOONGARCH | 0x10000ULL)
++#define KVM_REG_LOONGARCH_KVM		(KVM_REG_LOONGARCH | 0x20000ULL)
++#define KVM_REG_LOONGARCH_FPU		(KVM_REG_LOONGARCH | 0x30000ULL)
++#define KVM_REG_LOONGARCH_CPUCFG	(KVM_REG_LOONGARCH | 0x40000ULL)
++#define KVM_REG_LOONGARCH_MASK		(KVM_REG_LOONGARCH | 0x70000ULL)
++#define KVM_CSR_IDX_MASK		0x7fff
++#define KVM_CPUCFG_IDX_MASK		0x7fff
++
++/*
++ * KVM_REG_LOONGARCH_KVM - KVM specific control registers.
++ */
++
++#define KVM_REG_LOONGARCH_COUNTER	(KVM_REG_LOONGARCH_KVM | KVM_REG_SIZE_U64 | 3)
++#define KVM_REG_LOONGARCH_VCPU_RESET	(KVM_REG_LOONGARCH_KVM | KVM_REG_SIZE_U64 | 4)
++
++#define LOONGARCH_REG_SHIFT		3
++#define LOONGARCH_REG_64(TYPE, REG)	(TYPE | KVM_REG_SIZE_U64 | (REG << LOONGARCH_REG_SHIFT))
++#define KVM_IOC_CSRID(REG)		LOONGARCH_REG_64(KVM_REG_LOONGARCH_CSR, REG)
++#define KVM_IOC_CPUCFG(REG)		LOONGARCH_REG_64(KVM_REG_LOONGARCH_CPUCFG, REG)
++
++struct kvm_debug_exit_arch {
++};
++
++/* for KVM_SET_GUEST_DEBUG */
++struct kvm_guest_debug_arch {
++};
++
++/* definition of registers in kvm_run */
++struct kvm_sync_regs {
++};
++
++/* dummy definition */
++struct kvm_sregs {
++};
++
++#define KVM_NR_IRQCHIPS		1
++#define KVM_IRQCHIP_NUM_PINS	64
++#define KVM_MAX_CORES		256
++
++#endif /* __UAPI_ASM_LOONGARCH_KVM_H */
+diff --git a/linux-headers/linux/kvm.h b/linux-headers/linux/kvm.h
+index 0d74ee999a..0e378bbcbf 100644
+--- a/linux-headers/linux/kvm.h
++++ b/linux-headers/linux/kvm.h
+@@ -264,6 +264,7 @@ struct kvm_xen_exit {
+ #define KVM_EXIT_RISCV_SBI        35
+ #define KVM_EXIT_RISCV_CSR        36
+ #define KVM_EXIT_NOTIFY           37
++#define KVM_EXIT_LOONGARCH_IOCSR  38
+ 
+ /* For KVM_EXIT_INTERNAL_ERROR */
+ /* Emulate instruction failed. */
+@@ -336,6 +337,13 @@ struct kvm_run {
+ 			__u32 len;
+ 			__u8  is_write;
+ 		} mmio;
++		/* KVM_EXIT_LOONGARCH_IOCSR */
++		struct {
++			__u64 phys_addr;
++			__u8  data[8];
++			__u32 len;
++			__u8  is_write;
++		} iocsr_io;
+ 		/* KVM_EXIT_HYPERCALL */
+ 		struct {
+ 			__u64 nr;
+@@ -1358,6 +1366,7 @@ struct kvm_dirty_tlb {
+ #define KVM_REG_ARM64		0x6000000000000000ULL
+ #define KVM_REG_MIPS		0x7000000000000000ULL
+ #define KVM_REG_RISCV		0x8000000000000000ULL
++#define KVM_REG_LOONGARCH	0x9000000000000000ULL
+ 
+ #define KVM_REG_SIZE_SHIFT	52
+ #define KVM_REG_SIZE_MASK	0x00f0000000000000ULL
+diff --git a/meson.build b/meson.build
+index 5150a74831..66bea4173e 100644
+--- a/meson.build
++++ b/meson.build
+@@ -114,6 +114,8 @@ elif cpu in ['riscv32']
+   kvm_targets = ['riscv32-softmmu']
+ elif cpu in ['riscv64']
+   kvm_targets = ['riscv64-softmmu']
++elif cpu in ['loongarch64']
++  kvm_targets = ['loongarch64-softmmu']
+ else
+   kvm_targets = []
+ endif
+@@ -3310,6 +3312,7 @@ if have_system or have_user
+     'target/hppa',
+     'target/i386',
+     'target/i386/kvm',
++    'target/loongarch',
+     'target/mips/tcg',
+     'target/nios2',
+     'target/ppc',
+diff --git a/target/loongarch/cpu.c b/target/loongarch/cpu.c
+index 65f9320e34..516cc6afde 100644
+--- a/target/loongarch/cpu.c
++++ b/target/loongarch/cpu.c
+@@ -19,6 +19,11 @@
+ #include "cpu-csr.h"
+ #include "sysemu/reset.h"
+ #include "tcg/tcg.h"
++#include "sysemu/kvm.h"
++#include "kvm_loongarch.h"
++#ifdef CONFIG_KVM
++#include <linux/kvm.h>
++#endif
+ 
+ const char * const regnames[32] = {
+     "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
+@@ -106,12 +111,15 @@ void loongarch_cpu_set_irq(void *opaque, int irq, int level)
+         return;
+     }
+ 
+-    env->CSR_ESTAT = deposit64(env->CSR_ESTAT, irq, 1, level != 0);
+-
+-    if (FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS)) {
+-        cpu_interrupt(cs, CPU_INTERRUPT_HARD);
++    if (kvm_enabled()) {
++        kvm_loongarch_set_interrupt(cpu, irq, level);
+     } else {
+-        cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
++        env->CSR_ESTAT = deposit64(env->CSR_ESTAT, irq, 1, level != 0);
++        if (FIELD_EX64(env->CSR_ESTAT, CSR_ESTAT, IS)) {
++            cpu_interrupt(cs, CPU_INTERRUPT_HARD);
++        } else {
++            cpu_reset_interrupt(cs, CPU_INTERRUPT_HARD);
++        }
+     }
+ }
+ 
+@@ -520,10 +528,12 @@ static void loongarch_cpu_reset_hold(Object *obj)
+ 
+     env->CSR_ESTAT = env->CSR_ESTAT & (~MAKE_64BIT_MASK(0, 2));
+     env->CSR_RVACFG = FIELD_DP64(env->CSR_RVACFG, CSR_RVACFG, RBITS, 0);
++    env->CSR_CPUID = cs->cpu_index;
+     env->CSR_TCFG = FIELD_DP64(env->CSR_TCFG, CSR_TCFG, EN, 0);
+     env->CSR_LLBCTL = FIELD_DP64(env->CSR_LLBCTL, CSR_LLBCTL, KLO, 0);
+     env->CSR_TLBRERA = FIELD_DP64(env->CSR_TLBRERA, CSR_TLBRERA, ISTLBR, 0);
+     env->CSR_MERRCTL = FIELD_DP64(env->CSR_MERRCTL, CSR_MERRCTL, ISMERR, 0);
++    env->CSR_TID = cs->cpu_index;
+ 
+     env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, TLB_TYPE, 2);
+     env->CSR_PRCFG3 = FIELD_DP64(env->CSR_PRCFG3, CSR_PRCFG3, MTLB_ENTRY, 63);
+@@ -540,6 +550,9 @@ static void loongarch_cpu_reset_hold(Object *obj)
+ #ifndef CONFIG_USER_ONLY
+     env->pc = 0x1c000000;
+     memset(env->tlb, 0, sizeof(env->tlb));
++    if (kvm_enabled()) {
++        kvm_arch_reset_vcpu(env);
++    }
+ #endif
+ 
+     restore_fp_status(env);
+diff --git a/target/loongarch/cpu.h b/target/loongarch/cpu.h
+index 4d7201995a..e71ed9315d 100644
+--- a/target/loongarch/cpu.h
++++ b/target/loongarch/cpu.h
+@@ -316,6 +316,7 @@ typedef struct CPUArchState {
+     uint64_t CSR_PWCH;
+     uint64_t CSR_STLBPS;
+     uint64_t CSR_RVACFG;
++    uint64_t CSR_CPUID;
+     uint64_t CSR_PRCFG1;
+     uint64_t CSR_PRCFG2;
+     uint64_t CSR_PRCFG3;
+@@ -347,7 +348,6 @@ typedef struct CPUArchState {
+     uint64_t CSR_DBG;
+     uint64_t CSR_DERA;
+     uint64_t CSR_DSAVE;
+-    uint64_t CSR_CPUID;
+ 
+ #ifndef CONFIG_USER_ONLY
+     LoongArchTLB  tlb[LOONGARCH_TLB_MAX];
+@@ -357,6 +357,7 @@ typedef struct CPUArchState {
+     MemoryRegion iocsr_mem;
+     bool load_elf;
+     uint64_t elf_address;
++    uint32_t mp_state;
+     /* Store ipistate to access from this struct */
+     DeviceState *ipistate;
+ #endif
+@@ -380,6 +381,8 @@ struct ArchCPU {
+ 
+     /* 'compatible' string for this CPU for Linux device trees */
+     const char *dtb_compatible;
++    /* used by KVM_REG_LOONGARCH_COUNTER ioctl to access guest time counters */
++    uint64_t kvm_state_counter;
+ };
+ 
+ #define TYPE_LOONGARCH_CPU "loongarch-cpu"
+@@ -474,6 +477,7 @@ static inline void cpu_get_tb_cpu_state(CPULoongArchState *env, vaddr *pc,
+ }
+ 
+ void loongarch_cpu_list(void);
++void kvm_arch_reset_vcpu(CPULoongArchState *env);
+ 
+ #define cpu_list loongarch_cpu_list
+ 
+diff --git a/target/loongarch/kvm-stub.c b/target/loongarch/kvm-stub.c
+new file mode 100644
+index 0000000000..9965c1f119
+--- /dev/null
++++ b/target/loongarch/kvm-stub.c
+@@ -0,0 +1,11 @@
++/*
++ * QEMU KVM LoongArch specific function stubs
++ *
++ * Copyright (c) 2023 Loongson Technology Corporation Limited
++ */
++#include "cpu.h"
++
++void kvm_loongarch_set_interrupt(LoongArchCPU *cpu, int irq, int level)
++{
++   g_assert_not_reached();
++}
+diff --git a/target/loongarch/kvm.c b/target/loongarch/kvm.c
+new file mode 100644
+index 0000000000..d1111f8d5f
+--- /dev/null
++++ b/target/loongarch/kvm.c
+@@ -0,0 +1,594 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++/*
++ * QEMU LoongArch KVM
++ *
++ * Copyright (c) 2023 Loongson Technology Corporation Limited
++ */
++
++#include "qemu/osdep.h"
++#include <sys/ioctl.h>
++#include <linux/kvm.h>
++
++#include "qemu/timer.h"
++#include "qemu/error-report.h"
++#include "qemu/main-loop.h"
++#include "sysemu/sysemu.h"
++#include "sysemu/kvm.h"
++#include "sysemu/kvm_int.h"
++#include "hw/pci/pci.h"
++#include "exec/memattrs.h"
++#include "exec/address-spaces.h"
++#include "hw/boards.h"
++#include "hw/irq.h"
++#include "qemu/log.h"
++#include "hw/loader.h"
++#include "migration/migration.h"
++#include "sysemu/runstate.h"
++#include "cpu-csr.h"
++#include "kvm_loongarch.h"
++#include "trace.h"
++
++static bool cap_has_mp_state;
++const KVMCapabilityInfo kvm_arch_required_capabilities[] = {
++    KVM_CAP_LAST_INFO
++};
++
++static int kvm_loongarch_get_regs_core(CPUState *cs)
++{
++    int ret = 0;
++    int i;
++    struct kvm_regs regs;
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++
++    /* Get the current register set as KVM seems it */
++    ret = kvm_vcpu_ioctl(cs, KVM_GET_REGS, &regs);
++    if (ret < 0) {
++        trace_kvm_failed_get_regs_core(strerror(errno));
++        return ret;
++    }
++    /* gpr[0] value is always 0 */
++    env->gpr[0] = 0;
++    for (i = 1; i < 32; i++) {
++        env->gpr[i] = regs.gpr[i];
++    }
++
++    env->pc = regs.pc;
++    return ret;
++}
++
++static int kvm_loongarch_put_regs_core(CPUState *cs)
++{
++    int ret = 0;
++    int i;
++    struct kvm_regs regs;
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++
++    /* Set the registers based on QEMU's view of things */
++    for (i = 0; i < 32; i++) {
++        regs.gpr[i] = env->gpr[i];
++    }
++
++    regs.pc = env->pc;
++    ret = kvm_vcpu_ioctl(cs, KVM_SET_REGS, &regs);
++    if (ret < 0) {
++        trace_kvm_failed_put_regs_core(strerror(errno));
++    }
++
++    return ret;
++}
++
++static int kvm_larch_getq(CPUState *cs, uint64_t reg_id,
++                                 uint64_t *addr)
++{
++    struct kvm_one_reg csrreg = {
++        .id = reg_id,
++        .addr = (uintptr_t)addr
++    };
++
++    return kvm_vcpu_ioctl(cs, KVM_GET_ONE_REG, &csrreg);
++}
++
++static int kvm_larch_putq(CPUState *cs, uint64_t reg_id,
++                                 uint64_t *addr)
++{
++    struct kvm_one_reg csrreg = {
++        .id = reg_id,
++        .addr = (uintptr_t)addr
++    };
++
++    return kvm_vcpu_ioctl(cs, KVM_SET_ONE_REG, &csrreg);
++}
++
++#define KVM_GET_ONE_UREG64(cs, ret, regidx, addr)                 \
++    ({                                                            \
++        err = kvm_larch_getq(cs, KVM_IOC_CSRID(regidx), addr);    \
++        if (err < 0) {                                            \
++            ret = err;                                            \
++            trace_kvm_failed_get_csr(regidx, strerror(errno));    \
++        }                                                         \
++    })
++
++#define KVM_PUT_ONE_UREG64(cs, ret, regidx, addr)                 \
++    ({                                                            \
++        err = kvm_larch_putq(cs, KVM_IOC_CSRID(regidx), addr);    \
++        if (err < 0) {                                            \
++            ret = err;                                            \
++            trace_kvm_failed_put_csr(regidx, strerror(errno));    \
++        }                                                         \
++    })
++
++static int kvm_loongarch_get_csr(CPUState *cs)
++{
++    int err, ret = 0;
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_CRMD, &env->CSR_CRMD);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_PRMD, &env->CSR_PRMD);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_EUEN, &env->CSR_EUEN);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_MISC, &env->CSR_MISC);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_ECFG, &env->CSR_ECFG);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_ESTAT, &env->CSR_ESTAT);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_ERA, &env->CSR_ERA);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_BADV, &env->CSR_BADV);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_BADI, &env->CSR_BADI);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_EENTRY, &env->CSR_EENTRY);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBIDX, &env->CSR_TLBIDX);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBEHI, &env->CSR_TLBEHI);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBELO0, &env->CSR_TLBELO0);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBELO1, &env->CSR_TLBELO1);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_ASID, &env->CSR_ASID);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_PGDL, &env->CSR_PGDL);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_PGDH, &env->CSR_PGDH);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_PGD, &env->CSR_PGD);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_PWCL, &env->CSR_PWCL);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_PWCH, &env->CSR_PWCH);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_STLBPS, &env->CSR_STLBPS);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_RVACFG, &env->CSR_RVACFG);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_CPUID, &env->CSR_CPUID);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_PRCFG1, &env->CSR_PRCFG1);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_PRCFG2, &env->CSR_PRCFG2);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_PRCFG3, &env->CSR_PRCFG3);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(0), &env->CSR_SAVE[0]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(1), &env->CSR_SAVE[1]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(2), &env->CSR_SAVE[2]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(3), &env->CSR_SAVE[3]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(4), &env->CSR_SAVE[4]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(5), &env->CSR_SAVE[5]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(6), &env->CSR_SAVE[6]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(7), &env->CSR_SAVE[7]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TID, &env->CSR_TID);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_CNTC, &env->CSR_CNTC);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TICLR, &env->CSR_TICLR);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_LLBCTL, &env->CSR_LLBCTL);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_IMPCTL1, &env->CSR_IMPCTL1);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_IMPCTL2, &env->CSR_IMPCTL2);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRENTRY, &env->CSR_TLBRENTRY);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRBADV, &env->CSR_TLBRBADV);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRERA, &env->CSR_TLBRERA);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRSAVE, &env->CSR_TLBRSAVE);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRELO0, &env->CSR_TLBRELO0);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRELO1, &env->CSR_TLBRELO1);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBREHI, &env->CSR_TLBREHI);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRPRMD, &env->CSR_TLBRPRMD);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_DMW(0), &env->CSR_DMW[0]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_DMW(1), &env->CSR_DMW[1]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_DMW(2), &env->CSR_DMW[2]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_DMW(3), &env->CSR_DMW[3]);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TVAL, &env->CSR_TVAL);
++    KVM_GET_ONE_UREG64(cs, ret, LOONGARCH_CSR_TCFG, &env->CSR_TCFG);
++
++    return ret;
++}
++
++static int kvm_loongarch_put_csr(CPUState *cs)
++{
++    int err, ret = 0;
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_CRMD, &env->CSR_CRMD);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_PRMD, &env->CSR_PRMD);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_EUEN, &env->CSR_EUEN);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_MISC, &env->CSR_MISC);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_ECFG, &env->CSR_ECFG);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_ESTAT, &env->CSR_ESTAT);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_ERA, &env->CSR_ERA);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_BADV, &env->CSR_BADV);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_BADI, &env->CSR_BADI);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_EENTRY, &env->CSR_EENTRY);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBIDX, &env->CSR_TLBIDX);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBEHI, &env->CSR_TLBEHI);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBELO0, &env->CSR_TLBELO0);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBELO1, &env->CSR_TLBELO1);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_ASID, &env->CSR_ASID);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_PGDL, &env->CSR_PGDL);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_PGDH, &env->CSR_PGDH);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_PGD, &env->CSR_PGD);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_PWCL, &env->CSR_PWCL);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_PWCH, &env->CSR_PWCH);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_STLBPS, &env->CSR_STLBPS);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_RVACFG, &env->CSR_RVACFG);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_CPUID, &env->CSR_CPUID);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_PRCFG1, &env->CSR_PRCFG1);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_PRCFG2, &env->CSR_PRCFG2);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_PRCFG3, &env->CSR_PRCFG3);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(0), &env->CSR_SAVE[0]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(1), &env->CSR_SAVE[1]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(2), &env->CSR_SAVE[2]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(3), &env->CSR_SAVE[3]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(4), &env->CSR_SAVE[4]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(5), &env->CSR_SAVE[5]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(6), &env->CSR_SAVE[6]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_SAVE(7), &env->CSR_SAVE[7]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TID, &env->CSR_TID);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_CNTC, &env->CSR_CNTC);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TICLR, &env->CSR_TICLR);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_LLBCTL, &env->CSR_LLBCTL);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_IMPCTL1, &env->CSR_IMPCTL1);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_IMPCTL2, &env->CSR_IMPCTL2);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRENTRY, &env->CSR_TLBRENTRY);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRBADV, &env->CSR_TLBRBADV);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRERA, &env->CSR_TLBRERA);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRSAVE, &env->CSR_TLBRSAVE);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRELO0, &env->CSR_TLBRELO0);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRELO1, &env->CSR_TLBRELO1);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBREHI, &env->CSR_TLBREHI);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TLBRPRMD, &env->CSR_TLBRPRMD);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_DMW(0), &env->CSR_DMW[0]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_DMW(1), &env->CSR_DMW[1]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_DMW(2), &env->CSR_DMW[2]);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_DMW(3), &env->CSR_DMW[3]);
++    /*
++     * timer cfg must be put at last since it is used to enable
++     * guest timer
++     */
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TVAL, &env->CSR_TVAL);
++    KVM_PUT_ONE_UREG64(cs, ret, LOONGARCH_CSR_TCFG, &env->CSR_TCFG);
++    return ret;
++}
++
++static int kvm_loongarch_get_regs_fp(CPUState *cs)
++{
++    int ret, i;
++    struct kvm_fpu fpu;
++
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++
++    ret = kvm_vcpu_ioctl(cs, KVM_GET_FPU, &fpu);
++    if (ret < 0) {
++        trace_kvm_failed_get_fpu(strerror(errno));
++        return ret;
++    }
++
++    env->fcsr0 = fpu.fcsr;
++    for (i = 0; i < 32; i++) {
++        env->fpr[i].vreg.UD[0] = fpu.fpr[i].val64[0];
++    }
++    for (i = 0; i < 8; i++) {
++        env->cf[i] = fpu.fcc & 0xFF;
++        fpu.fcc = fpu.fcc >> 8;
++    }
++
++    return ret;
++}
++
++static int kvm_loongarch_put_regs_fp(CPUState *cs)
++{
++    int ret, i;
++    struct kvm_fpu fpu;
++
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++
++    fpu.fcsr = env->fcsr0;
++    fpu.fcc = 0;
++    for (i = 0; i < 32; i++) {
++        fpu.fpr[i].val64[0] = env->fpr[i].vreg.UD[0];
++    }
++
++    for (i = 0; i < 8; i++) {
++        fpu.fcc |= env->cf[i] << (8 * i);
++    }
++
++    ret = kvm_vcpu_ioctl(cs, KVM_SET_FPU, &fpu);
++    if (ret < 0) {
++        trace_kvm_failed_put_fpu(strerror(errno));
++    }
++
++    return ret;
++}
++
++void kvm_arch_reset_vcpu(CPULoongArchState *env)
++{
++    env->mp_state = KVM_MP_STATE_RUNNABLE;
++}
++
++static int kvm_loongarch_get_mpstate(CPUState *cs)
++{
++    int ret = 0;
++    struct kvm_mp_state mp_state;
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++
++    if (cap_has_mp_state) {
++        ret = kvm_vcpu_ioctl(cs, KVM_GET_MP_STATE, &mp_state);
++        if (ret) {
++            trace_kvm_failed_get_mpstate(strerror(errno));
++            return ret;
++        }
++        env->mp_state = mp_state.mp_state;
++    }
++
++    return ret;
++}
++
++static int kvm_loongarch_put_mpstate(CPUState *cs)
++{
++    int ret = 0;
++
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++
++    struct kvm_mp_state mp_state = {
++        .mp_state = env->mp_state
++    };
++
++    if (cap_has_mp_state) {
++        ret = kvm_vcpu_ioctl(cs, KVM_SET_MP_STATE, &mp_state);
++        if (ret) {
++            trace_kvm_failed_put_mpstate(strerror(errno));
++        }
++    }
++
++    return ret;
++}
++
++static int kvm_loongarch_get_cpucfg(CPUState *cs)
++{
++    int i, ret = 0;
++    uint64_t val;
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++
++    for (i = 0; i < 21; i++) {
++        ret = kvm_larch_getq(cs, KVM_IOC_CPUCFG(i), &val);
++        if (ret < 0) {
++            trace_kvm_failed_get_cpucfg(strerror(errno));
++        }
++        env->cpucfg[i] = (uint32_t)val;
++    }
++    return ret;
++}
++
++static int kvm_loongarch_put_cpucfg(CPUState *cs)
++{
++    int i, ret = 0;
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++    uint64_t val;
++
++    for (i = 0; i < 21; i++) {
++        val = env->cpucfg[i];
++        /* LSX and LASX and LBT are not supported in kvm now */
++        if (i == 2) {
++            val &= ~(BIT(R_CPUCFG2_LSX_SHIFT) | BIT(R_CPUCFG2_LASX_SHIFT));
++            val &= ~(BIT(R_CPUCFG2_LBT_X86_SHIFT) | BIT(R_CPUCFG2_LBT_ARM_SHIFT) |
++                     BIT(R_CPUCFG2_LBT_MIPS_SHIFT));
++        }
++        ret = kvm_larch_putq(cs, KVM_IOC_CPUCFG(i), &val);
++        if (ret < 0) {
++            trace_kvm_failed_put_cpucfg(strerror(errno));
++        }
++    }
++    return ret;
++}
++
++int kvm_arch_get_registers(CPUState *cs)
++{
++    int ret;
++
++    ret = kvm_loongarch_get_regs_core(cs);
++    if (ret) {
++        return ret;
++    }
++
++    ret = kvm_loongarch_get_csr(cs);
++    if (ret) {
++        return ret;
++    }
++
++    ret = kvm_loongarch_get_regs_fp(cs);
++    if (ret) {
++        return ret;
++    }
++
++    ret = kvm_loongarch_get_mpstate(cs);
++    if (ret) {
++        return ret;
++    }
++
++    ret = kvm_loongarch_get_cpucfg(cs);
++    return ret;
++}
++
++int kvm_arch_put_registers(CPUState *cs, int level)
++{
++    int ret;
++
++    ret = kvm_loongarch_put_regs_core(cs);
++    if (ret) {
++        return ret;
++    }
++
++    ret = kvm_loongarch_put_csr(cs);
++    if (ret) {
++        return ret;
++    }
++
++    ret = kvm_loongarch_put_regs_fp(cs);
++    if (ret) {
++        return ret;
++    }
++
++    ret = kvm_loongarch_put_mpstate(cs);
++    if (ret) {
++        return ret;
++    }
++
++    ret = kvm_loongarch_put_cpucfg(cs);
++    return ret;
++}
++
++static void kvm_loongarch_vm_stage_change(void *opaque, bool running,
++                                          RunState state)
++{
++    int ret;
++    CPUState *cs = opaque;
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++
++    if (running) {
++        ret = kvm_larch_putq(cs, KVM_REG_LOONGARCH_COUNTER,
++                             &cpu->kvm_state_counter);
++        if (ret < 0) {
++            trace_kvm_failed_put_counter(strerror(errno));
++        }
++    } else {
++        ret = kvm_larch_getq(cs, KVM_REG_LOONGARCH_COUNTER,
++                             &cpu->kvm_state_counter);
++        if (ret < 0) {
++            trace_kvm_failed_get_counter(strerror(errno));
++        }
++    }
++}
++
++int kvm_arch_init_vcpu(CPUState *cs)
++{
++    qemu_add_vm_change_state_handler(kvm_loongarch_vm_stage_change, cs);
++    return 0;
++}
++
++int kvm_arch_destroy_vcpu(CPUState *cs)
++{
++    return 0;
++}
++
++unsigned long kvm_arch_vcpu_id(CPUState *cs)
++{
++    return cs->cpu_index;
++}
++
++int kvm_arch_release_virq_post(int virq)
++{
++    return 0;
++}
++
++int kvm_arch_msi_data_to_gsi(uint32_t data)
++{
++    abort();
++}
++
++int kvm_arch_fixup_msi_route(struct kvm_irq_routing_entry *route,
++                             uint64_t address, uint32_t data, PCIDevice *dev)
++{
++    return 0;
++}
++
++int kvm_arch_add_msi_route_post(struct kvm_irq_routing_entry *route,
++                                int vector, PCIDevice *dev)
++{
++    return 0;
++}
++
++void kvm_arch_init_irq_routing(KVMState *s)
++{
++}
++
++int kvm_arch_get_default_type(MachineState *ms)
++{
++    return 0;
++}
++
++int kvm_arch_init(MachineState *ms, KVMState *s)
++{
++    cap_has_mp_state = kvm_check_extension(s, KVM_CAP_MP_STATE);
++    return 0;
++}
++
++int kvm_arch_irqchip_create(KVMState *s)
++{
++    return 0;
++}
++
++void kvm_arch_pre_run(CPUState *cs, struct kvm_run *run)
++{
++}
++
++MemTxAttrs kvm_arch_post_run(CPUState *cs, struct kvm_run *run)
++{
++    return MEMTXATTRS_UNSPECIFIED;
++}
++
++int kvm_arch_process_async_events(CPUState *cs)
++{
++    return cs->halted;
++}
++
++bool kvm_arch_stop_on_emulation_error(CPUState *cs)
++{
++    return true;
++}
++
++bool kvm_arch_cpu_check_are_resettable(void)
++{
++    return true;
++}
++
++int kvm_arch_handle_exit(CPUState *cs, struct kvm_run *run)
++{
++    int ret = 0;
++    LoongArchCPU *cpu = LOONGARCH_CPU(cs);
++    CPULoongArchState *env = &cpu->env;
++    MemTxAttrs attrs = {};
++
++    attrs.requester_id = env_cpu(env)->cpu_index;
++
++    trace_kvm_arch_handle_exit(run->exit_reason);
++    switch (run->exit_reason) {
++    case KVM_EXIT_LOONGARCH_IOCSR:
++        address_space_rw(&env->address_space_iocsr,
++                         run->iocsr_io.phys_addr,
++                         attrs,
++                         run->iocsr_io.data,
++                         run->iocsr_io.len,
++                         run->iocsr_io.is_write);
++        break;
++    default:
++        ret = -1;
++        warn_report("KVM: unknown exit reason %d", run->exit_reason);
++        break;
++    }
++    return ret;
++}
++
++int kvm_loongarch_set_interrupt(LoongArchCPU *cpu, int irq, int level)
++{
++    struct kvm_interrupt intr;
++    CPUState *cs = CPU(cpu);
++
++    if (level) {
++        intr.irq = irq;
++    } else {
++        intr.irq = -irq;
++    }
++
++    trace_kvm_set_intr(irq, level);
++    return kvm_vcpu_ioctl(cs, KVM_INTERRUPT, &intr);
++}
++
++void kvm_arch_accel_class_init(ObjectClass *oc)
++{
++}
+diff --git a/target/loongarch/kvm_loongarch.h b/target/loongarch/kvm_loongarch.h
+new file mode 100644
+index 0000000000..cdef980eec
+--- /dev/null
++++ b/target/loongarch/kvm_loongarch.h
+@@ -0,0 +1,13 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++/*
++ * QEMU LoongArch kvm interface
++ *
++ * Copyright (c) 2023 Loongson Technology Corporation Limited
++ */
++
++#ifndef QEMU_KVM_LOONGARCH_H
++#define QEMU_KVM_LOONGARCH_H
++
++int  kvm_loongarch_set_interrupt(LoongArchCPU *cpu, int irq, int level);
++
++#endif
+diff --git a/target/loongarch/meson.build b/target/loongarch/meson.build
+index b7a27df5a9..b3cceccc95 100644
+--- a/target/loongarch/meson.build
++++ b/target/loongarch/meson.build
+@@ -27,6 +27,7 @@ loongarch_system_ss.add(files(
+ 
+ common_ss.add(when: 'CONFIG_LOONGARCH_DIS', if_true: [files('disas.c'), gen])
+ 
++loongarch_ss.add(when: 'CONFIG_KVM', if_true: files('kvm.c'), if_false: files('kvm-stub.c'))
+ loongarch_ss.add_all(when: 'CONFIG_TCG', if_true: [loongarch_tcg_ss])
+ 
+ target_arch += {'loongarch': loongarch_ss}
+diff --git a/target/loongarch/trace-events b/target/loongarch/trace-events
+new file mode 100644
+index 0000000000..3263406ebe
+--- /dev/null
++++ b/target/loongarch/trace-events
+@@ -0,0 +1,17 @@
++# See docs/devel/tracing.rst for syntax documentation.
++
++#kvm.c
++kvm_failed_get_regs_core(const char *msg) "Failed to get core regs from KVM: %s"
++kvm_failed_put_regs_core(const char *msg) "Failed to put core regs into KVM: %s"
++kvm_failed_get_csr(int csr, const char *msg) "Failed to get csr 0x%x from KVM: %s"
++kvm_failed_put_csr(int csr, const char *msg) "Failed to put csr 0x%x into KVM: %s"
++kvm_failed_get_fpu(const char *msg) "Failed to get fpu from KVM: %s"
++kvm_failed_put_fpu(const char *msg) "Failed to put fpu into KVM: %s"
++kvm_failed_get_mpstate(const char *msg) "Failed to get mp_state from KVM: %s"
++kvm_failed_put_mpstate(const char *msg) "Failed to put mp_state into KVM: %s"
++kvm_failed_get_counter(const char *msg) "Failed to get counter from KVM: %s"
++kvm_failed_put_counter(const char *msg) "Failed to put counter into KVM: %s"
++kvm_failed_get_cpucfg(const char *msg) "Failed to get cpucfg from KVM: %s"
++kvm_failed_put_cpucfg(const char *msg) "Failed to put cpucfg into KVM: %s"
++kvm_arch_handle_exit(int num) "kvm arch handle exit, the reason number: %d"
++kvm_set_intr(int irq, int level) "kvm set interrupt, irq num: %d, level: %d"
+diff --git a/target/loongarch/trace.h b/target/loongarch/trace.h
+new file mode 100644
+index 0000000000..c2ecb78f08
+--- /dev/null
++++ b/target/loongarch/trace.h
+@@ -0,0 +1 @@
++#include "trace/trace-target_loongarch.h"

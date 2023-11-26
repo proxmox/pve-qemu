@@ -38,19 +38,17 @@ endif
 
 	# guest-agent is only required for guest systems
 	./configure \
-	    --disable-download \
 	    --docdir=/usr/share/doc/pve-qemu-kvm \
 	    --localstatedir=/var \
 	    --prefix=/usr \
 	    --sysconfdir=/etc \
-	    --target-list=$(HOST_CPU)-softmmu,aarch64-softmmu \
 	    --with-suffix="kvm" \
+	    --target-list="loongarch64-softmmu,x86_64-softmmu,aarch64-softmmu,aarch64-linux-user,x86_64-linux-user" \
 	    --with-pkgversion="${DEB_SOURCE}_${DEB_VERSION_UPSTREAM_REVISION}" \
 	    --audio-drv-list="alsa" \
 	    --datadir=/usr/share \
 	    --libexecdir=/usr/lib/kvm \
 	    --disable-capstone \
-	    --disable-gtk \
 	    --disable-guest-agent \
 	    --disable-guest-agent-msi \
 	    --disable-libnfs \
