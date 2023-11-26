@@ -1,3 +1,9 @@
+pve-qemu-kvm (8.1.2-4+updates) bookworm; urgency=medium
+
+  * Add loongarch64 kvm support
+
+ -- jiangcuo <jiangcuo@bingsin.com>  Sun, 26 Nov 2023 19:13:45 +0800
+
 pve-qemu-kvm (8.1.2-4) bookworm; urgency=medium
 
   * fix vnc clipboard in the host to guest direction
