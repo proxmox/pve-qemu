@@ -254,10 +254,10 @@ index d3cacd1708..1ff42c8af1 100644
                       errp);
      if (!job) {
 diff --git a/blockdev.c b/blockdev.c
-index e6eba61484..a8b1fd2a73 100644
+index c28462a633..a402fa4bf7 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -2848,6 +2848,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2849,6 +2849,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                     BlockDriverState *target,
                                     const char *replaces,
                                     enum MirrorSyncMode sync,
@@ -267,7 +267,7 @@ index e6eba61484..a8b1fd2a73 100644
                                     BlockMirrorBackingMode backing_mode,
                                     bool zero_target,
                                     bool has_speed, int64_t speed,
-@@ -2866,6 +2869,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2867,6 +2870,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
  {
      BlockDriverState *unfiltered_bs;
      int job_flags = JOB_DEFAULT;
@@ -275,7 +275,7 @@ index e6eba61484..a8b1fd2a73 100644
  
      GLOBAL_STATE_CODE();
      GRAPH_RDLOCK_GUARD_MAINLOOP();
-@@ -2920,6 +2924,29 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2921,6 +2925,29 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
          sync = MIRROR_SYNC_MODE_FULL;
      }
  
@@ -305,7 +305,7 @@ index e6eba61484..a8b1fd2a73 100644
      if (!replaces) {
          /* We want to mirror from @bs, but keep implicit filters on top */
          unfiltered_bs = bdrv_skip_implicit_filters(bs);
-@@ -2965,8 +2992,8 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2966,8 +2993,8 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
       * and will allow to check whether the node still exist at mirror completion
       */
      mirror_start(job_id, bs, target,
@@ -316,7 +316,7 @@ index e6eba61484..a8b1fd2a73 100644
                   on_source_error, on_target_error, unmap, filter_node_name,
                   copy_mode, errp);
  }
-@@ -3114,6 +3141,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
+@@ -3115,6 +3142,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
  
      blockdev_mirror_common(arg->job_id, bs, target_bs,
                             arg->replaces, arg->sync,
@@ -325,7 +325,7 @@ index e6eba61484..a8b1fd2a73 100644
                             backing_mode, zero_target,
                             arg->has_speed, arg->speed,
                             arg->has_granularity, arg->granularity,
-@@ -3135,6 +3164,8 @@ void qmp_blockdev_mirror(const char *job_id,
+@@ -3136,6 +3165,8 @@ void qmp_blockdev_mirror(const char *job_id,
                           const char *device, const char *target,
                           const char *replaces,
                           MirrorSyncMode sync,
@@ -334,7 +334,7 @@ index e6eba61484..a8b1fd2a73 100644
                           bool has_speed, int64_t speed,
                           bool has_granularity, uint32_t granularity,
                           bool has_buf_size, int64_t buf_size,
-@@ -3183,7 +3214,8 @@ void qmp_blockdev_mirror(const char *job_id,
+@@ -3184,7 +3215,8 @@ void qmp_blockdev_mirror(const char *job_id,
      }
  
      blockdev_mirror_common(job_id, bs, target_bs,
