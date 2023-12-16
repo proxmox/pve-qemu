@@ -1,3 +1,11 @@
+pve-qemu-kvm (8.2.0-rc4) bookworm; urgency=medium
+
+  * Update to 8.2.0-rc4
+  
+  * Upstream: https://github.com/loongson/qemu/tree/kvm-loongarch 
+
+ -- root <root@debian2.lan>  Sat, 16 Dec 2023 12:42:18 +0000
+
 pve-qemu-kvm (8.1.2-6) bookworm; urgency=medium
 
   * revert attempted fix to avoid rare issue with stuck guest IO when using

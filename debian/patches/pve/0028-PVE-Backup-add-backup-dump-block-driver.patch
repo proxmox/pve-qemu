@@ -246,14 +246,18 @@ diff --git a/block/meson.build b/block/meson.build
 index 59b71ba9f3..6fde9f7dcd 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -4,6 +4,7 @@ block_ss.add(files(
+@@ -2,10 +2,11 @@
+ block_ss.add(files(
+   'accounting.c',
    'aio_task.c',
    'amend.c',
    'backup.c',
 +  'backup-dump.c',
-   'copy-before-write.c',
    'blkdebug.c',
    'blklogwrites.c',
+   'blkverify.c',
+   'block-backend.c',
+   'block-copy.c',
 diff --git a/include/block/block_int-common.h b/include/block/block_int-common.h
 index 74195c3004..0f2e1817ad 100644
 --- a/include/block/block_int-common.h

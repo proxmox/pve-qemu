@@ -145,18 +145,21 @@ diff --git a/block/meson.build b/block/meson.build
 index 6fde9f7dcd..6d468f89e5 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -45,6 +45,11 @@ block_ss.add(files(
+@@ -40,10 +40,14 @@
+   'snapshot-access.c',
+   'throttle.c',
+   'throttle-groups.c',
+   'write-threshold.c',
  ), zstd, zlib, gnutls)
- 
- block_ss.add(files('../vma-writer.c'), libuuid)
 +block_ss.add(files(
 +  '../proxmox-backup-client.c',
 +  '../pve-backup.c',
 +), libproxmox_backup_qemu)
-+
  
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  system_ss.add(files('block-ram-registrar.c'))
+ 
+ if get_option('qcow1').allowed()
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
 index ca2599de44..6efe28cef5 100644
 --- a/block/monitor/block-hmp-cmds.c
@@ -331,7 +334,9 @@ diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
 index 91be698308..5b9c231a4c 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
-@@ -21,6 +21,7 @@
+@@ -19,10 +19,11 @@
+ #include "exec/ioport.h"
+ #include "monitor/hmp.h"
  #include "qemu/help_option.h"
  #include "monitor/monitor-internal.h"
  #include "qapi/error.h"
@@ -339,6 +344,8 @@ index 91be698308..5b9c231a4c 100644
  #include "qapi/qapi-commands-control.h"
  #include "qapi/qapi-commands-migration.h"
  #include "qapi/qapi-commands-misc.h"
+ #include "qapi/qmp/qdict.h"
+ #include "qemu/cutils.h"
 @@ -144,6 +145,77 @@ void hmp_sync_profile(Monitor *mon, const QDict *qdict)
      }
  }

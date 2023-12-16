@@ -27,16 +27,22 @@ diff --git a/block/meson.build b/block/meson.build
 index 6d468f89e5..becc99ac4e 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -50,6 +50,9 @@ block_ss.add(files(
+@@ -44,12 +44,15 @@
+ ), zstd, zlib, gnutls)
+ block_ss.add(files(
+   '../proxmox-backup-client.c',
    '../pve-backup.c',
  ), libproxmox_backup_qemu)
  
 +block_ss.add(when: 'CONFIG_PBS_BDRV', if_true: files('pbs.c'))
 +block_ss.add(when: 'CONFIG_PBS_BDRV', if_true: libproxmox_backup_qemu)
 +
- 
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  system_ss.add(files('block-ram-registrar.c'))
+ 
+ if get_option('qcow1').allowed()
+   block_ss.add(files('qcow.c'))
+ endif
 diff --git a/block/pbs.c b/block/pbs.c
 new file mode 100644
 index 0000000000..a2211e0f3b
@@ -352,15 +358,21 @@ diff --git a/configure b/configure
 index 133f4e3235..f5a830c1f3 100755
 --- a/configure
 +++ b/configure
-@@ -256,6 +256,7 @@ qemu_suffix="qemu"
- softmmu="yes"
+@@ -243,10 +243,11 @@
+ docs="auto"
+ EXESUF=""
+ system="yes"
  linux_user=""
  bsd_user=""
 +pbs_bdrv="yes"
  plugins="$default_feature"
+ subdirs=""
  ninja=""
  python=
-@@ -809,6 +810,10 @@ for opt do
+ download="enabled"
+@@ -743,10 +744,14 @@
+   ;;
+   --disable-download) download="disabled"; git_submodules_action=validate;
    ;;
    --enable-download) download="enabled"; git_submodules_action=update;
    ;;
@@ -368,27 +380,37 @@ index 133f4e3235..f5a830c1f3 100755
 +  ;;
 +  --enable-pbs-bdrv) pbs_bdrv="yes"
 +  ;;
-   --enable-plugins) if test "$mingw32" = "yes"; then
-                         error_exit "TCG plugins not currently supported on Windows platforms"
-                     else
-@@ -959,6 +964,7 @@ cat << EOF
+   --enable-plugins) plugins="yes"
+   ;;
+   --disable-plugins) plugins="no"
+   ;;
+   --enable-containers) use_containers="yes"
+@@ -883,10 +888,11 @@
+   meson_options_help
+ cat << EOF
+   system          all system emulation targets
+   user            supported user emulation targets
+   linux-user      all linux usermode emulation targets
++  pbs-bdrv        Proxmox backup server read-only block driver support
    bsd-user        all BSD usermode emulation targets
    pie             Position Independent Executables
-   debug-tcg       TCG debugging (default is disabled)
-+  pbs-bdrv        Proxmox backup server read-only block driver support
  
  NOTE: The object files are built at the place where configure is launched
  EOF
-@@ -1744,6 +1750,9 @@ if test "$solaris" = "yes" ; then
- fi
+@@ -1622,10 +1628,13 @@
+ 
+ echo all: >> $config_host_mak
+ 
  echo "SRC_PATH=$source_path" >> $config_host_mak
  echo "TARGET_DIRS=$target_list" >> $config_host_mak
 +if test "$pbs_bdrv" = "yes" ; then
 +  echo "CONFIG_PBS_BDRV=y" >> $config_host_mak
 +fi
- 
- # XXX: suppress that
- if [ "$bsd" = "yes" ] ; then
+ echo "GDB=$gdb_bin" >> $config_host_mak
+ if test "$container" != no; then
+     echo "RUNC=$runc" >> $config_host_mak
+ fi
+ echo "SUBDIRS=$subdirs" >> $config_host_mak
 diff --git a/meson.build b/meson.build
 index c3330310d9..cbfc9a43fb 100644
 --- a/meson.build

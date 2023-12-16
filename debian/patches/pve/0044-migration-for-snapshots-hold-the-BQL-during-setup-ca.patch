@@ -55,14 +55,15 @@ diff --git a/include/migration/register.h b/include/migration/register.h
 index 90914f32f5..c728fd9120 100644
 --- a/include/migration/register.h
 +++ b/include/migration/register.h
-@@ -43,9 +43,9 @@ typedef struct SaveVMHandlers {
+@@ -47,10 +47,11 @@
+      * within the lock in the savevm case.  The callback had better only
+      * use data that is local to the migration thread or protected
       * by other locks.
       */
      int (*save_live_iterate)(QEMUFile *f, void *opaque);
 +    int (*save_setup)(QEMUFile *f, void *opaque);
  
      /* This runs outside the iothread lock!  */
--    int (*save_setup)(QEMUFile *f, void *opaque);
      /* Note for save_live_pending:
       * must_precopy:
       * - must be migrated in precopy or in stopped state

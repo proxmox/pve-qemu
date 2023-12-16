@@ -29,15 +29,15 @@ diff --git a/block/meson.build b/block/meson.build
 index 1833c71ce9..59b71ba9f3 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -43,6 +43,8 @@ block_ss.add(files(
-   'zeroinit.c',
- ), zstd, zlib, gnutls)
- 
+@@ -1,7 +1,8 @@
+ block_ss.add(genh)
 +block_ss.add(files('../vma-writer.c'), libuuid)
-+
- system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
- system_ss.add(files('block-ram-registrar.c'))
- 
+ block_ss.add(files(
+   'accounting.c',
+   'aio_task.c',
+   'amend.c',
+   'backup.c',
+   'blkdebug.c',
 diff --git a/meson.build b/meson.build
 index a9c4f28247..cd95530d3b 100644
 --- a/meson.build

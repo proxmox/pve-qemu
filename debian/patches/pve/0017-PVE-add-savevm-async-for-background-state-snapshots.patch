@@ -40,7 +40,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  qapi/migration.json          |  34 +++
  qapi/misc.json               |  16 ++
  qemu-options.hx              |  12 +
- softmmu/vl.c                 |  10 +
+ system/vl.c                 |  10 +
  11 files changed, 677 insertions(+)
  create mode 100644 migration/savevm-async.c
 
@@ -678,14 +678,6 @@ diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
 index 6c559b48c8..91be698308 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
-@@ -22,6 +22,7 @@
- #include "monitor/monitor-internal.h"
- #include "qapi/error.h"
- #include "qapi/qapi-commands-control.h"
-+#include "qapi/qapi-commands-migration.h"
- #include "qapi/qapi-commands-misc.h"
- #include "qapi/qmp/qdict.h"
- #include "qapi/qmp/qerror.h"
 @@ -443,3 +444,40 @@ void hmp_info_mtree(Monitor *mon, const QDict *qdict)
  
      mtree_info(flatview, dispatch_tree, owner, disabled);
@@ -822,10 +814,10 @@ index b56f6b2fb2..c8c78c92d4 100644
  #ifndef _WIN32
  DEF("daemonize", 0, QEMU_OPTION_daemonize, \
      "-daemonize      daemonize QEMU after initializing\n", QEMU_ARCH_ALL)
-diff --git a/softmmu/vl.c b/softmmu/vl.c
+diff --git a/system/vl.c b/system/vl.c
 index b0b96f67fa..f3251de3e7 100644
---- a/softmmu/vl.c
-+++ b/softmmu/vl.c
+--- a/system/vl.c
++++ b/system/vl.c
 @@ -164,6 +164,7 @@ static const char *accelerators;
  static bool have_custom_ram_size;
  static const char *ram_memdev_id;

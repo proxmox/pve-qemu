@@ -16,14 +16,18 @@ diff --git a/block/meson.build b/block/meson.build
 index 529fc172c6..1833c71ce9 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -40,6 +40,7 @@ block_ss.add(files(
-   'throttle-groups.c',
-   'throttle.c',
-   'write-threshold.c',
+@@ -30,10 +30,11 @@
+   'qcow2-cluster.c',
+   'qcow2-refcount.c',
+   'qcow2-snapshot.c',
+   'qcow2-threads.c',
+   'quorum.c',
 +  'zeroinit.c',
- ), zstd, zlib, gnutls)
- 
- system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
+   'raw-format.c',
+   'reqlist.c',
+   'snapshot.c',
+   'snapshot-access.c',
+   'throttle.c',
 diff --git a/block/zeroinit.c b/block/zeroinit.c
 new file mode 100644
 index 0000000000..1257342724
