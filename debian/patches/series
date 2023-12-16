@@ -8,6 +8,7 @@ extra/0007-migration-states-workaround-snapshot-performance-reg.patch
 extra/0008-Revert-x86-acpi-workaround-Windows-not-handling-name.patch
 extra/0009-hw-ide-ahci-fix-legacy-software-reset.patch
 extra/0010-ui-vnc-clipboard-fix-inflate_buffer.patch
+extra/0011-block-Fix-AioContext-locking-in-qmp_block_resize.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
@@ -59,4 +60,4 @@ pve/0042-Revert-block-rbd-implement-bdrv_co_block_status.patch
 pve/0043-alloc-track-fix-deadlock-during-drop.patch
 pve/0044-migration-for-snapshots-hold-the-BQL-during-setup-ca.patch
 pve/0045-savevm-async-don-t-hold-BQL-during-setup.patch
-extra/0011-add-loongarch64-kvm.patch
+extra/0099-add-loongarch64-kvm.patch
