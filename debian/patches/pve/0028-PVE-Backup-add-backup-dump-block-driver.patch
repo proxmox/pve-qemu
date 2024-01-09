@@ -12,20 +12,20 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: adapt to coroutine changes]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/backup-dump.c              | 168 +++++++++++++++++++++++++++++++
+ block/backup-dump.c              | 172 +++++++++++++++++++++++++++++++
  block/backup.c                   |  30 ++----
  block/meson.build                |   1 +
  include/block/block_int-common.h |  35 +++++++
  job.c                            |   3 +-
- 5 files changed, 214 insertions(+), 23 deletions(-)
+ 5 files changed, 218 insertions(+), 23 deletions(-)
  create mode 100644 block/backup-dump.c
 
 diff --git a/block/backup-dump.c b/block/backup-dump.c
 new file mode 100644
-index 0000000000..232a094426
+index 0000000000..e46abf1070
 --- /dev/null
 +++ b/block/backup-dump.c
-@@ -0,0 +1,168 @@
+@@ -0,0 +1,172 @@
 +/*
 + * BlockDriver to send backup data stream to a callback function
 + *
@@ -37,6 +37,8 @@ index 0000000000..232a094426
 + */
 +
 +#include "qemu/osdep.h"
++
++#include "qapi/qmp/qdict.h"
 +#include "qom/object_interfaces.h"
 +#include "block/block_int.h"
 +
@@ -169,7 +171,7 @@ index 0000000000..232a094426
 +block_init(bdrv_backup_dump_init);
 +
 +
-+BlockDriverState *bdrv_backup_dump_create(
++BlockDriverState *coroutine_fn bdrv_co_backup_dump_create(
 +    int dump_cb_block_size,
 +    uint64_t byte_size,
 +    BackupDumpFunc *dump_cb,
@@ -177,9 +179,11 @@ index 0000000000..232a094426
 +    Error **errp)
 +{
 +    BDRVBackupDumpState *state;
-+    BlockDriverState *bs = bdrv_new_open_driver(
-+        &bdrv_backup_dump_drive, NULL, BDRV_O_RDWR, errp);
 +
++    QDict *options = qdict_new();
++    qdict_put_str(options, "driver", "backup-dump-drive");
++
++    BlockDriverState *bs = bdrv_co_open(NULL, NULL, options, BDRV_O_RDWR, errp);
 +    if (!bs) {
 +        return NULL;
 +    }
@@ -255,7 +259,7 @@ index 59b71ba9f3..6fde9f7dcd 100644
    'blkdebug.c',
    'blklogwrites.c',
 diff --git a/include/block/block_int-common.h b/include/block/block_int-common.h
-index 74195c3004..0f2e1817ad 100644
+index 74195c3004..0a0339eee4 100644
 --- a/include/block/block_int-common.h
 +++ b/include/block/block_int-common.h
 @@ -26,6 +26,7 @@
@@ -272,7 +276,7 @@ index 74195c3004..0f2e1817ad 100644
  
 +typedef int BackupDumpFunc(void *opaque, uint64_t offset, uint64_t bytes, const void *buf);
 +
-+BlockDriverState *bdrv_backup_dump_create(
++BlockDriverState *coroutine_fn bdrv_co_backup_dump_create(
 +    int dump_cb_block_size,
 +    uint64_t byte_size,
 +    BackupDumpFunc *dump_cb,

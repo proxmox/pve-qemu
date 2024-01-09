@@ -84,63 +84,25 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
      create jobs in a drained section]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/backup-dump.c              |   10 +-
- block/meson.build                |    5 +
- block/monitor/block-hmp-cmds.c   |   39 ++
- blockdev.c                       |    1 +
- hmp-commands-info.hx             |   14 +
- hmp-commands.hx                  |   29 +
- include/block/block_int-common.h |    2 +-
- include/monitor/hmp.h            |    3 +
- meson.build                      |    1 +
- monitor/hmp-cmds.c               |   72 ++
- proxmox-backup-client.c          |  146 ++++
- proxmox-backup-client.h          |   60 ++
- pve-backup.c                     | 1067 ++++++++++++++++++++++++++++++
- qapi/block-core.json             |  229 +++++++
- qapi/common.json                 |   14 +
- qapi/machine.json                |   16 +-
- 16 files changed, 1690 insertions(+), 18 deletions(-)
+ block/meson.build              |    5 +
+ block/monitor/block-hmp-cmds.c |   39 ++
+ blockdev.c                     |    1 +
+ hmp-commands-info.hx           |   14 +
+ hmp-commands.hx                |   29 +
+ include/monitor/hmp.h          |    3 +
+ meson.build                    |    1 +
+ monitor/hmp-cmds.c             |   72 +++
+ proxmox-backup-client.c        |  146 +++++
+ proxmox-backup-client.h        |   60 ++
+ pve-backup.c                   | 1067 ++++++++++++++++++++++++++++++++
+ qapi/block-core.json           |  229 +++++++
+ qapi/common.json               |   14 +
+ qapi/machine.json              |   16 +-
+ 14 files changed, 1682 insertions(+), 14 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
 
-diff --git a/block/backup-dump.c b/block/backup-dump.c
-index 232a094426..e46abf1070 100644
---- a/block/backup-dump.c
-+++ b/block/backup-dump.c
-@@ -9,6 +9,8 @@
-  */
- 
- #include "qemu/osdep.h"
-+
-+#include "qapi/qmp/qdict.h"
- #include "qom/object_interfaces.h"
- #include "block/block_int.h"
- 
-@@ -141,7 +143,7 @@ static void bdrv_backup_dump_init(void)
- block_init(bdrv_backup_dump_init);
- 
- 
--BlockDriverState *bdrv_backup_dump_create(
-+BlockDriverState *coroutine_fn bdrv_co_backup_dump_create(
-     int dump_cb_block_size,
-     uint64_t byte_size,
-     BackupDumpFunc *dump_cb,
-@@ -149,9 +151,11 @@ BlockDriverState *bdrv_backup_dump_create(
-     Error **errp)
- {
-     BDRVBackupDumpState *state;
--    BlockDriverState *bs = bdrv_new_open_driver(
--        &bdrv_backup_dump_drive, NULL, BDRV_O_RDWR, errp);
- 
-+    QDict *options = qdict_new();
-+    qdict_put_str(options, "driver", "backup-dump-drive");
-+
-+    BlockDriverState *bs = bdrv_co_open(NULL, NULL, options, BDRV_O_RDWR, errp);
-     if (!bs) {
-         return NULL;
-     }
 diff --git a/block/meson.build b/block/meson.build
 index 6fde9f7dcd..6d468f89e5 100644
 --- a/block/meson.build
@@ -281,19 +243,6 @@ index e352f86872..0c8b6725fb 100644
  ERST
  
      {
-diff --git a/include/block/block_int-common.h b/include/block/block_int-common.h
-index 0f2e1817ad..0a0339eee4 100644
---- a/include/block/block_int-common.h
-+++ b/include/block/block_int-common.h
-@@ -63,7 +63,7 @@
- 
- typedef int BackupDumpFunc(void *opaque, uint64_t offset, uint64_t bytes, const void *buf);
- 
--BlockDriverState *bdrv_backup_dump_create(
-+BlockDriverState *coroutine_fn bdrv_co_backup_dump_create(
-     int dump_cb_block_size,
-     uint64_t byte_size,
-     BackupDumpFunc *dump_cb,
 diff --git a/include/monitor/hmp.h b/include/monitor/hmp.h
 index 7a7def7530..cba7afe70c 100644
 --- a/include/monitor/hmp.h
