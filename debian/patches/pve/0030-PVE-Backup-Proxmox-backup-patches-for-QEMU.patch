@@ -94,11 +94,11 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1067 ++++++++++++++++++++++++++++++++
+ pve-backup.c                   | 1072 ++++++++++++++++++++++++++++++++
  qapi/block-core.json           |  229 +++++++
  qapi/common.json               |   14 +
  qapi/machine.json              |   16 +-
- 14 files changed, 1682 insertions(+), 14 deletions(-)
+ 14 files changed, 1687 insertions(+), 14 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
@@ -586,10 +586,10 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..d84d807654
+index 0000000000..5ed3c6a310
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1067 @@
+@@ -0,0 +1,1072 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -899,7 +899,12 @@ index 0000000000..d84d807654
 +
 +    qemu_co_mutex_lock(&backup_state.backup_mutex);
 +
-+    if (ret < 0) {
++    /*
++     * All jobs in the transaction will be canceled when one receives an error.
++     * The first error wins, so only set it for ECANCELED if it was the last
++     * job. This allows more interesting errors from other jobs to win.
++     */
++    if (ret < 0 && (ret != -ECANCELED || !g_list_nth(backup_state.di_list, 1))) {
 +        Error *local_err = NULL;
 +        error_setg(&local_err, "job failed with err %d - %s", ret, strerror(-ret));
 +        pvebackup_propagate_error(local_err);
