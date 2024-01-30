@@ -104,7 +104,7 @@ index dc352f9e9d..56e1307014 100644
   * Is @mon is using readline?
   * Note: not all HMP monitors use readline, e.g., gdbserver has a
 diff --git a/monitor/qmp.c b/monitor/qmp.c
-index 6eee450fe4..c15bf1e1fc 100644
+index a239945e8d..589c9524f8 100644
 --- a/monitor/qmp.c
 +++ b/monitor/qmp.c
 @@ -165,6 +165,8 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
@@ -135,7 +135,7 @@ index 6eee450fe4..c15bf1e1fc 100644
      qobject_unref(rsp);
  }
  
-@@ -478,6 +490,7 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
+@@ -461,6 +473,7 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
  
      switch (event) {
      case CHR_EVENT_OPENED:
@@ -144,7 +144,7 @@ index 6eee450fe4..c15bf1e1fc 100644
          monitor_qmp_caps_reset(mon);
          data = qmp_greeting(mon);
 diff --git a/qapi/qmp-dispatch.c b/qapi/qmp-dispatch.c
-index 555528b6bb..3baa508b4b 100644
+index 176b549473..790bb7d1da 100644
 --- a/qapi/qmp-dispatch.c
 +++ b/qapi/qmp-dispatch.c
 @@ -117,16 +117,28 @@ typedef struct QmpDispatchBH {
@@ -180,13 +180,13 @@ index 555528b6bb..3baa508b4b 100644
      aio_co_wake(data->co);
  }
  
-@@ -231,6 +243,7 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
+@@ -253,6 +265,7 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
              .ret        = &ret,
              .errp       = &err,
              .co         = qemu_coroutine_self(),
 +            .conn_nr    = monitor_get_connection_nr(cur_mon),
          };
-         aio_bh_schedule_oneshot(qemu_get_aio_context(), do_qmp_dispatch_bh,
+         aio_bh_schedule_oneshot(iohandler_get_aio_context(), do_qmp_dispatch_bh,
                                  &data);
 diff --git a/stubs/monitor-core.c b/stubs/monitor-core.c
 index afa477aae6..d3ff124bf3 100644

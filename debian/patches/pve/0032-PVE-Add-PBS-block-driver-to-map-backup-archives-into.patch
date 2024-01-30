@@ -403,7 +403,7 @@ index c3330310d9..cbfc9a43fb 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libudev':           libudev}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 331c8336d1..a818d5f90f 100644
+index 1b8462a51b..d67a6d448a 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -3396,6 +3396,7 @@
@@ -432,7 +432,7 @@ index 331c8336d1..a818d5f90f 100644
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -4886,6 +4898,7 @@
+@@ -4890,6 +4902,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',

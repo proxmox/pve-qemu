@@ -140,10 +140,10 @@ index 86c2256a2b..8423e0c9f9 100644
      if (ret) {
          return ret;
 diff --git a/migration/ram.c b/migration/ram.c
-index 9040d66e61..01532c9fc9 100644
+index 6e1514f69f..6a1aec7031 100644
 --- a/migration/ram.c
 +++ b/migration/ram.c
-@@ -2895,8 +2895,16 @@ static void migration_bitmap_clear_discarded_pages(RAMState *rs)
+@@ -2896,8 +2896,16 @@ static void migration_bitmap_clear_discarded_pages(RAMState *rs)
  
  static void ram_init_bitmaps(RAMState *rs)
  {
@@ -162,7 +162,7 @@ index 9040d66e61..01532c9fc9 100644
      qemu_mutex_lock_ramlist();
  
      WITH_RCU_READ_LOCK_GUARD() {
-@@ -2908,7 +2916,9 @@ static void ram_init_bitmaps(RAMState *rs)
+@@ -2909,7 +2917,9 @@ static void ram_init_bitmaps(RAMState *rs)
          }
      }
      qemu_mutex_unlock_ramlist();
@@ -174,7 +174,7 @@ index 9040d66e61..01532c9fc9 100644
      /*
       * After an eventual first bitmap sync, fixup the initial bitmap
 diff --git a/migration/savevm.c b/migration/savevm.c
-index a2cb8855e2..ea8b30a630 100644
+index d60c4f487a..3c015722f7 100644
 --- a/migration/savevm.c
 +++ b/migration/savevm.c
 @@ -1625,10 +1625,8 @@ static int qemu_savevm_state(QEMUFile *f, Error **errp)

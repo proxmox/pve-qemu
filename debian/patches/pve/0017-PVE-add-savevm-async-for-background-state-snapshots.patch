@@ -800,10 +800,10 @@ index cda2effa81..94a58bb0bf 100644
  # @CommandLineParameterType:
  #
 diff --git a/qemu-options.hx b/qemu-options.hx
-index b56f6b2fb2..c8c78c92d4 100644
+index 8073f5edf5..dc1ececc9c 100644
 --- a/qemu-options.hx
 +++ b/qemu-options.hx
-@@ -4479,6 +4479,18 @@ SRST
+@@ -4483,6 +4483,18 @@ SRST
      Start right away with a saved state (``loadvm`` in monitor)
  ERST
  
@@ -823,7 +823,7 @@ index b56f6b2fb2..c8c78c92d4 100644
  DEF("daemonize", 0, QEMU_OPTION_daemonize, \
      "-daemonize      daemonize QEMU after initializing\n", QEMU_ARCH_ALL)
 diff --git a/softmmu/vl.c b/softmmu/vl.c
-index b0b96f67fa..f3251de3e7 100644
+index c9e9ede237..3f2681aded 100644
 --- a/softmmu/vl.c
 +++ b/softmmu/vl.c
 @@ -164,6 +164,7 @@ static const char *accelerators;
@@ -834,7 +834,7 @@ index b0b96f67fa..f3251de3e7 100644
  static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
  static QTAILQ_HEAD(, DeviceOption) device_opts = QTAILQ_HEAD_INITIALIZER(device_opts);
  static int display_remote;
-@@ -2643,6 +2644,12 @@ void qmp_x_exit_preconfig(Error **errp)
+@@ -2647,6 +2648,12 @@ void qmp_x_exit_preconfig(Error **errp)
  
      if (loadvm) {
          load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
@@ -847,7 +847,7 @@ index b0b96f67fa..f3251de3e7 100644
      }
      if (replay_mode != REPLAY_MODE_NONE) {
          replay_vmstate_init();
-@@ -3190,6 +3197,9 @@ void qemu_init(int argc, char **argv)
+@@ -3194,6 +3201,9 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_loadvm:
                  loadvm = optarg;
                  break;
