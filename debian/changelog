@@ -1,3 +1,12 @@
+pve-qemu-kvm (8.1.5-1) bookworm; urgency=medium
+
+  * update to 8.1.5 stable release, including more relevant fixes like:
+    - virtio-net: correctly copy vnet header when flushing TX
+    - hw/pflash: implement update buffer for block writes
+    - Fixes to i386 emulation and ARM emulation.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 02 Feb 2024 19:08:13 +0100
+
 pve-qemu-kvm (8.1.2-6) bookworm; urgency=medium
 
   * revert attempted fix to avoid rare issue with stuck guest IO when using
