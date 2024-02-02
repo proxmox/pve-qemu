@@ -1,3 +1,10 @@
+pve-qemu-kvm (8.1.5-2) bookworm; urgency=medium
+
+  * work around for a situation where guest IO might get stuck, if the VM is
+    configure  with iothread and VirtIO block/SCSI
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 02 Feb 2024 19:41:27 +0100
+
 pve-qemu-kvm (8.1.5-1) bookworm; urgency=medium
 
   * update to 8.1.5 stable release, including more relevant fixes like:
