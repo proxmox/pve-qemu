@@ -1,0 +1,65 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hanna Czenczek <hreitz@redhat.com>
+Date: Fri, 2 Feb 2024 16:31:56 +0100
+Subject: [PATCH] virtio-scsi: Attach event vq notifier with no_poll
+
+As of commit 38738f7dbbda90fbc161757b7f4be35b52205552 ("virtio-scsi:
+don't waste CPU polling the event virtqueue"), we only attach an io_read
+notifier for the virtio-scsi event virtqueue instead, and no polling
+notifiers.  During operation, the event virtqueue is typically
+non-empty, but none of the buffers are intended to be used immediately.
+Instead, they only get used when certain events occur.  Therefore, it
+makes no sense to continuously poll it when non-empty, because it is
+supposed to be and stay non-empty.
+
+We do this by using virtio_queue_aio_attach_host_notifier_no_poll()
+instead of virtio_queue_aio_attach_host_notifier() for the event
+virtqueue.
+
+Commit 766aa2de0f29b657148e04599320d771c36fd126 ("virtio-scsi: implement
+BlockDevOps->drained_begin()") however has virtio_scsi_drained_end() use
+virtio_queue_aio_attach_host_notifier() for all virtqueues, including
+the event virtqueue.  This can lead to it being polled again, undoing
+the benefit of commit 38738f7dbbda90fbc161757b7f4be35b52205552.
+
+Fix it by using virtio_queue_aio_attach_host_notifier_no_poll() for the
+event virtqueue.
+
+       ("virtio-scsi: implement BlockDevOps->drained_begin()")
+
+Reported-by: Fiona Ebner <f.ebner@proxmox.com>
+Fixes: 766aa2de0f29b657148e04599320d771c36fd126
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Tested-by: Fiona Ebner <f.ebner@proxmox.com>
+Reviewed-by: Fiona Ebner <f.ebner@proxmox.com>
+Signed-off-by: Hanna Czenczek <hreitz@redhat.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+---
+ hw/scsi/virtio-scsi.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/hw/scsi/virtio-scsi.c b/hw/scsi/virtio-scsi.c
+index 45b95ea070..ad24a882fd 100644
+--- a/hw/scsi/virtio-scsi.c
++++ b/hw/scsi/virtio-scsi.c
+@@ -1148,6 +1148,7 @@ static void virtio_scsi_drained_begin(SCSIBus *bus)
+ static void virtio_scsi_drained_end(SCSIBus *bus)
+ {
+     VirtIOSCSI *s = container_of(bus, VirtIOSCSI, bus);
++    VirtIOSCSICommon *vs = VIRTIO_SCSI_COMMON(s);
+     VirtIODevice *vdev = VIRTIO_DEVICE(s);
+     uint32_t total_queues = VIRTIO_SCSI_VQ_NUM_FIXED +
+                             s->parent_obj.conf.num_queues;
+@@ -1165,7 +1166,11 @@ static void virtio_scsi_drained_end(SCSIBus *bus)
+ 
+     for (uint32_t i = 0; i < total_queues; i++) {
+         VirtQueue *vq = virtio_get_queue(vdev, i);
+-        virtio_queue_aio_attach_host_notifier(vq, s->ctx);
++        if (vq == vs->event_vq) {
++            virtio_queue_aio_attach_host_notifier_no_poll(vq, s->ctx);
++        } else {
++            virtio_queue_aio_attach_host_notifier(vq, s->ctx);
++        }
+     }
+ }
+ 
