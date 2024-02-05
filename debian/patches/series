@@ -9,6 +9,7 @@ extra/0008-target-i386-the-sgx_epc_get_section-stub-is-reachabl.patch
 extra/0009-ui-clipboard-mark-type-as-not-available-when-there-i.patch
 extra/0010-virtio-scsi-Attach-event-vq-notifier-with-no_poll.patch
 extra/0011-virtio-Re-enable-notifications-after-drain.patch
+extra/0012-qemu_init-increase-NOFILE-soft-limit-on-POSIX.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch

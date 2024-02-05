@@ -72,7 +72,7 @@ index fbb61f18e4..7da3c519ba 100644
  ##
  # @query-machines:
 diff --git a/softmmu/vl.c b/softmmu/vl.c
-index 1a3b9cc4b8..e9b5f62cc3 100644
+index 3ee90b3b94..4b6d0b82fd 100644
 --- a/softmmu/vl.c
 +++ b/softmmu/vl.c
 @@ -1597,6 +1597,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
@@ -95,7 +95,7 @@ index 1a3b9cc4b8..e9b5f62cc3 100644
      g_slist_free(machines);
      if (local_err) {
          error_append_hint(&local_err, "Use -machine help to list supported machines\n");
-@@ -3248,12 +3254,31 @@ void qemu_init(int argc, char **argv)
+@@ -3250,12 +3256,31 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_machine:
                  {
                      bool help;

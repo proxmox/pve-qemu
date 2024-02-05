@@ -823,7 +823,7 @@ index 8073f5edf5..dc1ececc9c 100644
  DEF("daemonize", 0, QEMU_OPTION_daemonize, \
      "-daemonize      daemonize QEMU after initializing\n", QEMU_ARCH_ALL)
 diff --git a/softmmu/vl.c b/softmmu/vl.c
-index c9e9ede237..3f2681aded 100644
+index ba6ad8a8df..ddeace306e 100644
 --- a/softmmu/vl.c
 +++ b/softmmu/vl.c
 @@ -164,6 +164,7 @@ static const char *accelerators;
@@ -847,7 +847,7 @@ index c9e9ede237..3f2681aded 100644
      }
      if (replay_mode != REPLAY_MODE_NONE) {
          replay_vmstate_init();
-@@ -3194,6 +3201,9 @@ void qemu_init(int argc, char **argv)
+@@ -3196,6 +3203,9 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_loadvm:
                  loadvm = optarg;
                  break;
