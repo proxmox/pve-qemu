@@ -1,3 +1,12 @@
+pve-qemu-kvm (8.1.5-3) bookworm; urgency=medium
+
+  * backport fix for potential deadlock during QMP stop command if the VM has
+    disks attached through VirtIO-Block and IO-Thread enabled
+
+  * fix #4507: add patch to automatically increase NOFILE soft limit
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 21 Feb 2024 20:11:23 +0100
+
 pve-qemu-kvm (8.1.5-2) bookworm; urgency=medium
 
   * work around for a situation where guest IO might get stuck, if the VM is
