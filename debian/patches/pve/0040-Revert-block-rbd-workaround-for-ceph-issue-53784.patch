@@ -7,6 +7,7 @@ This reverts commit fc176116cdea816ceb8dd969080b2b95f58edbc0 in
 preparation to revert 0347a8fd4c3faaedf119be04c197804be40a384b.
 
 Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  block/rbd.c | 42 ++----------------------------------------
  1 file changed, 2 insertions(+), 40 deletions(-)

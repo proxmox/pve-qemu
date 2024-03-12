@@ -67,6 +67,7 @@ general to not leave unnecessary block nodes lying around.
 
 Suggested-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  block/alloc-track.c | 54 ++++++++++++++-------------------------------
  1 file changed, 16 insertions(+), 38 deletions(-)

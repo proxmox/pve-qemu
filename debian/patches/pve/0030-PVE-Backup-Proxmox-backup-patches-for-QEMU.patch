@@ -94,11 +94,11 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1072 ++++++++++++++++++++++++++++++++
+ pve-backup.c                   | 1089 ++++++++++++++++++++++++++++++++
  qapi/block-core.json           |  229 +++++++
  qapi/common.json               |   14 +
  qapi/machine.json              |   16 +-
- 14 files changed, 1687 insertions(+), 14 deletions(-)
+ 14 files changed, 1704 insertions(+), 14 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
@@ -586,10 +586,10 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..5ed3c6a310
+index 0000000000..ae3d137e12
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1072 @@
+@@ -0,0 +1,1089 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -1173,6 +1173,66 @@ index 0000000000..5ed3c6a310
 +    aio_co_enter(data->ctx, data->co);
 +}
 +
++/*
++ * Returns a list of device infos, which needs to be freed by the caller. In
++ * case of an error, errp will be set, but the returned value might still be a
++ * list.
++ */
++static GList coroutine_fn *get_device_info(
++    const char *devlist,
++    Error **errp)
++{
++    gchar **devs = NULL;
++    GList *di_list = NULL;
++
++    if (devlist) {
++        devs = g_strsplit_set(devlist, ",;:", -1);
++
++        gchar **d = devs;
++        while (d && *d) {
++            BlockBackend *blk = blk_by_name(*d);
++            if (!blk) {
++                error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
++                          "Device '%s' not found", *d);
++                goto err;
++            }
++            BlockDriverState *bs = blk_bs(blk);
++            if (!bdrv_co_is_inserted(bs)) {
++                error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, *d);
++                goto err;
++            }
++            PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
++            di->bs = bs;
++            di_list = g_list_append(di_list, di);
++            d++;
++        }
++    } else {
++        BdrvNextIterator it;
++
++        for (BlockDriverState *bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
++            if (!bdrv_co_is_inserted(bs) || bdrv_is_read_only(bs)) {
++                continue;
++            }
++
++            PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
++            di->bs = bs;
++            di_list = g_list_append(di_list, di);
++        }
++    }
++
++    if (!di_list) {
++        error_set(errp, ERROR_CLASS_GENERIC_ERROR, "empty device list");
++        goto err;
++    }
++
++err:
++    if (devs) {
++        g_strfreev(devs);
++    }
++
++    return di_list;
++}
++
 +UuidInfo coroutine_fn *qmp_backup(
 +    const char *backup_file,
 +    const char *password,
@@ -1198,13 +1258,10 @@ index 0000000000..5ed3c6a310
 +
 +    qemu_co_mutex_lock(&backup_state.backup_mutex);
 +
-+    BlockBackend *blk;
-+    BlockDriverState *bs = NULL;
 +    Error *local_err = NULL;
 +    uuid_t uuid;
 +    VmaWriter *vmaw = NULL;
 +    ProxmoxBackupHandle *pbs = NULL;
-+    gchar **devs = NULL;
 +    GList *di_list = NULL;
 +    GList *l;
 +    UuidInfo *uuid_info;
@@ -1222,48 +1279,12 @@ index 0000000000..5ed3c6a310
 +    /* Todo: try to auto-detect format based on file name */
 +    format = has_format ? format : BACKUP_FORMAT_VMA;
 +
-+    if (devlist) {
-+        devs = g_strsplit_set(devlist, ",;:", -1);
-+
-+        gchar **d = devs;
-+        while (d && *d) {
-+            blk = blk_by_name(*d);
-+            if (blk) {
-+                bs = blk_bs(blk);
-+                if (!bdrv_co_is_inserted(bs)) {
-+                    error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, *d);
-+                    goto err;
-+                }
-+                PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
-+                di->bs = bs;
-+                di_list = g_list_append(di_list, di);
-+            } else {
-+                error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
-+                          "Device '%s' not found", *d);
-+                goto err;
-+            }
-+            d++;
-+        }
-+
-+    } else {
-+        BdrvNextIterator it;
-+
-+        bs = NULL;
-+        for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
-+            if (!bdrv_co_is_inserted(bs) || bdrv_is_read_only(bs)) {
-+                continue;
-+            }
-+
-+            PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
-+            di->bs = bs;
-+            di_list = g_list_append(di_list, di);
-+        }
-+    }
-+
-+    if (!di_list) {
-+        error_set(errp, ERROR_CLASS_GENERIC_ERROR, "empty device list");
++    di_list = get_device_info(devlist, &local_err);
++    if (local_err) {
++        error_propagate(errp, local_err);
 +        goto err;
 +    }
++    assert(di_list);
 +
 +    size_t total = 0;
 +
@@ -1550,10 +1571,6 @@ index 0000000000..5ed3c6a310
 +    }
 +    g_list_free(di_list);
 +    backup_state.di_list = NULL;
-+
-+    if (devs) {
-+        g_strfreev(devs);
-+    }
 +
 +    if (vmaw) {
 +        Error *err = NULL;

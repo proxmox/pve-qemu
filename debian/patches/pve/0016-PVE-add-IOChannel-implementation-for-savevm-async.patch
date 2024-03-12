@@ -14,6 +14,7 @@ Additionally, allows tracking the current position from the outside
 (intended to be used for progress tracking).
 
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  migration/channel-savevm-async.c | 183 +++++++++++++++++++++++++++++++
  migration/channel-savevm-async.h |  51 +++++++++

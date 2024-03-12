@@ -43,6 +43,7 @@ callbacks that need the BQL and only take the lock if it's not already
 held.
 
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  include/migration/register.h   |  2 +-
  migration/block-dirty-bitmap.c | 15 ++++++++++++---

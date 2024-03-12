@@ -18,6 +18,7 @@ Upstream bug report:
 https://gitlab.com/qemu-project/qemu/-/issues/1026
 
 Signed-off-by: Fabian Ebner <f.ebner@proxmox.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  block/rbd.c | 112 ----------------------------------------------------
  1 file changed, 112 deletions(-)

@@ -8,6 +8,7 @@ callbacks" for why. This is separate, because a version of that one
 will hopefully land upstream.
 
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  migration/savevm-async.c | 2 --
  1 file changed, 2 deletions(-)
