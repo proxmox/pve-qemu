@@ -1,3 +1,15 @@
+pve-qemu-kvm (8.1.5-4) bookworm; urgency=medium
+
+  * fix live-import for certain kinds of VMDK images that rely on padding
+
+  * backup: avoid bubbling up first error if it's an ECANCELED one, as those
+    are often a result of cancling the job due to running into an actual
+    issue.
+
+  * backup: factor out & clean up gathering device info into helper
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 12 Mar 2024 14:08:40 +0100
+
 pve-qemu-kvm (8.1.5-3) bookworm; urgency=medium
 
   * backport fix for potential deadlock during QMP stop command if the VM has
