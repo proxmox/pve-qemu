@@ -1,3 +1,12 @@
+pve-qemu-kvm (7.2.10-1) bullseye; urgency=medium
+
+  * update patches and submodule to QEMU stable 7.2.10
+
+  * pick up some extra fixes from upcoming 7.2.11 to, e.g., avoid releasing a
+    regression for i386 that happened in the 7.2.10 stable release.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 10 Apr 2024 15:47:27 +0200
+
 pve-qemu-kvm (7.2.0-8) bullseye; urgency=medium
 
   * backport fix for ACPI CPU hotplug issue with TCG
