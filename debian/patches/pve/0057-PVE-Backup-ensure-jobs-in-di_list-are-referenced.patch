@@ -23,7 +23,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 19 insertions(+), 3 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index fde3554133..0cf30e1ced 100644
+index 1b466eee3a..5aecf06af7 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -316,6 +316,13 @@ static void coroutine_fn pvebackup_co_complete_stream(void *opaque)

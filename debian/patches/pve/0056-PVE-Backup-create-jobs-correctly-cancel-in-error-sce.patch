@@ -21,7 +21,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 8 insertions(+), 2 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 262e7d3894..fde3554133 100644
+index 1c25ae98bd..1b466eee3a 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -503,6 +503,11 @@ static void create_backup_jobs_bh(void *opaque) {

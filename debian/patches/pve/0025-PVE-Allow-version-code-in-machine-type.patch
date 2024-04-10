@@ -36,10 +36,10 @@ index 76fff60a6b..ec9201fb9a 100644
  
          if (mc->default_cpu_type) {
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index 90f1dd3aeb..14d60520d9 100644
+index ca2f0d3592..acc3b62b6e 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
-@@ -230,6 +230,8 @@ struct MachineClass {
+@@ -232,6 +232,8 @@ struct MachineClass {
      const char *desc;
      const char *deprecation_reason;
  
@@ -71,10 +71,10 @@ index 9156103c8f..f4fb1b2c9c 100644
  ##
  # @query-machines:
 diff --git a/softmmu/vl.c b/softmmu/vl.c
-index 9d737e7914..a64eee2fad 100644
+index a6f7a422ec..8b0b35b6b4 100644
 --- a/softmmu/vl.c
 +++ b/softmmu/vl.c
-@@ -1578,6 +1578,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
+@@ -1582,6 +1582,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
  static MachineClass *select_machine(QDict *qdict, Error **errp)
  {
      const char *optarg = qdict_get_try_str(qdict, "type");
@@ -82,7 +82,7 @@ index 9d737e7914..a64eee2fad 100644
      GSList *machines = object_class_get_list(TYPE_MACHINE, false);
      MachineClass *machine_class;
      Error *local_err = NULL;
-@@ -1595,6 +1596,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+@@ -1599,6 +1600,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
          }
      }
  
@@ -94,7 +94,7 @@ index 9d737e7914..a64eee2fad 100644
      g_slist_free(machines);
      if (local_err) {
          error_append_hint(&local_err, "Use -machine help to list supported machines\n");
-@@ -3205,12 +3211,31 @@ void qemu_init(int argc, char **argv)
+@@ -3213,12 +3219,31 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_machine:
                  {
                      bool help;

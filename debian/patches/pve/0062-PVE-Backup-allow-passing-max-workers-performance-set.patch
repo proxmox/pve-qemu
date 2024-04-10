@@ -31,10 +31,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 23 insertions(+), 8 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 57b2457f1e..ab0c988ae9 100644
+index 55ef4f5965..62e962227b 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1049,7 +1049,9 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1051,7 +1051,9 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
          false, false, // PBS encrypt
          true, dir ? BACKUP_FORMAT_DIR : BACKUP_FORMAT_VMA,
          false, NULL, false, NULL, !!devlist,
@@ -46,7 +46,7 @@ index 57b2457f1e..ab0c988ae9 100644
      hmp_handle_error(mon, error);
  }
 diff --git a/pve-backup.c b/pve-backup.c
-index 4067018dbe..3ca4f74cb8 100644
+index a921cbcb2d..4e66f09927 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -55,6 +55,7 @@ static struct PVEBackupState {

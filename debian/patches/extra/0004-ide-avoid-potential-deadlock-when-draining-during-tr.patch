@@ -55,7 +55,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/hw/ide/core.c b/hw/ide/core.c
-index 39afdc0006..b67c1885a8 100644
+index 3e97d665d9..a0f6801bce 100644
 --- a/hw/ide/core.c
 +++ b/hw/ide/core.c
 @@ -443,7 +443,7 @@ static void ide_trim_bh_cb(void *opaque)
@@ -76,8 +76,8 @@ index 39afdc0006..b67c1885a8 100644
          replay_bh_schedule_event(iocb->bh);
      }
  }
-@@ -514,9 +516,6 @@ BlockAIOCB *ide_issue_trim(
-     IDEState *s = opaque;
+@@ -515,9 +517,6 @@ BlockAIOCB *ide_issue_trim(
+     IDEDevice *dev = s->unit ? s->bus->slave : s->bus->master;
      TrimAIOCB *iocb;
  
 -    /* Paired with a decrement in ide_trim_bh_cb() */
@@ -85,8 +85,8 @@ index 39afdc0006..b67c1885a8 100644
 -
      iocb = blk_aio_get(&trim_aiocb_info, s->blk, cb, cb_opaque);
      iocb->s = s;
-     iocb->bh = qemu_bh_new(ide_trim_bh_cb, iocb);
-@@ -739,8 +738,9 @@ void ide_cancel_dma_sync(IDEState *s)
+     iocb->bh = qemu_bh_new_guarded(ide_trim_bh_cb, iocb,
+@@ -741,8 +740,9 @@ void ide_cancel_dma_sync(IDEState *s)
       */
      if (s->bus->dma->aiocb) {
          trace_ide_cancel_dma_sync_remaining();

@@ -33,7 +33,7 @@ index 020a89ae07..4feae20e37 100644
  softmmu_ss.add(files('block-ram-registrar.c'))
  
 diff --git a/meson.build b/meson.build
-index 5c6b5a1c75..e8cf7e3d78 100644
+index 787f91855e..a496f6fe10 100644
 --- a/meson.build
 +++ b/meson.build
 @@ -1525,6 +1525,8 @@ keyutils = dependency('libkeyutils', required: false,
@@ -45,7 +45,7 @@ index 5c6b5a1c75..e8cf7e3d78 100644
  # libselinux
  selinux = dependency('libselinux',
                       required: get_option('selinux'),
-@@ -3596,6 +3598,9 @@ if have_tools
+@@ -3598,6 +3600,9 @@ if have_tools
                 dependencies: [blockdev, qemuutil, gnutls, selinux],
                 install: true)
  

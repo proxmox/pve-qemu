@@ -29,10 +29,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  6 files changed, 142 insertions(+), 23 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 477044c54a..556af25861 100644
+index 60fa93c85e..8b23bdedac 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1042,6 +1042,7 @@ void hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1044,6 +1044,7 @@ void hmp_backup(Monitor *mon, const QDict *qdict)
          false, NULL, // PBS fingerprint
          false, NULL, // PBS backup-id
          false, 0, // PBS backup-time
@@ -132,7 +132,7 @@ index 1dda8b7d8f..8cbf645b2c 100644
  
  
 diff --git a/pve-backup.c b/pve-backup.c
-index 3d28975eaa..abd7062afe 100644
+index 6af212b9b4..3f97cf6532 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -28,6 +28,8 @@

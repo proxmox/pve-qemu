@@ -17,7 +17,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  4 files changed, 82 insertions(+), 4 deletions(-)
 
 diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-index 73ac5eb675..bbfe7eca62 100644
+index e4c4c2d3c8..49874569b1 100644
 --- a/hw/virtio/virtio-balloon.c
 +++ b/hw/virtio/virtio-balloon.c
 @@ -806,8 +806,37 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,

@@ -32,10 +32,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  5 files changed, 77 insertions(+), 196 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index a09f722fea..71ed202491 100644
+index f59b02592e..2e53cb65df 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1016,7 +1016,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
+@@ -1018,7 +1018,7 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
      g_free(global_snapshots);
  }
  
@@ -44,7 +44,7 @@ index a09f722fea..71ed202491 100644
  {
      Error *error = NULL;
  
-@@ -1025,7 +1025,7 @@ void hmp_backup_cancel(Monitor *mon, const QDict *qdict)
+@@ -1027,7 +1027,7 @@ void hmp_backup_cancel(Monitor *mon, const QDict *qdict)
      hmp_handle_error(mon, error);
  }
  

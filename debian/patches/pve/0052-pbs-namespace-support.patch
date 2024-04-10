@@ -13,10 +13,10 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  5 files changed, 47 insertions(+), 9 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index c7468e5d3b..57b2457f1e 100644
+index f98f4cf7e6..55ef4f5965 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1041,6 +1041,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1043,6 +1043,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
          false, NULL, // PBS key_password
          false, NULL, // PBS master_keyfile
          false, NULL, // PBS fingerprint
@@ -170,7 +170,7 @@ index 2f834cf42e..f03d9bab8d 100644
          fprintf(stderr, "restore failed: %s\n", pbs_error);
          return -1;
 diff --git a/pve-backup.c b/pve-backup.c
-index 4b5134ed27..262e7d3894 100644
+index 41e8effa01..1c25ae98bd 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -10,6 +10,8 @@

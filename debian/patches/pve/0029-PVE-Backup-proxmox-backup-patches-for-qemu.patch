@@ -47,10 +47,10 @@ index 0d7023fc82..e995ae72b9 100644
  softmmu_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  softmmu_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index b6135e9bfe..477044c54a 100644
+index cf21b5e40a..60fa93c85e 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1015,3 +1015,36 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
+@@ -1017,3 +1017,36 @@ void hmp_info_snapshots(Monitor *mon, const QDict *qdict)
      g_free(sn_tab);
      g_free(global_snapshots);
  }
@@ -88,7 +88,7 @@ index b6135e9bfe..477044c54a 100644
 +    hmp_handle_error(mon, error);
 +}
 diff --git a/blockdev.c b/blockdev.c
-index 756e980889..bc8d67b290 100644
+index 5b15a86bfa..cba1078815 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -36,6 +36,7 @@
@@ -186,7 +186,7 @@ index 440f86aba8..350527e599 100644
  void hmp_device_add(Monitor *mon, const QDict *qdict);
  void hmp_device_del(Monitor *mon, const QDict *qdict);
 diff --git a/meson.build b/meson.build
-index e8cf7e3d78..782756162c 100644
+index a496f6fe10..406112d96f 100644
 --- a/meson.build
 +++ b/meson.build
 @@ -1526,6 +1526,7 @@ keyutils = dependency('libkeyutils', required: false,

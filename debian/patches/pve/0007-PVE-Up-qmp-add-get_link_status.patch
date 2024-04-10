@@ -13,10 +13,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 44 insertions(+)
 
 diff --git a/net/net.c b/net/net.c
-index 840ad9dca5..28e97c5d85 100644
+index c3391168f6..f7d984f6f5 100644
 --- a/net/net.c
 +++ b/net/net.c
-@@ -1372,6 +1372,33 @@ void hmp_info_network(Monitor *mon, const QDict *qdict)
+@@ -1387,6 +1387,33 @@ void hmp_info_network(Monitor *mon, const QDict *qdict)
      }
  }
  

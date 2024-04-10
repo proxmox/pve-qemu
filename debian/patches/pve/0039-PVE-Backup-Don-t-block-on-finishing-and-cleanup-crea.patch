@@ -57,7 +57,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  2 files changed, 138 insertions(+), 79 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index b5fb844434..88268bb586 100644
+index eedac335ec..7bd9d06346 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -33,7 +33,9 @@ const char *PBS_BITMAP_NAME = "pbs-incremental-dirty-bitmap";

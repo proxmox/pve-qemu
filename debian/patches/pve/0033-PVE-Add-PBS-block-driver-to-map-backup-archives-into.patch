@@ -317,7 +317,7 @@ index 0000000000..9d1f1f39d4
 +
 +block_init(bdrv_pbs_init);
 diff --git a/configure b/configure
-index 26c7bc5154..c587e986c7 100755
+index 5f1828f1ec..c9b70b5e9a 100755
 --- a/configure
 +++ b/configure
 @@ -285,6 +285,7 @@ linux_user=""
@@ -358,10 +358,10 @@ index 26c7bc5154..c587e986c7 100755
  # XXX: suppress that
  if [ "$bsd" = "yes" ] ; then
 diff --git a/meson.build b/meson.build
-index 63ea813a9a..f7f5b3f253 100644
+index 9c46881eb7..93ebda47af 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -3978,7 +3978,7 @@ summary_info += {'bzip2 support':     libbzip2}
+@@ -3980,7 +3980,7 @@ summary_info += {'bzip2 support':     libbzip2}
  summary_info += {'lzfse support':     liblzfse}
  summary_info += {'zstd support':      zstd}
  summary_info += {'NUMA host support': numa}
