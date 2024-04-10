@@ -1,0 +1,66 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Wafer <wafer@jaguarmicro.com>
+Date: Wed, 10 Apr 2024 08:44:02 +0300
+Subject: [PATCH] hw/virtio: Fix packed virtqueue flush used_idx
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In the event of writing many chains of descriptors, the device must
+write just the id of the last buffer in the descriptor chain, skip
+forward the number of descriptors in the chain, and then repeat the
+operations for the rest of chains.
+
+Current QEMU code writes all the buffer ids consecutively, and then
+skips all the buffers altogether. This is a bug, and can be reproduced
+with a VirtIONet device with _F_MRG_RXBUB and without
+_F_INDIRECT_DESC:
+
+If a virtio-net device has the VIRTIO_NET_F_MRG_RXBUF feature
+but not the VIRTIO_RING_F_INDIRECT_DESC feature,
+'VirtIONetQueue->rx_vq' will use the merge feature
+to store data in multiple 'elems'.
+The 'num_buffers' in the virtio header indicates how many elements are merged.
+If the value of 'num_buffers' is greater than 1,
+all the merged elements will be filled into the descriptor ring.
+The 'idx' of the elements should be the value of 'vq->used_idx' plus 'ndescs'.
+
+Fixes: 86044b24e8 ("virtio: basic packed virtqueue support")
+Acked-by: Eugenio Pérez <eperezma@redhat.com>
+Signed-off-by: Wafer <wafer@jaguarmicro.com>
+Message-Id: <20240407015451.5228-2-wafer@jaguarmicro.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry picked from commit 2d9a31b3c27311eca1682cb2c076d7a300441960)
+Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
+---
+ hw/virtio/virtio.c | 12 ++++++++++--
+ 1 file changed, 10 insertions(+), 2 deletions(-)
+
+diff --git a/hw/virtio/virtio.c b/hw/virtio/virtio.c
+index b7da7f074d..e4f8ed1e63 100644
+--- a/hw/virtio/virtio.c
++++ b/hw/virtio/virtio.c
+@@ -1367,12 +1367,20 @@ static void virtqueue_packed_flush(VirtQueue *vq, unsigned int count)
+         return;
+     }
+ 
++    /*
++     * For indirect element's 'ndescs' is 1.
++     * For all other elemment's 'ndescs' is the
++     * number of descriptors chained by NEXT (as set in virtqueue_packed_pop).
++     * So When the 'elem' be filled into the descriptor ring,
++     * The 'idx' of this 'elem' shall be
++     * the value of 'vq->used_idx' plus the 'ndescs'.
++     */
++    ndescs += vq->used_elems[0].ndescs;
+     for (i = 1; i < count; i++) {
+-        virtqueue_packed_fill_desc(vq, &vq->used_elems[i], i, false);
++        virtqueue_packed_fill_desc(vq, &vq->used_elems[i], ndescs, false);
+         ndescs += vq->used_elems[i].ndescs;
+     }
+     virtqueue_packed_fill_desc(vq, &vq->used_elems[0], 0, true);
+-    ndescs += vq->used_elems[0].ndescs;
+ 
+     vq->inuse -= ndescs;
+     vq->used_idx += ndescs;

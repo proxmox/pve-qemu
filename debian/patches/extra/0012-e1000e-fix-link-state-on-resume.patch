@@ -1,0 +1,161 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Laurent Vivier <lvivier@redhat.com>
+Date: Wed, 10 Apr 2024 08:43:33 +0300
+Subject: [PATCH] e1000e: fix link state on resume
+
+On resume e1000e_vm_state_change() always calls e1000e_autoneg_resume()
+that sets link_down to false, and thus activates the link even
+if we have disabled it.
+
+The problem can be reproduced starting qemu in paused state (-S) and
+then set the link to down. When we resume the machine the link appears
+to be up.
+
+Reproducer:
+
+   # qemu-system-x86_64 ... -device e1000e,netdev=netdev0,id=net0 -S
+
+   {"execute": "qmp_capabilities" }
+   {"execute": "set_link", "arguments": {"name": "net0", "up": false}}
+   {"execute": "cont" }
+
+To fix the problem, merge the content of e1000e_vm_state_change()
+into e1000e_core_post_load() as e1000 does.
+
+Buglink: https://issues.redhat.com/browse/RHEL-21867
+Fixes: 6f3fbe4ed06a ("net: Introduce e1000e device emulation")
+Suggested-by: Akihiko Odaki <akihiko.odaki@daynix.com>
+Signed-off-by: Laurent Vivier <lvivier@redhat.com>
+Signed-off-by: Jason Wang <jasowang@redhat.com>
+(cherry picked from commit 4cadf10234989861398e19f3bb441d3861f3bb7c)
+Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
+---
+ hw/net/e1000e_core.c | 60 ++++++--------------------------------------
+ hw/net/e1000e_core.h |  2 --
+ 2 files changed, 7 insertions(+), 55 deletions(-)
+
+diff --git a/hw/net/e1000e_core.c b/hw/net/e1000e_core.c
+index c71d82ce1d..742f5ec800 100644
+--- a/hw/net/e1000e_core.c
++++ b/hw/net/e1000e_core.c
+@@ -108,14 +108,6 @@ e1000e_intmgr_timer_resume(E1000IntrDelayTimer *timer)
+     }
+ }
+ 
+-static void
+-e1000e_intmgr_timer_pause(E1000IntrDelayTimer *timer)
+-{
+-    if (timer->running) {
+-        timer_del(timer->timer);
+-    }
+-}
+-
+ static inline void
+ e1000e_intrmgr_stop_timer(E1000IntrDelayTimer *timer)
+ {
+@@ -397,24 +389,6 @@ e1000e_intrmgr_resume(E1000ECore *core)
+     }
+ }
+ 
+-static void
+-e1000e_intrmgr_pause(E1000ECore *core)
+-{
+-    int i;
+-
+-    e1000e_intmgr_timer_pause(&core->radv);
+-    e1000e_intmgr_timer_pause(&core->rdtr);
+-    e1000e_intmgr_timer_pause(&core->raid);
+-    e1000e_intmgr_timer_pause(&core->tidv);
+-    e1000e_intmgr_timer_pause(&core->tadv);
+-
+-    e1000e_intmgr_timer_pause(&core->itr);
+-
+-    for (i = 0; i < E1000E_MSIX_VEC_NUM; i++) {
+-        e1000e_intmgr_timer_pause(&core->eitr[i]);
+-    }
+-}
+-
+ static void
+ e1000e_intrmgr_reset(E1000ECore *core)
+ {
+@@ -3336,12 +3310,6 @@ e1000e_core_read(E1000ECore *core, hwaddr addr, unsigned size)
+     return 0;
+ }
+ 
+-static inline void
+-e1000e_autoneg_pause(E1000ECore *core)
+-{
+-    timer_del(core->autoneg_timer);
+-}
+-
+ static void
+ e1000e_autoneg_resume(E1000ECore *core)
+ {
+@@ -3353,22 +3321,6 @@ e1000e_autoneg_resume(E1000ECore *core)
+     }
+ }
+ 
+-static void
+-e1000e_vm_state_change(void *opaque, bool running, RunState state)
+-{
+-    E1000ECore *core = opaque;
+-
+-    if (running) {
+-        trace_e1000e_vm_state_running();
+-        e1000e_intrmgr_resume(core);
+-        e1000e_autoneg_resume(core);
+-    } else {
+-        trace_e1000e_vm_state_stopped();
+-        e1000e_autoneg_pause(core);
+-        e1000e_intrmgr_pause(core);
+-    }
+-}
+-
+ void
+ e1000e_core_pci_realize(E1000ECore     *core,
+                         const uint16_t *eeprom_templ,
+@@ -3381,9 +3333,6 @@ e1000e_core_pci_realize(E1000ECore     *core,
+                                        e1000e_autoneg_timer, core);
+     e1000e_intrmgr_pci_realize(core);
+ 
+-    core->vmstate =
+-        qemu_add_vm_change_state_handler(e1000e_vm_state_change, core);
+-
+     for (i = 0; i < E1000E_NUM_QUEUES; i++) {
+         net_tx_pkt_init(&core->tx[i].tx_pkt, core->owner,
+                         E1000E_MAX_TX_FRAGS, core->has_vnet);
+@@ -3408,8 +3357,6 @@ e1000e_core_pci_uninit(E1000ECore *core)
+ 
+     e1000e_intrmgr_pci_unint(core);
+ 
+-    qemu_del_vm_change_state_handler(core->vmstate);
+-
+     for (i = 0; i < E1000E_NUM_QUEUES; i++) {
+         net_tx_pkt_reset(core->tx[i].tx_pkt);
+         net_tx_pkt_uninit(core->tx[i].tx_pkt);
+@@ -3561,5 +3508,12 @@ e1000e_core_post_load(E1000ECore *core)
+      */
+     nc->link_down = (core->mac[STATUS] & E1000_STATUS_LU) == 0;
+ 
++    /*
++     * we need to restart intrmgr timers, as an older version of
++     * QEMU can have stopped them before migration
++     */
++    e1000e_intrmgr_resume(core);
++    e1000e_autoneg_resume(core);
++
+     return 0;
+ }
+diff --git a/hw/net/e1000e_core.h b/hw/net/e1000e_core.h
+index 4ddb4d2c39..f2a8ff4a33 100644
+--- a/hw/net/e1000e_core.h
++++ b/hw/net/e1000e_core.h
+@@ -100,8 +100,6 @@ struct E1000Core {
+     E1000IntrDelayTimer eitr[E1000E_MSIX_VEC_NUM];
+     bool eitr_intr_pending[E1000E_MSIX_VEC_NUM];
+ 
+-    VMChangeStateEntry *vmstate;
+-
+     uint32_t itr_guest_value;
+     uint32_t eitr_guest_value[E1000E_MSIX_VEC_NUM];
+ 

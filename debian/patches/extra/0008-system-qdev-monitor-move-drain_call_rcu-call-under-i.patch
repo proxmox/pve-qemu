@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dmitrii Gavrilov <ds-gavr@yandex-team.ru>
+Date: Wed, 10 Apr 2024 08:43:28 +0300
+Subject: [PATCH] system/qdev-monitor: move drain_call_rcu call under if (!dev)
+ in qmp_device_add()
+
+Original goal of addition of drain_call_rcu to qmp_device_add was to cover
+the failure case of qdev_device_add. It seems call of drain_call_rcu was
+misplaced in 7bed89958bfbf40df what led to waiting for pending RCU callbacks
+under happy path too. What led to overall performance degradation of
+qmp_device_add.
+
+In this patch call of drain_call_rcu moved under handling of failure of
+qdev_device_add.
+
+Signed-off-by: Dmitrii Gavrilov <ds-gavr@yandex-team.ru>
+Message-ID: <20231103105602.90475-1-ds-gavr@yandex-team.ru>
+Fixes: 7bed89958bf ("device_core: use drain_call_rcu in in qmp_device_add", 2020-10-12)
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 012b170173bcaa14b9bc26209e0813311ac78489)
+Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
+---
+ softmmu/qdev-monitor.c | 23 +++++++++++------------
+ 1 file changed, 11 insertions(+), 12 deletions(-)
+
+diff --git a/softmmu/qdev-monitor.c b/softmmu/qdev-monitor.c
+index 4b0ef65780..f4348443b0 100644
+--- a/softmmu/qdev-monitor.c
++++ b/softmmu/qdev-monitor.c
+@@ -853,19 +853,18 @@ void qmp_device_add(QDict *qdict, QObject **ret_data, Error **errp)
+         return;
+     }
+     dev = qdev_device_add(opts, errp);
+-
+-    /*
+-     * Drain all pending RCU callbacks. This is done because
+-     * some bus related operations can delay a device removal
+-     * (in this case this can happen if device is added and then
+-     * removed due to a configuration error)
+-     * to a RCU callback, but user might expect that this interface
+-     * will finish its job completely once qmp command returns result
+-     * to the user
+-     */
+-    drain_call_rcu();
+-
+     if (!dev) {
++        /*
++         * Drain all pending RCU callbacks. This is done because
++         * some bus related operations can delay a device removal
++         * (in this case this can happen if device is added and then
++         * removed due to a configuration error)
++         * to a RCU callback, but user might expect that this interface
++         * will finish its job completely once qmp command returns result
++         * to the user
++         */
++        drain_call_rcu();
++
+         qemu_opts_del(opts);
+         return;
+     }

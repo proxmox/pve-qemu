@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tao Su <tao1.su@linux.intel.com>
+Date: Wed, 10 Apr 2024 08:43:52 +0300
+Subject: [PATCH] target/i386: Revert monitor_puts() in do_inject_x86_mce()
+
+monitor_puts() doesn't check the monitor pointer, but do_inject_x86_mce()
+may have a parameter with NULL monitor pointer. Revert monitor_puts() in
+do_inject_x86_mce() to fix, then the fact that we send the same message to
+monitor and log is again more obvious.
+
+Fixes: bf0c50d4aa85 (monitor: expose monitor_puts to rest of code)
+Reviwed-by: Xiaoyao Li <xiaoyao.li@intel.com>
+Reviewed-by: Markus Armbruster <armbru@redhat.com>
+Signed-off-by: Tao Su <tao1.su@linux.intel.com>
+Message-ID: <20240320083640.523287-1-tao1.su@linux.intel.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 7fd226b04746f0be0b636de5097f1b42338951a0)
+Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
+---
+ target/i386/helper.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/target/i386/helper.c b/target/i386/helper.c
+index 0ac2da066d..290d9d309c 100644
+--- a/target/i386/helper.c
++++ b/target/i386/helper.c
+@@ -427,7 +427,7 @@ static void do_inject_x86_mce(CPUState *cs, run_on_cpu_data data)
+         if (need_reset) {
+             emit_guest_memory_failure(MEMORY_FAILURE_ACTION_RESET, ar,
+                                       recursive);
+-            monitor_puts(params->mon, msg);
++            monitor_printf(params->mon, "%s", msg);
+             qemu_log_mask(CPU_LOG_RESET, "%s\n", msg);
+             qemu_system_reset_request(SHUTDOWN_CAUSE_GUEST_RESET);
+             return;

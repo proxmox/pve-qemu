@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sven Schnelle <svens@stackframe.org>
+Date: Wed, 10 Apr 2024 08:43:30 +0300
+Subject: [PATCH] hw/scsi/lsi53c895a: add missing decrement of reentrancy
+ counter
+
+When the maximum count of SCRIPTS instructions is reached, the code
+stops execution and returns, but fails to decrement the reentrancy
+counter. This effectively renders the SCSI controller unusable
+because on next entry the reentrancy counter is still above the limit.
+
+This bug was seen on HP-UX 10.20 which seems to trigger SCRIPTS
+loops.
+
+Fixes: b987718bbb ("hw/scsi/lsi53c895a: Fix reentrancy issues in the LSI controller (CVE-2023-0330)")
+Signed-off-by: Sven Schnelle <svens@stackframe.org>
+Message-ID: <20240128202214.2644768-1-svens@stackframe.org>
+Reviewed-by: Thomas Huth <thuth@redhat.com>
+Tested-by: Helge Deller <deller@gmx.de>
+Signed-off-by: Thomas Huth <thuth@redhat.com>
+(cherry picked from commit 8b09b7fe47082c69295a0fc0cc01b041b6385025)
+Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
+---
+ hw/scsi/lsi53c895a.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/scsi/lsi53c895a.c b/hw/scsi/lsi53c895a.c
+index 905f5ef237..c7a3964b5f 100644
+--- a/hw/scsi/lsi53c895a.c
++++ b/hw/scsi/lsi53c895a.c
+@@ -1167,6 +1167,7 @@ again:
+         lsi_script_scsi_interrupt(s, LSI_SIST0_UDC, 0);
+         lsi_disconnect(s);
+         trace_lsi_execute_script_stop();
++        reentrancy_level--;
+         return;
+     }
+     insn = read_dword(s, s->dsp);

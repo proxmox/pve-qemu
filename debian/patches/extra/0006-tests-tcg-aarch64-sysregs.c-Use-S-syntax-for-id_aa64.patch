@@ -1,0 +1,91 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Maydell <peter.maydell@linaro.org>
+Date: Wed, 10 Apr 2024 08:43:25 +0300
+Subject: [PATCH] tests/tcg/aarch64/sysregs.c: Use S syntax for id_aa64zfr0_el1
+ and id_aa64smfr0_el1
+
+Some assemblers will complain about attempts to access
+id_aa64zfr0_el1 and id_aa64smfr0_el1 by name if the test
+binary isn't built for the right processor type:
+
+ /tmp/ccASXpLo.s:782: Error: selected processor does not support system register name 'id_aa64zfr0_el1'
+ /tmp/ccASXpLo.s:829: Error: selected processor does not support system register name 'id_aa64smfr0_el1'
+
+However, these registers are in the ID space and are guaranteed to
+read-as-zero on older CPUs, so the access is both safe and sensible.
+Switch to using the S syntax, as we already do for ID_AA64ISAR2_EL1
+and ID_AA64MMFR2_EL1.  This allows us to drop the HAS_ARMV9_SME check
+and the makefile machinery to adjust the CFLAGS for this test, so we
+don't rely on having a sufficiently new compiler to be able to check
+these registers.
+
+This means we're actually testing the SME ID register: no released
+GCC yet recognizes -march=armv9-a+sme, so that was always skipped.
+It also avoids a future problem if we try to switch the "do we have
+SME support in the toolchain" check from "in the compiler" to "in the
+assembler" (at which point we would otherwise run into the above
+errors).
+
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+(cherry picked from commit 3dc2afeab2964b54848715b913b6c605f36be3e1)
+Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
+(Mjt: pick this for v8.0.0-2361-g1f51573f79
+ "target/arm: Fix SME full tile indexing")
+---
+ tests/tcg/aarch64/Makefile.target |  7 +------
+ tests/tcg/aarch64/sysregs.c       | 11 +++++++----
+ 2 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/tests/tcg/aarch64/Makefile.target b/tests/tcg/aarch64/Makefile.target
+index fc6d5d824d..118d069073 100644
+--- a/tests/tcg/aarch64/Makefile.target
++++ b/tests/tcg/aarch64/Makefile.target
+@@ -51,15 +51,10 @@ AARCH64_TESTS += mte-1 mte-2 mte-3 mte-4 mte-5 mte-6 mte-7
+ mte-%: CFLAGS += -march=armv8.5-a+memtag
+ endif
+ 
+-ifneq ($(CROSS_CC_HAS_SVE),)
+ # System Registers Tests
+ AARCH64_TESTS += sysregs
+-ifneq ($(CROSS_CC_HAS_ARMV9_SME),)
+-sysregs: CFLAGS+=-march=armv9-a+sme -DHAS_ARMV9_SME
+-else
+-sysregs: CFLAGS+=-march=armv8.1-a+sve
+-endif
+ 
++ifneq ($(CROSS_CC_HAS_SVE),)
+ # SVE ioctl test
+ AARCH64_TESTS += sve-ioctls
+ sve-ioctls: CFLAGS+=-march=armv8.1-a+sve
+diff --git a/tests/tcg/aarch64/sysregs.c b/tests/tcg/aarch64/sysregs.c
+index 46b931f781..d8eb06abcf 100644
+--- a/tests/tcg/aarch64/sysregs.c
++++ b/tests/tcg/aarch64/sysregs.c
+@@ -25,9 +25,14 @@
+ /*
+  * Older assemblers don't recognize newer system register names,
+  * but we can still access them by the Sn_n_Cn_Cn_n syntax.
++ * This also means we don't need to specifically request that the
++ * assembler enables whatever architectural features the ID registers
++ * syntax might be gated behind.
+  */
+ #define SYS_ID_AA64ISAR2_EL1 S3_0_C0_C6_2
+ #define SYS_ID_AA64MMFR2_EL1 S3_0_C0_C7_2
++#define SYS_ID_AA64ZFR0_EL1 S3_0_C0_C4_4
++#define SYS_ID_AA64SMFR0_EL1 S3_0_C0_C4_5
+ 
+ int failed_bit_count;
+ 
+@@ -132,10 +137,8 @@ int main(void)
+     /* all hidden, DebugVer fixed to 0x6 (ARMv8 debug architecture) */
+     get_cpu_reg_check_mask(id_aa64dfr0_el1,  _m(0000,0000,0000,0006));
+     get_cpu_reg_check_zero(id_aa64dfr1_el1);
+-    get_cpu_reg_check_mask(id_aa64zfr0_el1,  _m(0ff0,ff0f,00ff,00ff));
+-#ifdef HAS_ARMV9_SME
+-    get_cpu_reg_check_mask(id_aa64smfr0_el1, _m(80f1,00fd,0000,0000));
+-#endif
++    get_cpu_reg_check_mask(SYS_ID_AA64ZFR0_EL1,  _m(0ff0,ff0f,00ff,00ff));
++    get_cpu_reg_check_mask(SYS_ID_AA64SMFR0_EL1, _m(80f1,00fd,0000,0000));
+ 
+     get_cpu_reg_check_zero(id_aa64afr0_el1);
+     get_cpu_reg_check_zero(id_aa64afr1_el1);

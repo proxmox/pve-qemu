@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Richard Henderson <richard.henderson@linaro.org>
+Date: Wed, 10 Apr 2024 08:43:57 +0300
+Subject: [PATCH] tcg/optimize: Fix sign_mask for logical right-shift
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The 'sign' computation is attempting to locate the sign bit that has
+been repeated, so that we can test if that bit is known zero.  That
+computation can be zero if there are no known sign repetitions.
+
+Cc: qemu-stable@nongnu.org
+Fixes: 93a967fbb57 ("tcg/optimize: Propagate sign info for shifting")
+Resolves: https://gitlab.com/qemu-project/qemu/-/issues/2248
+Signed-off-by: Richard Henderson <richard.henderson@linaro.org>
+Reviewed-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+(cherry picked from commit 2911e9b95f3bb03783ae5ca3e2494dc3b44a9161)
+Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
+(Mjt: trivial context fixup in tests/tcg/aarch64/Makefile.target)
+---
+ tcg/optimize.c                    |  2 +-
+ tests/tcg/aarch64/Makefile.target |  1 +
+ tests/tcg/aarch64/test-2248.c     | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 1 deletion(-)
+ create mode 100644 tests/tcg/aarch64/test-2248.c
+
+diff --git a/tcg/optimize.c b/tcg/optimize.c
+index ae081ab29c..b6f6436c74 100644
+--- a/tcg/optimize.c
++++ b/tcg/optimize.c
+@@ -1907,7 +1907,7 @@ static bool fold_shift(OptContext *ctx, TCGOp *op)
+          * will not reduced the number of input sign repetitions.
+          */
+         sign = (s_mask & -s_mask) >> 1;
+-        if (!(z_mask & sign)) {
++        if (sign && !(z_mask & sign)) {
+             ctx->s_mask = s_mask;
+         }
+         break;
+diff --git a/tests/tcg/aarch64/Makefile.target b/tests/tcg/aarch64/Makefile.target
+index 5e4ea7c998..474f61bc30 100644
+--- a/tests/tcg/aarch64/Makefile.target
++++ b/tests/tcg/aarch64/Makefile.target
+@@ -10,6 +10,7 @@ VPATH 		+= $(AARCH64_SRC)
+ 
+ # Base architecture tests
+ AARCH64_TESTS=fcvt pcalign-a64
++AARCH64_TESTS += test-2248
+ 
+ fcvt: LDFLAGS+=-lm
+ 
+diff --git a/tests/tcg/aarch64/test-2248.c b/tests/tcg/aarch64/test-2248.c
+new file mode 100644
+index 0000000000..aac2e17836
+--- /dev/null
++++ b/tests/tcg/aarch64/test-2248.c
+@@ -0,0 +1,28 @@
++/* SPDX-License-Identifier: GPL-2.0-or-later */
++/* See https://gitlab.com/qemu-project/qemu/-/issues/2248 */
++
++#include <assert.h>
++
++__attribute__((noinline))
++long test(long x, long y, long sh)
++{
++    long r;
++    asm("cmp   %1, %2\n\t"
++        "cset  x12, lt\n\t"
++        "and   w11, w12, #0xff\n\t"
++        "cmp   w11, #0\n\t"
++        "csetm x14, ne\n\t"
++        "lsr   x13, x14, %3\n\t"
++        "sxtb  %0, w13"
++        : "=r"(r)
++        : "r"(x), "r"(y), "r"(sh)
++        : "x11", "x12", "x13", "x14");
++    return r;
++}
++
++int main()
++{
++    long r = test(0, 1, 2);
++    assert(r == -1);
++    return 0;
++}

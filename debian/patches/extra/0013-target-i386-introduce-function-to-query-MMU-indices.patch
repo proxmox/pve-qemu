@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Wed, 10 Apr 2024 08:43:49 +0300
+Subject: [PATCH] target/i386: introduce function to query MMU indices
+
+Remove knowledge of specific MMU indexes (other than MMU_NESTED_IDX and
+MMU_PHYS_IDX) from mmu_translate().  This will make it possible to split
+32-bit and 64-bit MMU indexes.
+
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 5f97afe2543f09160a8d123ab6e2e8c6d98fa9ce)
+Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
+(Mjt: context fixup in target/i386/cpu.h due to other changes in that area)
+---
+ target/i386/cpu.h                    | 10 ++++++++++
+ target/i386/tcg/sysemu/excp_helper.c |  4 ++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/target/i386/cpu.h b/target/i386/cpu.h
+index 7be047ce33..f175e18768 100644
+--- a/target/i386/cpu.h
++++ b/target/i386/cpu.h
+@@ -2195,6 +2195,16 @@ static inline int cpu_mmu_index(CPUX86State *env, bool ifetch)
+         ? MMU_KNOSMAP_IDX : MMU_KSMAP_IDX;
+ }
+ 
++static inline bool is_mmu_index_smap(int mmu_index)
++{
++    return mmu_index == MMU_KSMAP_IDX;
++}
++
++static inline bool is_mmu_index_user(int mmu_index)
++{
++    return mmu_index == MMU_USER_IDX;
++}
++
+ static inline bool is_mmu_index_32(int mmu_index)
+ {
+     assert(mmu_index < MMU_PHYS_IDX);
+diff --git a/target/i386/tcg/sysemu/excp_helper.c b/target/i386/tcg/sysemu/excp_helper.c
+index 5999cdedf5..553a60d976 100644
+--- a/target/i386/tcg/sysemu/excp_helper.c
++++ b/target/i386/tcg/sysemu/excp_helper.c
+@@ -135,7 +135,7 @@ static bool mmu_translate(CPUX86State *env, const TranslateParams *in,
+ {
+     const target_ulong addr = in->addr;
+     const int pg_mode = in->pg_mode;
+-    const bool is_user = (in->mmu_idx == MMU_USER_IDX);
++    const bool is_user = is_mmu_index_user(in->mmu_idx);
+     const MMUAccessType access_type = in->access_type;
+     uint64_t ptep, pte, rsvd_mask;
+     PTETranslate pte_trans = {
+@@ -355,7 +355,7 @@ do_check_protect_pse36:
+     }
+ 
+     int prot = 0;
+-    if (in->mmu_idx != MMU_KSMAP_IDX || !(ptep & PG_USER_MASK)) {
++    if (!is_mmu_index_smap(in->mmu_idx) || !(ptep & PG_USER_MASK)) {
+         prot |= PAGE_READ;
+         if ((ptep & PG_RW_MASK) || !(is_user || (pg_mode & PG_MODE_WP))) {
+             prot |= PAGE_WRITE;

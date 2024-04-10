@@ -1,0 +1,46 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Wed, 10 Apr 2024 08:43:51 +0300
+Subject: [PATCH] target/i386: fix direction of "32-bit MMU" test
+
+The low bit of MMU indices for x86 TCG indicates whether the processor is
+in 32-bit mode and therefore linear addresses have to be masked to 32 bits.
+However, the index was computed incorrectly, leading to possible conflicts
+in the TLB for any address above 4G.
+
+Analyzed-by: Mark Cave-Ayland <mark.cave-ayland@ilande.co.uk>
+Fixes: b1661801c18 ("target/i386: Fix physical address truncation", 2024-02-28)
+Fixes: 1c15f97b4f1 ("target/i386: Fix physical address truncation" in stable-7.2)
+Cc: qemu-stable@nongnu.org
+Resolves: https://gitlab.com/qemu-project/qemu/-/issues/2206
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 2cc68629a6fc198f4a972698bdd6477f883aedfb)
+Signed-off-by: Michael Tokarev <mjt@tls.msk.ru>
+(Mjt: move changes for x86_cpu_mmu_index() to cpu_mmu_index() due to missing
+ v8.2.0-1030-gace0c5fe59 "target/i386: Populate CPUClass.mmu_index")
+---
+ target/i386/cpu.h | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/target/i386/cpu.h b/target/i386/cpu.h
+index 73eee08f3f..326649ca99 100644
+--- a/target/i386/cpu.h
++++ b/target/i386/cpu.h
+@@ -2201,7 +2201,7 @@ uint64_t cpu_get_tsc(CPUX86State *env);
+ 
+ static inline int cpu_mmu_index(CPUX86State *env, bool ifetch)
+ {
+-    int mmu_index_32 = (env->hflags & HF_CS64_MASK) ? 1 : 0;
++    int mmu_index_32 = (env->hflags & HF_CS64_MASK) ? 0 : 1;
+     int mmu_index_base =
+         (env->hflags & HF_CPL_MASK) == 3 ? MMU_USER64_IDX :
+         !(env->hflags & HF_SMAP_MASK) ? MMU_KNOSMAP64_IDX :
+@@ -2228,7 +2228,7 @@ static inline bool is_mmu_index_32(int mmu_index)
+ 
+ static inline int cpu_mmu_index_kernel(CPUX86State *env)
+ {
+-    int mmu_index_32 = (env->hflags & HF_LMA_MASK) ? 1 : 0;
++    int mmu_index_32 = (env->hflags & HF_LMA_MASK) ? 0 : 1;
+     int mmu_index_base =
+         !(env->hflags & HF_SMAP_MASK) ? MMU_KNOSMAP64_IDX :
+         ((env->hflags & HF_CPL_MASK) < 3 && (env->eflags & AC_MASK)) ? MMU_KNOSMAP64_IDX : MMU_KSMAP64_IDX;
