@@ -1,0 +1,373 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
+Date: Thu, 11 Apr 2024 11:29:24 +0200
+Subject: [PATCH] block/copy-before-write: create block_copy bitmap in filter
+ node
+
+Currently block_copy creates copy_bitmap in source node. But that is in
+bad relation with .independent_close=true of copy-before-write filter:
+source node may be detached and removed before .bdrv_close() handler
+called, which should call block_copy_state_free(), which in turn should
+remove copy_bitmap.
+
+That's all not ideal: it would be better if internal bitmap of
+block-copy object is not attached to any node. But that is not possible
+now.
+
+The simplest solution is just create copy_bitmap in filter node, where
+anyway two other bitmaps are created.
+
+Signed-off-by: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+---
+ block/block-copy.c         |   3 +-
+ block/copy-before-write.c  |   2 +-
+ include/block/block-copy.h |   1 +
+ tests/qemu-iotests/257.out | 112 ++++++++++++++++++-------------------
+ 4 files changed, 60 insertions(+), 58 deletions(-)
+
+diff --git a/block/block-copy.c b/block/block-copy.c
+index e13d7bc6b6..b61685f1a2 100644
+--- a/block/block-copy.c
++++ b/block/block-copy.c
+@@ -346,6 +346,7 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
+ }
+ 
+ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
++                                     BlockDriverState *copy_bitmap_bs,
+                                      const BdrvDirtyBitmap *bitmap,
+                                      Error **errp)
+ {
+@@ -360,7 +361,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
+         return NULL;
+     }
+ 
+-    copy_bitmap = bdrv_create_dirty_bitmap(source->bs, cluster_size, NULL,
++    copy_bitmap = bdrv_create_dirty_bitmap(copy_bitmap_bs, cluster_size, NULL,
+                                            errp);
+     if (!copy_bitmap) {
+         return NULL;
+diff --git a/block/copy-before-write.c b/block/copy-before-write.c
+index 0a219c2b75..d3b95bd600 100644
+--- a/block/copy-before-write.c
++++ b/block/copy-before-write.c
+@@ -470,7 +470,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
+             ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
+              bs->file->bs->supported_zero_flags);
+ 
+-    s->bcs = block_copy_state_new(bs->file, s->target, bitmap, errp);
++    s->bcs = block_copy_state_new(bs->file, s->target, bs, bitmap, errp);
+     if (!s->bcs) {
+         error_prepend(errp, "Cannot create block-copy-state: ");
+         ret = -EINVAL;
+diff --git a/include/block/block-copy.h b/include/block/block-copy.h
+index 0700953ab8..8b41643bfa 100644
+--- a/include/block/block-copy.h
++++ b/include/block/block-copy.h
+@@ -25,6 +25,7 @@ typedef struct BlockCopyState BlockCopyState;
+ typedef struct BlockCopyCallState BlockCopyCallState;
+ 
+ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
++                                     BlockDriverState *copy_bitmap_bs,
+                                      const BdrvDirtyBitmap *bitmap,
+                                      Error **errp);
+ 
+diff --git a/tests/qemu-iotests/257.out b/tests/qemu-iotests/257.out
+index aa76131ca9..c33dd7f3a9 100644
+--- a/tests/qemu-iotests/257.out
++++ b/tests/qemu-iotests/257.out
+@@ -120,16 +120,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -596,16 +596,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -865,16 +865,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -1341,16 +1341,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -1610,16 +1610,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -2086,16 +2086,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -2355,16 +2355,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -2831,16 +2831,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -3100,16 +3100,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -3576,16 +3576,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -3845,16 +3845,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -4321,16 +4321,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -4590,16 +4590,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
+@@ -5066,16 +5066,16 @@ write -P0x67 0x3fe0000 0x20000
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      }
+-    ],
+-    "drive0": [
++      },
+       {
+         "busy": false,
+         "count": 0,
+         "granularity": 65536,
+         "persistent": false,
+         "recording": false
+-      },
++      }
++    ],
++    "drive0": [
+       {
+         "busy": false,
+         "count": 458752,
