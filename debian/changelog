@@ -1,3 +1,9 @@
+pve-qemu-kvm (8.1.5-5) bookworm; urgency=medium
+
+  * implement support for backup fleecing
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 11 Apr 2024 17:46:48 +0200
+
 pve-qemu-kvm (8.1.5-4) bookworm; urgency=medium
 
   * fix live-import for certain kinds of VMDK images that rely on padding
