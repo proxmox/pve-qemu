@@ -56,7 +56,7 @@ $(BUILDDIR): submodule
 deb kvm: $(DEBS)
 $(DEB_DBG): $(DEB)
 $(DEB): $(BUILDDIR)
-	cd $(BUILDDIR); dpkg-buildpackage -b -us -uc -j
+	cd $(BUILDDIR); dpkg-buildpackage -b -us -uc
 	lintian $(DEBS)
 
 sbuild: $(DSC)
