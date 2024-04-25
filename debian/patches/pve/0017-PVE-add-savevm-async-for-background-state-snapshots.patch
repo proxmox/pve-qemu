@@ -27,7 +27,7 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 [FE: further improve aborting
      adapt to removal of QEMUFileOps
      improve condition for entering final stage
-     adapt to QAPI and other changes for 8.0]
+     adapt to QAPI and other changes for 8.2]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hmp-commands-info.hx         |  13 +
@@ -35,13 +35,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 531 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 534 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  38 +++
  qapi/migration.json          |  34 +++
  qapi/misc.json               |  16 ++
  qemu-options.hx              |  12 +
- softmmu/vl.c                 |  10 +
- 11 files changed, 677 insertions(+)
+ system/vl.c                  |  10 +
+ 11 files changed, 680 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -69,10 +69,10 @@ index f5b37eb74a..10fdd822e0 100644
          .name       = "balloon",
          .args_type  = "",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index 2cbd0f77a0..e352f86872 100644
+index 765349ed14..893c3bd240 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
-@@ -1865,3 +1865,20 @@ SRST
+@@ -1875,3 +1875,20 @@ SRST
    List event channels in the guest
  ERST
  #endif
@@ -126,10 +126,10 @@ index 13f9a2dedb..7a7def7530 100644
  void coroutine_fn hmp_screendump(Monitor *mon, const QDict *qdict);
  void hmp_chardev_add(Monitor *mon, const QDict *qdict);
 diff --git a/migration/meson.build b/migration/meson.build
-index 37ddcb5d60..07f6057acc 100644
+index 0e689eac09..8f9d122187 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
-@@ -26,6 +26,7 @@ system_ss.add(files(
+@@ -27,6 +27,7 @@ system_ss.add(files(
    'options.c',
    'postcopy-ram.c',
    'savevm.c',
@@ -139,10 +139,10 @@ index 37ddcb5d60..07f6057acc 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..e9fc18fb10
+index 0000000000..8f63c4c637
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,531 @@
+@@ -0,0 +1,534 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -441,21 +441,25 @@ index 0000000000..e9fc18fb10
 +     * so move there now and after every flush.
 +     */
 +    aio_co_reschedule_self(qemu_get_aio_context());
-+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
++    bdrv_graph_co_rdlock();
++    bs = bdrv_first(&it);
++    bdrv_graph_co_rdunlock();
++    while (bs) {
 +        /* target has BDRV_O_NO_FLUSH, no sense calling bdrv_flush on it */
-+        if (bs == blk_bs(snap_state.target)) {
-+            continue;
++        if (bs != blk_bs(snap_state.target)) {
++            AioContext *bs_ctx = bdrv_get_aio_context(bs);
++            if (bs_ctx != qemu_get_aio_context()) {
++                DPRINTF("savevm: async flushing drive %s\n", bs->filename);
++                aio_co_reschedule_self(bs_ctx);
++                bdrv_graph_co_rdlock();
++                bdrv_flush(bs);
++                bdrv_graph_co_rdunlock();
++                aio_co_reschedule_self(qemu_get_aio_context());
++            }
 +        }
-+
-+        AioContext *bs_ctx = bdrv_get_aio_context(bs);
-+        if (bs_ctx != qemu_get_aio_context()) {
-+            DPRINTF("savevm: async flushing drive %s\n", bs->filename);
-+            aio_co_reschedule_self(bs_ctx);
-+            bdrv_graph_co_rdlock();
-+            bdrv_flush(bs);
-+            bdrv_graph_co_rdunlock();
-+            aio_co_reschedule_self(qemu_get_aio_context());
-+        }
++        bdrv_graph_co_rdlock();
++        bs = bdrv_next(&it);
++        bdrv_graph_co_rdunlock();
 +    }
 +
 +    DPRINTF("timing: async flushing took %ld ms\n",
@@ -535,9 +539,10 @@ index 0000000000..e9fc18fb10
 +     * State is cleared in process_savevm_co, but has to be initialized
 +     * here (blocking main thread, from QMP) to avoid race conditions.
 +     */
-+    migrate_init(ms);
++    if (migrate_init(ms, errp)) {
++        return;
++    }
 +    memset(&mig_stats, 0, sizeof(mig_stats));
-+    memset(&compression_counters, 0, sizeof(compression_counters));
 +    ms->to_dst_file = snap_state.file;
 +
 +    error_setg(&snap_state.blocker, "block device is in use by savevm");
@@ -546,10 +551,8 @@ index 0000000000..e9fc18fb10
 +    snap_state.state = SAVE_STATE_ACTIVE;
 +    snap_state.finalize_bh = qemu_bh_new(process_savevm_finalize, &snap_state);
 +    snap_state.co = qemu_coroutine_create(&process_savevm_co, NULL);
-+    qemu_mutex_unlock_iothread();
 +    qemu_savevm_state_header(snap_state.file);
 +    qemu_savevm_state_setup(snap_state.file);
-+    qemu_mutex_lock_iothread();
 +
 +    /* Async processing from here on out happens in iohandler context, so let
 +     * the target bdrv have its home there.
@@ -675,7 +678,7 @@ index 0000000000..e9fc18fb10
 +    return ret;
 +}
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 6c559b48c8..91be698308 100644
+index 871898ac46..ef4634e5c1 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
 @@ -22,6 +22,7 @@
@@ -685,7 +688,7 @@ index 6c559b48c8..91be698308 100644
 +#include "qapi/qapi-commands-migration.h"
  #include "qapi/qapi-commands-misc.h"
  #include "qapi/qmp/qdict.h"
- #include "qapi/qmp/qerror.h"
+ #include "qemu/cutils.h"
 @@ -443,3 +444,40 @@ void hmp_info_mtree(Monitor *mon, const QDict *qdict)
  
      mtree_info(flatview, dispatch_tree, owner, disabled);
@@ -728,10 +731,10 @@ index 6c559b48c8..91be698308 100644
 +    }
 +}
 diff --git a/qapi/migration.json b/qapi/migration.json
-index 8843e74b59..aca0ca1ac1 100644
+index 197d3faa43..b41465fbe9 100644
 --- a/qapi/migration.json
 +++ b/qapi/migration.json
-@@ -291,6 +291,40 @@
+@@ -298,6 +298,40 @@
             '*dirty-limit-throttle-time-per-round': 'uint64',
             '*dirty-limit-ring-full-time': 'uint64'} }
  
@@ -800,10 +803,10 @@ index cda2effa81..94a58bb0bf 100644
  # @CommandLineParameterType:
  #
 diff --git a/qemu-options.hx b/qemu-options.hx
-index 8073f5edf5..dc1ececc9c 100644
+index b6b4ad9e67..881b0b3c43 100644
 --- a/qemu-options.hx
 +++ b/qemu-options.hx
-@@ -4483,6 +4483,18 @@ SRST
+@@ -4590,6 +4590,18 @@ SRST
      Start right away with a saved state (``loadvm`` in monitor)
  ERST
  
@@ -822,11 +825,11 @@ index 8073f5edf5..dc1ececc9c 100644
  #ifndef _WIN32
  DEF("daemonize", 0, QEMU_OPTION_daemonize, \
      "-daemonize      daemonize QEMU after initializing\n", QEMU_ARCH_ALL)
-diff --git a/softmmu/vl.c b/softmmu/vl.c
-index ba6ad8a8df..ddeace306e 100644
---- a/softmmu/vl.c
-+++ b/softmmu/vl.c
-@@ -164,6 +164,7 @@ static const char *accelerators;
+diff --git a/system/vl.c b/system/vl.c
+index d2a3b3f457..57f7ba0525 100644
+--- a/system/vl.c
++++ b/system/vl.c
+@@ -163,6 +163,7 @@ static const char *accelerators;
  static bool have_custom_ram_size;
  static const char *ram_memdev_id;
  static QDict *machine_opts_dict;
@@ -834,7 +837,7 @@ index ba6ad8a8df..ddeace306e 100644
  static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
  static QTAILQ_HEAD(, DeviceOption) device_opts = QTAILQ_HEAD_INITIALIZER(device_opts);
  static int display_remote;
-@@ -2647,6 +2648,12 @@ void qmp_x_exit_preconfig(Error **errp)
+@@ -2715,6 +2716,12 @@ void qmp_x_exit_preconfig(Error **errp)
  
      if (loadvm) {
          load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
@@ -847,7 +850,7 @@ index ba6ad8a8df..ddeace306e 100644
      }
      if (replay_mode != REPLAY_MODE_NONE) {
          replay_vmstate_init();
-@@ -3196,6 +3203,9 @@ void qemu_init(int argc, char **argv)
+@@ -3265,6 +3272,9 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_loadvm:
                  loadvm = optarg;
                  break;

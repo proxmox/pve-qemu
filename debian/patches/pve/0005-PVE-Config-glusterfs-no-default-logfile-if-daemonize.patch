@@ -9,7 +9,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 11 insertions(+), 4 deletions(-)
 
 diff --git a/block/gluster.c b/block/gluster.c
-index ad5fadbe79..d0011085c4 100644
+index cc74af06dc..3ba9bbfa5e 100644
 --- a/block/gluster.c
 +++ b/block/gluster.c
 @@ -43,7 +43,7 @@

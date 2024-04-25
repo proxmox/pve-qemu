@@ -38,7 +38,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  2 files changed, 133 insertions(+), 73 deletions(-)
 
 diff --git a/qemu-img-cmds.hx b/qemu-img-cmds.hx
-index 1b1dab5b17..d1616c045a 100644
+index 068692d13e..73e0bb1d2c 100644
 --- a/qemu-img-cmds.hx
 +++ b/qemu-img-cmds.hx
 @@ -58,9 +58,9 @@ SRST
@@ -54,10 +54,10 @@ index 1b1dab5b17..d1616c045a 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index 25d427edd1..220e6ec577 100644
+index de51233825..ad770f6570 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -4899,10 +4899,12 @@ static int img_bitmap(int argc, char **argv)
+@@ -4997,10 +4997,12 @@ static int img_bitmap(int argc, char **argv)
  #define C_IF      04
  #define C_OF      010
  #define C_SKIP    020
@@ -70,7 +70,7 @@ index 25d427edd1..220e6ec577 100644
  };
  
  struct DdIo {
-@@ -4978,6 +4980,19 @@ static int img_dd_skip(const char *arg,
+@@ -5076,6 +5078,19 @@ static int img_dd_skip(const char *arg,
      return 0;
  }
  
@@ -90,7 +90,7 @@ index 25d427edd1..220e6ec577 100644
  static int img_dd(int argc, char **argv)
  {
      int ret = 0;
-@@ -5018,6 +5033,7 @@ static int img_dd(int argc, char **argv)
+@@ -5116,6 +5131,7 @@ static int img_dd(int argc, char **argv)
          { "if", img_dd_if, C_IF },
          { "of", img_dd_of, C_OF },
          { "skip", img_dd_skip, C_SKIP },
@@ -98,7 +98,7 @@ index 25d427edd1..220e6ec577 100644
          { NULL, NULL, 0 }
      };
      const struct option long_options[] = {
-@@ -5093,91 +5109,112 @@ static int img_dd(int argc, char **argv)
+@@ -5191,91 +5207,112 @@ static int img_dd(int argc, char **argv)
          arg = NULL;
      }
  
@@ -275,7 +275,7 @@ index 25d427edd1..220e6ec577 100644
      }
  
      if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
-@@ -5194,20 +5231,43 @@ static int img_dd(int argc, char **argv)
+@@ -5292,20 +5329,43 @@ static int img_dd(int argc, char **argv)
      in.buf = g_new(uint8_t, in.bsz);
  
      for (out_pos = 0; in_pos < size; ) {

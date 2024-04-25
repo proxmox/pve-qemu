@@ -19,27 +19,33 @@ well.
 This only worked if the target supports backing images, so up until now
 only for qcow2, with alloc-track any driver for the target can be used.
 
-If 'auto-remove' is set, alloc-track will automatically detach itself
-once the backing image is removed. It will be replaced by 'file'.
+Replacing the node cannot be done in the
+track_co_change_backing_file() callback, because replacing a node
+cannot happen in a coroutine and requires the block graph lock
+exclusively. Could either become a special option for the stream job,
+or maybe the upcoming blockdev-replace QMP command can be used in the
+future.
 
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: adapt to changed function signatures
      make error return value consistent with QEMU
-     avoid premature break during read]
+     avoid premature break during read
+     adhere to block graph lock requirements]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/alloc-track.c | 352 ++++++++++++++++++++++++++++++++++++++++++++
+ block/alloc-track.c | 366 ++++++++++++++++++++++++++++++++++++++++++++
  block/meson.build   |   1 +
- 2 files changed, 353 insertions(+)
+ block/stream.c      |  34 ++++
+ 3 files changed, 401 insertions(+)
  create mode 100644 block/alloc-track.c
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
 new file mode 100644
-index 0000000000..b75d7c6460
+index 0000000000..14698c362e
 --- /dev/null
 +++ b/block/alloc-track.c
-@@ -0,0 +1,352 @@
+@@ -0,0 +1,366 @@
 +/*
 + * Node to allow backing images to be applied to any node. Assumes a blank
 + * image to begin with, only new writes are tracked as allocated, thus this
@@ -56,9 +62,11 @@ index 0000000000..b75d7c6460
 +#include "qapi/error.h"
 +#include "block/block_int.h"
 +#include "block/dirty-bitmap.h"
++#include "block/graph-lock.h"
 +#include "qapi/qmp/qdict.h"
 +#include "qapi/qmp/qstring.h"
 +#include "qemu/cutils.h"
++#include "qemu/error-report.h"
 +#include "qemu/option.h"
 +#include "qemu/module.h"
 +#include "sysemu/block-backend.h"
@@ -67,12 +75,12 @@ index 0000000000..b75d7c6460
 +
 +typedef enum DropState {
 +    DropNone,
-+    DropRequested,
 +    DropInProgress,
 +} DropState;
 +
 +typedef struct {
 +    BdrvDirtyBitmap *bitmap;
++    uint64_t granularity;
 +    DropState drop_state;
 +    bool auto_remove;
 +} BDRVAllocTrackState;
@@ -91,26 +99,29 @@ index 0000000000..b75d7c6460
 +    },
 +};
 +
-+static void track_refresh_limits(BlockDriverState *bs, Error **errp)
++static void GRAPH_RDLOCK
++track_refresh_limits(BlockDriverState *bs, Error **errp)
 +{
-+    BlockDriverInfo bdi;
++    BDRVAllocTrackState *s = bs->opaque;
 +
 +    if (!bs->file) {
 +        return;
 +    }
 +
-+    /* always use alignment from underlying write device so RMW cycle for
-+     * bdrv_pwritev reads data from our backing via track_co_preadv (no partial
-+     * cluster allocation in 'file') */
-+    bdrv_get_info(bs->file->bs, &bdi);
++    /*
++     * Always use alignment from underlying write device so RMW cycle for
++     * bdrv_pwritev reads data from our backing via track_co_preadv. Also use at
++     * least the bitmap granularity.
++     */
 +    bs->bl.request_alignment = MAX(bs->file->bs->bl.request_alignment,
-+                                   MAX(bdi.cluster_size, BDRV_SECTOR_SIZE));
++                                   s->granularity);
 +}
 +
 +static int track_open(BlockDriverState *bs, QDict *options, int flags,
 +                      Error **errp)
 +{
 +    BDRVAllocTrackState *s = bs->opaque;
++    BdrvChild *file = NULL;
 +    QemuOpts *opts;
 +    Error *local_err = NULL;
 +    int ret = 0;
@@ -126,18 +137,45 @@ index 0000000000..b75d7c6460
 +    s->auto_remove = qemu_opt_get_bool(opts, TRACK_OPT_AUTO_REMOVE, false);
 +
 +    /* open the target (write) node, backing will be attached by block layer */
-+    bs->file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
-+                               BDRV_CHILD_DATA | BDRV_CHILD_METADATA, false,
-+                               &local_err);
++    file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
++                           BDRV_CHILD_DATA | BDRV_CHILD_METADATA, false,
++                           &local_err);
++    bdrv_graph_wrlock(bs);
++    bs->file = file;
++    bdrv_graph_wrunlock(bs);
 +    if (local_err) {
 +        ret = -EINVAL;
 +        error_propagate(errp, local_err);
 +        goto fail;
 +    }
 +
++    bdrv_graph_rdlock_main_loop();
++    BlockDriverInfo bdi = {0};
++    ret = bdrv_get_info(bs->file->bs, &bdi);
++    if (ret < 0) {
++        /*
++         * Not a hard failure. Worst that can happen is partial cluster
++         * allocation in the write target. However, the driver here returns its
++         * allocation status based on the dirty bitmap, so any other data that
++         * maps to such a cluster will still be copied later by a stream job (or
++         * during writes to that cluster).
++         */
++        warn_report("alloc-track: unable to query cluster size for write target: %s",
++                    strerror(ret));
++    }
++    ret = 0;
++    /*
++     * Always consider alignment from underlying write device so RMW cycle for
++     * bdrv_pwritev reads data from our backing via track_co_preadv. Also try to
++     * avoid partial cluster allocation in the write target by considering the
++     * cluster size.
++     */
++    s->granularity = MAX(bs->file->bs->bl.request_alignment,
++                         MAX(bdi.cluster_size, BDRV_SECTOR_SIZE));
 +    track_refresh_limits(bs, errp);
-+    uint64_t gran = bs->bl.request_alignment;
-+    s->bitmap = bdrv_create_dirty_bitmap(bs->file->bs, gran, NULL, &local_err);
++    s->bitmap = bdrv_create_dirty_bitmap(bs->file->bs, s->granularity, NULL,
++                                         &local_err);
++    bdrv_graph_rdunlock_main_loop();
 +    if (local_err) {
 +        ret = -EIO;
 +        error_propagate(errp, local_err);
@@ -148,7 +186,9 @@ index 0000000000..b75d7c6460
 +
 +fail:
 +    if (ret < 0) {
++        bdrv_graph_wrlock(bs);
 +        bdrv_unref_child(bs, bs->file);
++        bdrv_graph_wrunlock(bs);
 +        if (s->bitmap) {
 +            bdrv_release_dirty_bitmap(s->bitmap);
 +        }
@@ -165,13 +205,15 @@ index 0000000000..b75d7c6460
 +    }
 +}
 +
-+static coroutine_fn int64_t track_co_getlength(BlockDriverState *bs)
++static coroutine_fn int64_t GRAPH_RDLOCK
++track_co_getlength(BlockDriverState *bs)
 +{
 +    return bdrv_co_getlength(bs->file->bs);
 +}
 +
-+static int coroutine_fn track_co_preadv(BlockDriverState *bs,
-+    int64_t offset, int64_t bytes, QEMUIOVector *qiov, BdrvRequestFlags flags)
++static int coroutine_fn GRAPH_RDLOCK
++track_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
++                QEMUIOVector *qiov, BdrvRequestFlags flags)
 +{
 +    BDRVAllocTrackState *s = bs->opaque;
 +    QEMUIOVector local_qiov;
@@ -229,36 +271,39 @@ index 0000000000..b75d7c6460
 +    return ret;
 +}
 +
-+static int coroutine_fn track_co_pwritev(BlockDriverState *bs,
-+    int64_t offset, int64_t bytes, QEMUIOVector *qiov, BdrvRequestFlags flags)
++static int coroutine_fn GRAPH_RDLOCK
++track_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
++                 QEMUIOVector *qiov, BdrvRequestFlags flags)
 +{
 +    return bdrv_co_pwritev(bs->file, offset, bytes, qiov, flags);
 +}
 +
-+static int coroutine_fn track_co_pwrite_zeroes(BlockDriverState *bs,
-+    int64_t offset, int64_t bytes, BdrvRequestFlags flags)
++static int coroutine_fn GRAPH_RDLOCK
++track_co_pwrite_zeroes(BlockDriverState *bs, int64_t offset, int64_t bytes,
++                       BdrvRequestFlags flags)
 +{
 +    return bdrv_co_pwrite_zeroes(bs->file, offset, bytes, flags);
 +}
 +
-+static int coroutine_fn track_co_pdiscard(BlockDriverState *bs,
-+    int64_t offset, int64_t bytes)
++static int coroutine_fn GRAPH_RDLOCK
++track_co_pdiscard(BlockDriverState *bs, int64_t offset, int64_t bytes)
 +{
 +    return bdrv_co_pdiscard(bs->file, offset, bytes);
 +}
 +
-+static coroutine_fn int track_co_flush(BlockDriverState *bs)
++static coroutine_fn int GRAPH_RDLOCK
++track_co_flush(BlockDriverState *bs)
 +{
 +    return bdrv_co_flush(bs->file->bs);
 +}
 +
-+static int coroutine_fn track_co_block_status(BlockDriverState *bs,
-+                                              bool want_zero,
-+                                              int64_t offset,
-+                                              int64_t bytes,
-+                                              int64_t *pnum,
-+                                              int64_t *map,
-+                                              BlockDriverState **file)
++static int coroutine_fn GRAPH_RDLOCK
++track_co_block_status(BlockDriverState *bs, bool want_zero,
++                                            int64_t offset,
++                                            int64_t bytes,
++                                            int64_t *pnum,
++                                            int64_t *map,
++                                            BlockDriverState **file)
 +{
 +    BDRVAllocTrackState *s = bs->opaque;
 +
@@ -284,10 +329,10 @@ index 0000000000..b75d7c6460
 +    return 0;
 +}
 +
-+static void track_child_perm(BlockDriverState *bs, BdrvChild *c,
-+                             BdrvChildRole role, BlockReopenQueue *reopen_queue,
-+                             uint64_t perm, uint64_t shared,
-+                             uint64_t *nperm, uint64_t *nshared)
++static void GRAPH_RDLOCK
++track_child_perm(BlockDriverState *bs, BdrvChild *c, BdrvChildRole role,
++                 BlockReopenQueue *reopen_queue, uint64_t perm, uint64_t shared,
++                 uint64_t *nperm, uint64_t *nshared)
 +{
 +    BDRVAllocTrackState *s = bs->opaque;
 +
@@ -310,53 +355,28 @@ index 0000000000..b75d7c6460
 +    }
 +}
 +
-+static void track_drop(void *opaque)
++static int coroutine_fn GRAPH_RDLOCK
++track_co_change_backing_file(BlockDriverState *bs, const char *backing_file,
++                             const char *backing_fmt)
 +{
-+    BlockDriverState *bs = (BlockDriverState*)opaque;
-+    BlockDriverState *file = bs->file->bs;
-+    BDRVAllocTrackState *s = bs->opaque;
-+
-+    assert(file);
-+
-+    /* we rely on the fact that we're not used anywhere else, so let's wait
-+     * until we're only used once - in the drive connected to the guest (and one
-+     * ref is held by bdrv_ref in track_change_backing_file) */
-+    if (bs->refcnt > 2) {
-+        aio_bh_schedule_oneshot(qemu_get_aio_context(), track_drop, opaque);
-+        return;
-+    }
-+    AioContext *aio_context = bdrv_get_aio_context(bs);
-+    aio_context_acquire(aio_context);
-+
-+    bdrv_drained_begin(bs);
-+
-+    /* now that we're drained, we can safely set 'DropInProgress' */
-+    s->drop_state = DropInProgress;
-+    bdrv_child_refresh_perms(bs, bs->file, &error_abort);
-+
-+    bdrv_replace_node(bs, file, &error_abort);
-+    bdrv_set_backing_hd(bs, NULL, &error_abort);
-+    bdrv_drained_end(bs);
-+    bdrv_unref(bs);
-+    aio_context_release(aio_context);
-+}
-+
-+static int track_change_backing_file(BlockDriverState *bs,
-+                                     const char *backing_file,
-+                                     const char *backing_fmt)
-+{
-+    BDRVAllocTrackState *s = bs->opaque;
-+    if (s->auto_remove && s->drop_state == DropNone &&
-+        backing_file == NULL && backing_fmt == NULL)
-+    {
-+        /* backing file has been disconnected, there's no longer any use for
-+         * this node, so let's remove ourselves from the block graph - we need
-+         * to schedule this for later however, since when this function is
-+         * called, the blockjob modifying us is probably not done yet and has a
-+         * blocker on 'bs' */
-+        s->drop_state = DropRequested;
-+        bdrv_ref(bs);
-+        aio_bh_schedule_oneshot(qemu_get_aio_context(), track_drop, (void*)bs);
++    /*
++     * Note that the actual backing file graph change is already done in the
++     * stream job itself with bdrv_set_backing_hd_drained(), so no need to
++     * actually do anything here. But still needs to be implemented, to make
++     * our caller (i.e. bdrv_co_change_backing_file() do the right thing).
++     *
++     * FIXME
++     * We'd like to auto-remove ourselves from the block graph, but it cannot
++     * be done from a coroutine. Currently done in the stream job, where it
++     * kinda fits better, but in the long-term, a special parameter would be
++     * nice (or done via qemu-server via upcoming blockdev-replace QMP command).
++     */
++    if (backing_file == NULL) {
++        BDRVAllocTrackState *s = bs->opaque;
++        bdrv_drained_begin(bs);
++        s->drop_state = DropInProgress;
++        bdrv_child_refresh_perms(bs, bs->file, &error_abort);
++        bdrv_drained_end(bs);
 +    }
 +
 +    return 0;
@@ -383,7 +403,7 @@ index 0000000000..b75d7c6460
 +    .supports_backing                 = true,
 +
 +    .bdrv_co_block_status             = track_co_block_status,
-+    .bdrv_change_backing_file         = track_change_backing_file,
++    .bdrv_co_change_backing_file      = track_co_change_backing_file,
 +};
 +
 +static void bdrv_alloc_track_init(void)
@@ -393,7 +413,7 @@ index 0000000000..b75d7c6460
 +
 +block_init(bdrv_alloc_track_init);
 diff --git a/block/meson.build b/block/meson.build
-index becc99ac4e..0a69836593 100644
+index 549c0c7103..73777a1620 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -2,6 +2,7 @@ block_ss.add(genh)
@@ -404,3 +424,48 @@ index becc99ac4e..0a69836593 100644
    'amend.c',
    'backup.c',
    'backup-dump.c',
+diff --git a/block/stream.c b/block/stream.c
+index 87a97cb8a2..3a04e95ee2 100644
+--- a/block/stream.c
++++ b/block/stream.c
+@@ -114,6 +114,40 @@ static int stream_prepare(Job *job)
+             ret = -EPERM;
+             goto out;
+         }
++
++        /*
++         * This cannot be done in the co_change_backing_file callback, because
++         * bdrv_replace_node() cannot be done in a coroutine. The latter also
++         * requires the graph lock exclusively. Only required for the
++         * alloc-track driver.
++         *
++         * The long-term plan is to either have an explicit parameter for the
++         * stream job or use the upcoming blockdev-replace QMP command.
++         */
++        if (base_id == NULL && strcmp(unfiltered_bs->drv->format_name, "alloc-track") == 0) {
++            BlockDriverState *file_bs;
++
++            bdrv_graph_rdlock_main_loop();
++            file_bs = unfiltered_bs->file->bs;
++            bdrv_graph_rdunlock_main_loop();
++
++            bdrv_ref(unfiltered_bs); // unrefed by bdrv_replace_node()
++            bdrv_drained_begin(file_bs);
++            bdrv_graph_wrlock(s->target_bs);
++
++            bdrv_replace_node(unfiltered_bs, file_bs, &local_err);
++
++            bdrv_graph_wrunlock(s->target_bs);
++            bdrv_drained_end(file_bs);
++            bdrv_unref(unfiltered_bs);
++
++            if (local_err) {
++                error_prepend(&local_err, "failed to replace alloc-track node: ");
++                error_report_err(local_err);
++                ret = -EPERM;
++                goto out;
++            }
++        }
+     }
+ 
+ out:

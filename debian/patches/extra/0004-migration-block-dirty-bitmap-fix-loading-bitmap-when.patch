@@ -20,10 +20,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 6 insertions(+)
 
 diff --git a/migration/block-dirty-bitmap.c b/migration/block-dirty-bitmap.c
-index 032fc5f405..e1ae3b7316 100644
+index 24347ab0f7..0070b13b6f 100644
 --- a/migration/block-dirty-bitmap.c
 +++ b/migration/block-dirty-bitmap.c
-@@ -805,8 +805,11 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
+@@ -809,8 +809,11 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
                       "destination", bdrv_dirty_bitmap_name(s->bitmap));
          return -EINVAL;
      } else {
@@ -35,7 +35,7 @@ index 032fc5f405..e1ae3b7316 100644
          if (!s->bitmap) {
              error_report_err(local_err);
              return -EINVAL;
-@@ -833,7 +836,10 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
+@@ -837,7 +840,10 @@ static int dirty_bitmap_load_start(QEMUFile *f, DBMLoadState *s)
  
      bdrv_disable_dirty_bitmap(s->bitmap);
      if (flags & DIRTY_BITMAP_MIG_START_FLAG_ENABLED) {

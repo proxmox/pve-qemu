@@ -24,10 +24,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 2 insertions(+), 6 deletions(-)
 
 diff --git a/hw/i386/acpi-build.c b/hw/i386/acpi-build.c
-index bb12b0ad43..de14d3c3da 100644
+index 1e178341de..d8694b338e 100644
 --- a/hw/i386/acpi-build.c
 +++ b/hw/i386/acpi-build.c
-@@ -362,13 +362,9 @@ Aml *aml_pci_device_dsm(void)
+@@ -357,13 +357,9 @@ Aml *aml_pci_device_dsm(void)
      {
          Aml *params = aml_local(0);
          Aml *pkg = aml_package(2);

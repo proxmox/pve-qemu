@@ -13,7 +13,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  2 files changed, 42 insertions(+), 20 deletions(-)
 
 diff --git a/block/file-posix.c b/block/file-posix.c
-index ca551baa42..8b3b83e9d4 100644
+index bc09aefe3b..36a53d8682 100644
 --- a/block/file-posix.c
 +++ b/block/file-posix.c
 @@ -2873,6 +2873,7 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
@@ -119,10 +119,10 @@ index ca551baa42..8b3b83e9d4 100644
      };
      return raw_co_create(&options, errp);
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index a5cea82139..bb471c078d 100644
+index 8db0986e9e..299e3fc350 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -4880,7 +4880,8 @@
+@@ -4935,7 +4935,8 @@
              'size':                 'size',
              '*preallocation':       'PreallocMode',
              '*nocow':               'bool',

@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Tue, 26 Mar 2024 14:57:51 +0100
+Subject: [PATCH] alloc-track: error out when auto-remove is not set
+
+Since replacing the node now happens in the stream job, where the
+option cannot be read from (it's internal to the driver), it will
+always be treated as on.
+
+qemu-server will always set it, make sure to have other users notice
+the change (should they even exist). The option can be fully dropped
+in the future while adding a version guard in qemu-server.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ block/alloc-track.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/block/alloc-track.c b/block/alloc-track.c
+index 14698c362e..dad8fe6375 100644
+--- a/block/alloc-track.c
++++ b/block/alloc-track.c
+@@ -34,7 +34,6 @@ typedef struct {
+     BdrvDirtyBitmap *bitmap;
+     uint64_t granularity;
+     DropState drop_state;
+-    bool auto_remove;
+ } BDRVAllocTrackState;
+ 
+ static QemuOptsList runtime_opts = {
+@@ -86,7 +85,11 @@ static int track_open(BlockDriverState *bs, QDict *options, int flags,
+         goto fail;
+     }
+ 
+-    s->auto_remove = qemu_opt_get_bool(opts, TRACK_OPT_AUTO_REMOVE, false);
++    if (!qemu_opt_get_bool(opts, TRACK_OPT_AUTO_REMOVE, false)) {
++        error_setg(errp, "alloc-track: requires auto-remove option to be set to on");
++        ret = -EINVAL;
++        goto fail;
++    }
+ 
+     /* open the target (write) node, backing will be attached by block layer */
+     file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,

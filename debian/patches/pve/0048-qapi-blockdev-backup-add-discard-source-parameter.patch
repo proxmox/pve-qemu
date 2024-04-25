@@ -45,7 +45,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  10 files changed, 37 insertions(+), 8 deletions(-)
 
 diff --git a/block/backup.c b/block/backup.c
-index af87fa6aa9..3dc955f625 100644
+index aec140e0c8..f19b751fe6 100644
 --- a/block/backup.c
 +++ b/block/backup.c
 @@ -332,7 +332,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
@@ -57,7 +57,7 @@ index af87fa6aa9..3dc955f625 100644
                    const char *filter_node_name,
                    BackupPerf *perf,
                    BlockdevOnError on_source_error,
-@@ -429,7 +429,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
+@@ -433,7 +433,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
          goto error;
      }
  
@@ -68,7 +68,7 @@ index af87fa6aa9..3dc955f625 100644
          goto error;
      }
 diff --git a/block/block-copy.c b/block/block-copy.c
-index b61685f1a2..3c61e52bae 100644
+index 8fca2c3698..7e3b378528 100644
 --- a/block/block-copy.c
 +++ b/block/block-copy.c
 @@ -137,6 +137,7 @@ typedef struct BlockCopyState {
@@ -79,7 +79,7 @@ index b61685f1a2..3c61e52bae 100644
      BlockReqList reqs;
      QLIST_HEAD(, BlockCopyCallState) calls;
      /*
-@@ -348,6 +349,7 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
+@@ -353,6 +354,7 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
  BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                       BlockDriverState *copy_bitmap_bs,
                                       const BdrvDirtyBitmap *bitmap,
@@ -87,7 +87,7 @@ index b61685f1a2..3c61e52bae 100644
                                       Error **errp)
  {
      ERRP_GUARD();
-@@ -409,6 +411,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
+@@ -418,6 +420,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
                                      cluster_size),
      };
  
@@ -95,7 +95,7 @@ index b61685f1a2..3c61e52bae 100644
      block_copy_set_copy_opts(s, false, false);
  
      ratelimit_init(&s->rate_limit);
-@@ -580,6 +583,12 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
+@@ -589,6 +592,12 @@ static coroutine_fn int block_copy_task_entry(AioTask *task)
      co_put_to_shres(s->mem, t->req.bytes);
      block_copy_task_end(t, ret);
  
@@ -109,7 +109,7 @@ index b61685f1a2..3c61e52bae 100644
  }
  
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index d3b95bd600..3503702d71 100644
+index afa5f473d2..5506f66857 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -44,6 +44,7 @@ typedef struct BDRVCopyBeforeWriteState {
@@ -120,16 +120,16 @@ index d3b95bd600..3503702d71 100644
  
      /*
       * @lock: protects access to @access_bitmap, @done_bitmap and
-@@ -357,6 +358,8 @@ static void cbw_child_perm(BlockDriverState *bs, BdrvChild *c,
-                            uint64_t perm, uint64_t shared,
-                            uint64_t *nperm, uint64_t *nshared)
+@@ -357,6 +358,8 @@ cbw_child_perm(BlockDriverState *bs, BdrvChild *c, BdrvChildRole role,
+                uint64_t perm, uint64_t shared,
+                uint64_t *nperm, uint64_t *nshared)
  {
 +    BDRVCopyBeforeWriteState *s = bs->opaque;
 +
      if (!(role & BDRV_CHILD_FILTERED)) {
          /*
           * Target child
-@@ -381,6 +384,10 @@ static void cbw_child_perm(BlockDriverState *bs, BdrvChild *c,
+@@ -381,6 +384,10 @@ cbw_child_perm(BlockDriverState *bs, BdrvChild *c, BdrvChildRole role,
               * start
               */
              *nperm = *nperm | BLK_PERM_CONSISTENT_READ;
@@ -140,7 +140,7 @@ index d3b95bd600..3503702d71 100644
              *nshared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
          }
      }
-@@ -470,7 +477,9 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -472,7 +479,9 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
              ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
               bs->file->bs->supported_zero_flags);
  
@@ -151,7 +151,7 @@ index d3b95bd600..3503702d71 100644
      if (!s->bcs) {
          error_prepend(errp, "Cannot create block-copy-state: ");
          ret = -EINVAL;
-@@ -544,12 +553,14 @@ BlockDriver bdrv_cbw_filter = {
+@@ -546,12 +555,14 @@ static BlockDriver bdrv_cbw_filter = {
  BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
                                    BlockDriverState *target,
                                    const char *filter_node_name,
@@ -166,7 +166,7 @@ index d3b95bd600..3503702d71 100644
  
      assert(source->total_sectors == target->total_sectors);
      GLOBAL_STATE_CODE();
-@@ -562,7 +573,7 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
+@@ -564,7 +575,7 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
      qdict_put_str(opts, "file", bdrv_get_node_name(source));
      qdict_put_str(opts, "target", bdrv_get_node_name(target));
  
@@ -188,10 +188,10 @@ index 6e72bb25e9..01af0cd3c4 100644
                                    Error **errp);
  void bdrv_cbw_drop(BlockDriverState *bs);
 diff --git a/block/replication.c b/block/replication.c
-index ea4bf1aa80..39ad78cf98 100644
+index 5ded5f1ca9..bd75a6aee3 100644
 --- a/block/replication.c
 +++ b/block/replication.c
-@@ -579,8 +579,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
+@@ -604,8 +604,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
  
          s->backup_job = backup_job_create(
                                  NULL, s->secondary_disk->bs, s->hidden_disk->bs,
@@ -203,10 +203,10 @@ index ea4bf1aa80..39ad78cf98 100644
                                  BLOCKDEV_ON_ERROR_REPORT, JOB_INTERNAL,
                                  backup_job_completed, bs, NULL, &local_err);
 diff --git a/blockdev.c b/blockdev.c
-index 7793143d76..ce3fef924c 100644
+index 3049811be8..e167ad1e54 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -2802,7 +2802,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
+@@ -2854,7 +2854,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
  
      job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
                              backup->sync, bmap, backup->bitmap_mode,
@@ -216,10 +216,10 @@ index 7793143d76..ce3fef924c 100644
                              &perf,
                              backup->on_source_error,
 diff --git a/include/block/block-common.h b/include/block/block-common.h
-index e15395f2cb..913a8b259c 100644
+index d7599564db..7f56364e73 100644
 --- a/include/block/block-common.h
 +++ b/include/block/block-common.h
-@@ -234,6 +234,8 @@ typedef enum {
+@@ -246,6 +246,8 @@ typedef enum {
                                        read-write fails */
  #define BDRV_O_IO_URING    0x40000 /* use io_uring instead of the thread pool */
  
@@ -241,7 +241,7 @@ index 8b41643bfa..bdc703bacd 100644
  
  /* Function should be called prior any actual copy request */
 diff --git a/include/block/block_int-global-state.h b/include/block/block_int-global-state.h
-index 32f0f9858a..546f2b5532 100644
+index 57265a617a..df731688b4 100644
 --- a/include/block/block_int-global-state.h
 +++ b/include/block/block_int-global-state.h
 @@ -189,7 +189,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
@@ -254,10 +254,10 @@ index 32f0f9858a..546f2b5532 100644
                              BackupPerf *perf,
                              BlockdevOnError on_source_error,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 09de550c95..4297e5beda 100644
+index 7b977459fa..82960797dc 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1816,6 +1816,9 @@
+@@ -1834,6 +1834,9 @@
  #     node specified by @drive.  If this option is not given, a node
  #     name is autogenerated.  (Since: 4.2)
  #
@@ -267,7 +267,7 @@ index 09de550c95..4297e5beda 100644
  # @x-perf: Performance options.  (Since 6.0)
  #
  # Features:
-@@ -1837,6 +1840,7 @@
+@@ -1855,6 +1858,7 @@
              '*on-target-error': 'BlockdevOnError',
              '*auto-finalize': 'bool', '*auto-dismiss': 'bool',
              '*filter-node-name': 'str',

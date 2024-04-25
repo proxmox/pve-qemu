@@ -15,21 +15,21 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build |   2 +
  meson.build       |   5 +
- vma-reader.c      | 867 ++++++++++++++++++++++++++++++++++++++++++++
+ vma-reader.c      | 870 ++++++++++++++++++++++++++++++++++++++++++++
  vma-writer.c      | 818 +++++++++++++++++++++++++++++++++++++++++
- vma.c             | 900 ++++++++++++++++++++++++++++++++++++++++++++++
+ vma.c             | 901 ++++++++++++++++++++++++++++++++++++++++++++++
  vma.h             | 150 ++++++++
- 6 files changed, 2742 insertions(+)
+ 6 files changed, 2746 insertions(+)
  create mode 100644 vma-reader.c
  create mode 100644 vma-writer.c
  create mode 100644 vma.c
  create mode 100644 vma.h
 
 diff --git a/block/meson.build b/block/meson.build
-index 1833c71ce9..59b71ba9f3 100644
+index 8ded0dc18b..e709b67d37 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -43,6 +43,8 @@ block_ss.add(files(
+@@ -42,6 +42,8 @@ block_ss.add(files(
    'zeroinit.c',
  ), zstd, zlib, gnutls)
  
@@ -39,10 +39,10 @@ index 1833c71ce9..59b71ba9f3 100644
  system_ss.add(files('block-ram-registrar.c'))
  
 diff --git a/meson.build b/meson.build
-index a9c4f28247..cd95530d3b 100644
+index 6c77d9687d..8cb1ccd5e1 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1778,6 +1778,8 @@ endif
+@@ -1802,6 +1802,8 @@ endif
  
  has_gettid = cc.has_function('gettid')
  
@@ -51,7 +51,7 @@ index a9c4f28247..cd95530d3b 100644
  # libselinux
  selinux = dependency('libselinux',
                       required: get_option('selinux'),
-@@ -3908,6 +3910,9 @@ if have_tools
+@@ -3975,6 +3977,9 @@ if have_tools
                 dependencies: [blockdev, qemuutil, gnutls, selinux],
                 install: true)
  
@@ -63,10 +63,10 @@ index a9c4f28247..cd95530d3b 100644
    subdir('contrib/elf2dmp')
 diff --git a/vma-reader.c b/vma-reader.c
 new file mode 100644
-index 0000000000..81a891c6b1
+index 0000000000..d0b6721812
 --- /dev/null
 +++ b/vma-reader.c
-@@ -0,0 +1,867 @@
+@@ -0,0 +1,870 @@
 +/*
 + * VMA: Virtual Machine Archive
 + *
@@ -88,6 +88,7 @@ index 0000000000..81a891c6b1
 +#include "qemu/ratelimit.h"
 +#include "vma.h"
 +#include "block/block.h"
++#include "block/graph-lock.h"
 +#include "sysemu/block-backend.h"
 +
 +static unsigned char zero_vma_block[VMA_BLOCK_SIZE];
@@ -600,8 +601,10 @@ index 0000000000..81a891c6b1
 +    } else {
 +        int res = blk_pwrite(target, sector_num * BDRV_SECTOR_SIZE, nb_sectors * BDRV_SECTOR_SIZE, buf, 0);
 +        if (res < 0) {
++            bdrv_graph_rdlock_main_loop();
 +            error_setg(errp, "blk_pwrite to %s failed (%d)",
 +                       bdrv_get_device_name(blk_bs(target)), res);
++            bdrv_graph_rdunlock_main_loop();
 +            return -1;
 +        }
 +    }
@@ -1760,10 +1763,10 @@ index 0000000000..126b296647
 +}
 diff --git a/vma.c b/vma.c
 new file mode 100644
-index 0000000000..347f6283ca
+index 0000000000..bb715e9061
 --- /dev/null
 +++ b/vma.c
-@@ -0,0 +1,900 @@
+@@ -0,0 +1,901 @@
 +/*
 + * VMA: Virtual Machine Archive
 + *
@@ -2076,17 +2079,17 @@ index 0000000000..347f6283ca
 +                        inbuf);
 +            }
 +
-+            RestoreMap *map = g_new0(RestoreMap, 1);
-+            map->devname = g_strdup(devname);
-+            map->path = g_strdup(path);
-+            map->format = format;
-+            map->throttling_bps = bps_value;
-+            map->throttling_group = group;
-+            map->cache = cache;
-+            map->write_zero = write_zero;
-+            map->skip = skip;
++            RestoreMap *restore_map = g_new0(RestoreMap, 1);
++            restore_map->devname = g_strdup(devname);
++            restore_map->path = g_strdup(path);
++            restore_map->format = format;
++            restore_map->throttling_bps = bps_value;
++            restore_map->throttling_group = group;
++            restore_map->cache = cache;
++            restore_map->write_zero = write_zero;
++            restore_map->skip = skip;
 +
-+            g_hash_table_insert(devmap, map->devname, map);
++            g_hash_table_insert(devmap, restore_map->devname, restore_map);
 +
 +        };
 +    }
@@ -2385,7 +2388,7 @@ index 0000000000..347f6283ca
 +
 +static int create_archive(int argc, char **argv)
 +{
-+    int i, c;
++    int c;
 +    int verbose = 0;
 +    const char *archivename;
 +    GList *backup_coroutines = NULL;
@@ -2543,6 +2546,7 @@ index 0000000000..347f6283ca
 +    vma_writer_get_status(vmaw, &vmastat);
 +
 +    if (verbose) {
++        int i;
 +        for (i = 0; i < 256; i++) {
 +            VmaStreamInfo *si = &vmastat.stream_info[i];
 +            if (si->size) {

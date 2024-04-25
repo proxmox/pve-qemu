@@ -25,7 +25,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/block/backup.c b/block/backup.c
-index db3791f4d1..39410dcf8d 100644
+index 8aae5836d7..2516eac5a7 100644
 --- a/block/backup.c
 +++ b/block/backup.c
 @@ -237,8 +237,8 @@ static void backup_init_bcs_bitmap(BackupBlockJob *job)
@@ -48,9 +48,9 @@ index db3791f4d1..39410dcf8d 100644
      if (s->sync_mode == MIRROR_SYNC_MODE_TOP) {
          int64_t offset = 0;
          int64_t count;
-@@ -495,6 +493,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
-     block_job_add_bdrv(&job->common, "target", target, 0, BLK_PERM_ALL,
+@@ -501,6 +499,8 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                         &error_abort);
+     bdrv_graph_wrunlock(target);
  
 +    backup_init_bcs_bitmap(job);
 +

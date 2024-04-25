@@ -14,7 +14,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/block/file-posix.c b/block/file-posix.c
-index 7f540b03ed..ca551baa42 100644
+index b862406c71..bc09aefe3b 100644
 --- a/block/file-posix.c
 +++ b/block/file-posix.c
 @@ -563,7 +563,7 @@ static QemuOptsList raw_runtime_opts = {

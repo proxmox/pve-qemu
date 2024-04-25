@@ -20,10 +20,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 16 insertions(+), 13 deletions(-)
 
 diff --git a/block/io.c b/block/io.c
-index 83d1b1dfdc..e927881e40 100644
+index d202987770..d42c811bd7 100644
 --- a/block/io.c
 +++ b/block/io.c
-@@ -1723,22 +1723,25 @@ static int bdrv_pad_request(BlockDriverState *bs,
+@@ -1756,22 +1756,25 @@ static int bdrv_pad_request(BlockDriverState *bs,
          return 0;
      }
  

@@ -33,26 +33,26 @@ Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
  include/sysemu/os-posix.h |  1 +
  include/sysemu/os-win32.h |  5 +++++
  os-posix.c                | 22 ++++++++++++++++++++++
- softmmu/vl.c              |  2 ++
+ system/vl.c               |  2 ++
  4 files changed, 30 insertions(+)
 
 diff --git a/include/sysemu/os-posix.h b/include/sysemu/os-posix.h
-index 1030d39904..edc415aff5 100644
+index dff32ae185..b881ac6c6f 100644
 --- a/include/sysemu/os-posix.h
 +++ b/include/sysemu/os-posix.h
-@@ -48,6 +48,7 @@ void os_setup_early_signal_handling(void);
- void os_set_proc_name(const char *s);
- void os_setup_signal_handling(void);
+@@ -51,6 +51,7 @@ bool is_daemonized(void);
  void os_daemonize(void);
+ bool os_set_runas(const char *user_id);
+ void os_set_chroot(const char *path);
 +void os_setup_limits(void);
  void os_setup_post(void);
  int os_mlock(void);
  
 diff --git a/include/sysemu/os-win32.h b/include/sysemu/os-win32.h
-index 91aa0d7ec0..f6e23fe01e 100644
+index 1047d260cb..106f155037 100644
 --- a/include/sysemu/os-win32.h
 +++ b/include/sysemu/os-win32.h
-@@ -129,6 +129,11 @@ static inline int os_mlock(void)
+@@ -128,6 +128,11 @@ static inline int os_mlock(void)
      return -ENOSYS;
  }
  
@@ -65,7 +65,7 @@ index 91aa0d7ec0..f6e23fe01e 100644
  
  #if !defined(lseek)
 diff --git a/os-posix.c b/os-posix.c
-index cfcb96533c..0cc1d991b1 100644
+index 52ef6990ff..a4284e2c07 100644
 --- a/os-posix.c
 +++ b/os-posix.c
 @@ -24,6 +24,7 @@
@@ -76,7 +76,7 @@ index cfcb96533c..0cc1d991b1 100644
  #include <sys/wait.h>
  #include <pwd.h>
  #include <grp.h>
-@@ -286,6 +287,27 @@ void os_daemonize(void)
+@@ -256,6 +257,27 @@ void os_daemonize(void)
      }
  }
  
@@ -104,11 +104,11 @@ index cfcb96533c..0cc1d991b1 100644
  void os_setup_post(void)
  {
      int fd = 0;
-diff --git a/softmmu/vl.c b/softmmu/vl.c
-index c9e9ede237..ba6ad8a8df 100644
---- a/softmmu/vl.c
-+++ b/softmmu/vl.c
-@@ -2713,6 +2713,8 @@ void qemu_init(int argc, char **argv)
+diff --git a/system/vl.c b/system/vl.c
+index e18fa3ce46..d2a3b3f457 100644
+--- a/system/vl.c
++++ b/system/vl.c
+@@ -2782,6 +2782,8 @@ void qemu_init(int argc, char **argv)
      error_init(argv[0]);
      qemu_init_exec_dir(argv[0]);
  

@@ -14,10 +14,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  2 files changed, 7 insertions(+), 2 deletions(-)
 
 diff --git a/meson.build b/meson.build
-index cbfc9a43fb..8206270272 100644
+index 18c3a312eb..b598a0450b 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1779,6 +1779,7 @@ endif
+@@ -1803,6 +1803,7 @@ endif
  has_gettid = cc.has_function('gettid')
  
  libuuid = cc.find_library('uuid', required: true)
@@ -25,7 +25,7 @@ index cbfc9a43fb..8206270272 100644
  libproxmox_backup_qemu = cc.find_library('proxmox_backup_qemu', required: true)
  
  # libselinux
-@@ -3406,6 +3407,7 @@ if have_block
+@@ -3468,6 +3469,7 @@ if have_block
    # os-posix.c contains POSIX-specific functions used by qemu-storage-daemon,
    # os-win32.c does not
    blockdev_ss.add(when: 'CONFIG_POSIX', if_true: files('os-posix.c'))
@@ -34,7 +34,7 @@ index cbfc9a43fb..8206270272 100644
  endif
  
 diff --git a/os-posix.c b/os-posix.c
-index 0cc1d991b1..f33d9901cf 100644
+index a4284e2c07..197a2120fd 100644
 --- a/os-posix.c
 +++ b/os-posix.c
 @@ -29,6 +29,8 @@
@@ -44,9 +44,9 @@ index 0cc1d991b1..f33d9901cf 100644
 +#include <systemd/sd-journal.h>
 +#include <syslog.h>
  
- /* Needed early for CONFIG_BSD etc. */
- #include "net/slirp.h"
-@@ -332,9 +334,10 @@ void os_setup_post(void)
+ #include "qemu/error-report.h"
+ #include "qemu/log.h"
+@@ -302,9 +304,10 @@ void os_setup_post(void)
  
          dup2(fd, 0);
          dup2(fd, 1);

@@ -14,35 +14,33 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
      getlength is now a coroutine function]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/meson.build    |   3 +
- block/pbs.c          | 305 +++++++++++++++++++++++++++++++++++++++++++
- configure            |   9 ++
+ block/meson.build    |   2 +
+ block/pbs.c          | 307 +++++++++++++++++++++++++++++++++++++++++++
  meson.build          |   2 +-
  qapi/block-core.json |  13 ++
  qapi/pragma.json     |   1 +
- 6 files changed, 332 insertions(+), 1 deletion(-)
+ 5 files changed, 324 insertions(+), 1 deletion(-)
  create mode 100644 block/pbs.c
 
 diff --git a/block/meson.build b/block/meson.build
-index 6d468f89e5..becc99ac4e 100644
+index 9df99aceb5..549c0c7103 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -50,6 +50,9 @@ block_ss.add(files(
+@@ -49,6 +49,8 @@ block_ss.add(files(
    '../pve-backup.c',
  ), libproxmox_backup_qemu)
  
-+block_ss.add(when: 'CONFIG_PBS_BDRV', if_true: files('pbs.c'))
-+block_ss.add(when: 'CONFIG_PBS_BDRV', if_true: libproxmox_backup_qemu)
++block_ss.add(files('pbs.c'), libproxmox_backup_qemu)
 +
  
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  system_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/pbs.c b/block/pbs.c
 new file mode 100644
-index 0000000000..a2211e0f3b
+index 0000000000..dd72356bd3
 --- /dev/null
 +++ b/block/pbs.c
-@@ -0,0 +1,305 @@
+@@ -0,0 +1,307 @@
 +/*
 + * Proxmox Backup Server read-only block driver
 + */
@@ -234,7 +232,8 @@ index 0000000000..a2211e0f3b
 +    proxmox_restore_disconnect(s->conn);
 +}
 +
-+static coroutine_fn int64_t pbs_co_getlength(BlockDriverState *bs)
++static coroutine_fn int64_t GRAPH_RDLOCK
++pbs_co_getlength(BlockDriverState *bs)
 +{
 +    BDRVPBSState *s = bs->opaque;
 +    return s->length;
@@ -251,9 +250,9 @@ index 0000000000..a2211e0f3b
 +    aio_co_schedule(rcb->ctx, rcb->co);
 +}
 +
-+static coroutine_fn int pbs_co_preadv(BlockDriverState *bs,
-+                                      int64_t offset, int64_t bytes,
-+                                      QEMUIOVector *qiov, BdrvRequestFlags flags)
++static coroutine_fn int GRAPH_RDLOCK
++pbs_co_preadv(BlockDriverState *bs, int64_t offset, int64_t bytes,
++              QEMUIOVector *qiov, BdrvRequestFlags flags)
 +{
 +    BDRVPBSState *s = bs->opaque;
 +    int ret;
@@ -298,16 +297,17 @@ index 0000000000..a2211e0f3b
 +    return 0;
 +}
 +
-+static coroutine_fn int pbs_co_pwritev(BlockDriverState *bs,
-+                                       int64_t offset, int64_t bytes,
-+                                       QEMUIOVector *qiov, BdrvRequestFlags flags)
++static coroutine_fn int GRAPH_RDLOCK
++pbs_co_pwritev(BlockDriverState *bs, int64_t offset, int64_t bytes,
++               QEMUIOVector *qiov, BdrvRequestFlags flags)
 +{
 +    fprintf(stderr, "pbs-bdrv: cannot write to backup file, make sure "
 +           "any attached disk devices are set to read-only!\n");
 +    return -EPERM;
 +}
 +
-+static void pbs_refresh_filename(BlockDriverState *bs)
++static void GRAPH_RDLOCK
++pbs_refresh_filename(BlockDriverState *bs)
 +{
 +    BDRVPBSState *s = bs->opaque;
 +    if (s->namespace) {
@@ -348,52 +348,11 @@ index 0000000000..a2211e0f3b
 +}
 +
 +block_init(bdrv_pbs_init);
-diff --git a/configure b/configure
-index 133f4e3235..f5a830c1f3 100755
---- a/configure
-+++ b/configure
-@@ -256,6 +256,7 @@ qemu_suffix="qemu"
- softmmu="yes"
- linux_user=""
- bsd_user=""
-+pbs_bdrv="yes"
- plugins="$default_feature"
- ninja=""
- python=
-@@ -809,6 +810,10 @@ for opt do
-   ;;
-   --enable-download) download="enabled"; git_submodules_action=update;
-   ;;
-+  --disable-pbs-bdrv) pbs_bdrv="no"
-+  ;;
-+  --enable-pbs-bdrv) pbs_bdrv="yes"
-+  ;;
-   --enable-plugins) if test "$mingw32" = "yes"; then
-                         error_exit "TCG plugins not currently supported on Windows platforms"
-                     else
-@@ -959,6 +964,7 @@ cat << EOF
-   bsd-user        all BSD usermode emulation targets
-   pie             Position Independent Executables
-   debug-tcg       TCG debugging (default is disabled)
-+  pbs-bdrv        Proxmox backup server read-only block driver support
- 
- NOTE: The object files are built at the place where configure is launched
- EOF
-@@ -1744,6 +1750,9 @@ if test "$solaris" = "yes" ; then
- fi
- echo "SRC_PATH=$source_path" >> $config_host_mak
- echo "TARGET_DIRS=$target_list" >> $config_host_mak
-+if test "$pbs_bdrv" = "yes" ; then
-+  echo "CONFIG_PBS_BDRV=y" >> $config_host_mak
-+fi
- 
- # XXX: suppress that
- if [ "$bsd" = "yes" ] ; then
 diff --git a/meson.build b/meson.build
-index c3330310d9..cbfc9a43fb 100644
+index c70f2a4937..18c3a312eb 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -4319,7 +4319,7 @@ summary_info += {'bzip2 support':     libbzip2}
+@@ -4390,7 +4390,7 @@ summary_info += {'bzip2 support':     libbzip2}
  summary_info += {'lzfse support':     liblzfse}
  summary_info += {'zstd support':      zstd}
  summary_info += {'NUMA host support': numa}
@@ -403,10 +362,10 @@ index c3330310d9..cbfc9a43fb 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libudev':           libudev}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 1b8462a51b..d67a6d448a 100644
+index c155d74230..a4050268ca 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3396,6 +3396,7 @@
+@@ -3451,6 +3451,7 @@
              'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
              'raw', 'rbd',
              { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
@@ -414,7 +373,7 @@ index 1b8462a51b..d67a6d448a 100644
              'ssh', 'throttle', 'vdi', 'vhdx',
              { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
              { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
-@@ -3482,6 +3483,17 @@
+@@ -3537,6 +3538,17 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -432,7 +391,7 @@ index 1b8462a51b..d67a6d448a 100644
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -4890,6 +4902,7 @@
+@@ -4945,6 +4957,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',
@@ -441,7 +400,7 @@ index 1b8462a51b..d67a6d448a 100644
        'nvme-io_uring': { 'type': 'BlockdevOptionsNvmeIoUring',
                           'if': 'CONFIG_BLKIO' },
 diff --git a/qapi/pragma.json b/qapi/pragma.json
-index 325e684411..b6079f6a0e 100644
+index eae9f54700..03467983b3 100644
 --- a/qapi/pragma.json
 +++ b/qapi/pragma.json
 @@ -45,6 +45,7 @@

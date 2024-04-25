@@ -94,20 +94,20 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1089 ++++++++++++++++++++++++++++++++
+ pve-backup.c                   | 1103 ++++++++++++++++++++++++++++++++
  qapi/block-core.json           |  229 +++++++
  qapi/common.json               |   14 +
  qapi/machine.json              |   16 +-
- 14 files changed, 1704 insertions(+), 14 deletions(-)
+ 14 files changed, 1718 insertions(+), 14 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
 
 diff --git a/block/meson.build b/block/meson.build
-index 6fde9f7dcd..6d468f89e5 100644
+index f7d1b7ac42..9df99aceb5 100644
 --- a/block/meson.build
 +++ b/block/meson.build
-@@ -45,6 +45,11 @@ block_ss.add(files(
+@@ -44,6 +44,11 @@ block_ss.add(files(
  ), zstd, zlib, gnutls)
  
  block_ss.add(files('../vma-writer.c'), libuuid)
@@ -120,10 +120,10 @@ index 6fde9f7dcd..6d468f89e5 100644
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  system_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index ca2599de44..6efe28cef5 100644
+index c729cbf1eb..1656859e03 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1029,3 +1029,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+@@ -1037,3 +1037,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
      qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
                                 !!read_only, read_only_mode, errp);
  }
@@ -167,7 +167,7 @@ index ca2599de44..6efe28cef5 100644
 +    hmp_handle_error(mon, error);
 +}
 diff --git a/blockdev.c b/blockdev.c
-index cd5f205ad1..7793143d76 100644
+index 38a40e3e32..3049811be8 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -37,6 +37,7 @@
@@ -204,7 +204,7 @@ index 10fdd822e0..15937793c1 100644
      {
          .name       = "usernet",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index e352f86872..0c8b6725fb 100644
+index 893c3bd240..5c1ffbc602 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
 @@ -101,6 +101,35 @@ ERST
@@ -265,10 +265,10 @@ index 7a7def7530..cba7afe70c 100644
  void hmp_device_add(Monitor *mon, const QDict *qdict);
  void hmp_device_del(Monitor *mon, const QDict *qdict);
 diff --git a/meson.build b/meson.build
-index cd95530d3b..d53976d621 100644
+index 8cb1ccd5e1..955f579308 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1779,6 +1779,7 @@ endif
+@@ -1803,6 +1803,7 @@ endif
  has_gettid = cc.has_function('gettid')
  
  libuuid = cc.find_library('uuid', required: true)
@@ -277,7 +277,7 @@ index cd95530d3b..d53976d621 100644
  # libselinux
  selinux = dependency('libselinux',
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 91be698308..5b9c231a4c 100644
+index ef4634e5c1..6e25279f42 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
 @@ -21,6 +21,7 @@
@@ -586,10 +586,10 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..ae3d137e12
+index 0000000000..903afcd7e9
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1089 @@
+@@ -0,0 +1,1103 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -600,6 +600,7 @@ index 0000000000..ae3d137e12
 +#include "block/block_int-global-state.h"
 +#include "block/blockjob.h"
 +#include "block/dirty-bitmap.h"
++#include "block/graph-lock.h"
 +#include "qapi/qapi-commands-block.h"
 +#include "qapi/qmp/qerror.h"
 +#include "qemu/cutils.h"
@@ -928,13 +929,6 @@ index 0000000000..ae3d137e12
 +        }
 +    }
 +
-+    if (di->job) {
-+        WITH_JOB_LOCK_GUARD() {
-+            job_unref_locked(&di->job->job);
-+            di->job = NULL;
-+        }
-+    }
-+
 +    // remove self from job list
 +    backup_state.di_list = g_list_remove(backup_state.di_list, di);
 +
@@ -952,6 +946,16 @@ index 0000000000..ae3d137e12
 +{
 +    PVEBackupDevInfo *di = opaque;
 +    di->completed_ret = ret;
++
++    /*
++     * Needs to happen outside of coroutine, because it takes the graph write lock.
++     */
++    if (di->job) {
++        WITH_JOB_LOCK_GUARD() {
++            job_unref_locked(&di->job->job);
++            di->job = NULL;
++        }
++    }
 +
 +    /*
 +     * Schedule stream cleanup in async coroutine. close_image and finish might
@@ -1178,7 +1182,7 @@ index 0000000000..ae3d137e12
 + * case of an error, errp will be set, but the returned value might still be a
 + * list.
 + */
-+static GList coroutine_fn *get_device_info(
++static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
 +    const char *devlist,
 +    Error **errp)
 +{
@@ -1279,7 +1283,9 @@ index 0000000000..ae3d137e12
 +    /* Todo: try to auto-detect format based on file name */
 +    format = has_format ? format : BACKUP_FORMAT_VMA;
 +
++    bdrv_graph_co_rdlock();
 +    di_list = get_device_info(devlist, &local_err);
++    bdrv_graph_co_rdunlock();
 +    if (local_err) {
 +        error_propagate(errp, local_err);
 +        goto err;
@@ -1292,7 +1298,11 @@ index 0000000000..ae3d137e12
 +    while (l) {
 +        PVEBackupDevInfo *di = (PVEBackupDevInfo *)l->data;
 +        l = g_list_next(l);
-+        if (bdrv_op_is_blocked(di->bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp)) {
++
++        bdrv_graph_co_rdlock();
++        bool blocked = bdrv_op_is_blocked(di->bs, BLOCK_OP_TYPE_BACKUP_SOURCE, errp);
++        bdrv_graph_co_rdunlock();
++        if (blocked) {
 +            goto err;
 +        }
 +
@@ -1376,7 +1386,9 @@ index 0000000000..ae3d137e12
 +
 +            di->block_size = dump_cb_block_size;
 +
++            bdrv_graph_co_rdlock();
 +            const char *devname = bdrv_get_device_name(di->bs);
++            bdrv_graph_co_rdunlock();
 +            PBSBitmapAction action = PBS_BITMAP_ACTION_NOT_USED;
 +            size_t dirty = di->size;
 +
@@ -1452,7 +1464,9 @@ index 0000000000..ae3d137e12
 +                goto err_mutex;
 +            }
 +
++            bdrv_graph_co_rdlock();
 +            const char *devname = bdrv_get_device_name(di->bs);
++            bdrv_graph_co_rdunlock();
 +            di->dev_id = vma_writer_register_stream(vmaw, devname, di->size);
 +            if (di->dev_id <= 0) {
 +                error_set(errp, ERROR_CLASS_GENERIC_ERROR,
@@ -1680,10 +1694,10 @@ index 0000000000..ae3d137e12
 +    return ret;
 +}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index bb471c078d..1b8462a51b 100644
+index 299e3fc350..c155d74230 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -839,6 +839,235 @@
+@@ -841,6 +841,235 @@
  { 'command': 'query-block', 'returns': ['BlockInfo'],
    'allow-preconfig': true }
  
@@ -1942,7 +1956,7 @@ index 6fed9cde1a..630a2a8f9a 100644
 +##
 +{ 'struct': 'UuidInfo', 'data': {'UUID': 'str'} }
 diff --git a/qapi/machine.json b/qapi/machine.json
-index 7da3c519ba..888457f810 100644
+index a9fd40d844..d97f024173 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
 @@ -4,6 +4,8 @@
@@ -1954,7 +1968,7 @@ index 7da3c519ba..888457f810 100644
  ##
  # = Machines
  ##
-@@ -230,20 +232,6 @@
+@@ -237,20 +239,6 @@
  ##
  { 'command': 'query-target', 'returns': 'TargetInfo' }
  

@@ -15,7 +15,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 13 insertions(+), 3 deletions(-)
 
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index a2dddf6f57..0a219c2b75 100644
+index dbdbbca44e..2cbf6f9346 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -325,14 +325,24 @@ static int coroutine_fn GRAPH_RDLOCK
@@ -45,4 +45,4 @@ index a2dddf6f57..0a219c2b75 100644
 +    return bdrv_co_pdiscard(s->target, aligned_offset, aligned_bytes);
  }
  
- static void cbw_refresh_filename(BlockDriverState *bs)
+ static void GRAPH_RDLOCK cbw_refresh_filename(BlockDriverState *bs)

@@ -25,7 +25,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  4 files changed, 23 insertions(+), 6 deletions(-)
 
 diff --git a/block/block-copy.c b/block/block-copy.c
-index 3c61e52bae..c9a722a5a6 100644
+index 7e3b378528..adb1cbb440 100644
 --- a/block/block-copy.c
 +++ b/block/block-copy.c
 @@ -310,6 +310,7 @@ void block_copy_set_copy_opts(BlockCopyState *s, bool use_copy_range,
@@ -36,7 +36,7 @@ index 3c61e52bae..c9a722a5a6 100644
                                                   Error **errp)
  {
      int ret;
-@@ -330,7 +331,7 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
+@@ -335,7 +336,7 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
                      "used. If the actual block size of the target exceeds "
                      "this default, the backup may be unusable",
                      BLOCK_COPY_CLUSTER_SIZE_DEFAULT);
@@ -45,7 +45,7 @@ index 3c61e52bae..c9a722a5a6 100644
      } else if (ret < 0 && !target_does_cow) {
          error_setg_errno(errp, -ret,
              "Couldn't determine the cluster size of the target image, "
-@@ -340,16 +341,18 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
+@@ -345,16 +346,18 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
          return ret;
      } else if (ret < 0 && target_does_cow) {
          /* Not fatal; just trudge on ahead. */
@@ -66,9 +66,9 @@ index 3c61e52bae..c9a722a5a6 100644
                                       Error **errp)
  {
      ERRP_GUARD();
-@@ -358,7 +361,13 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
-     BdrvDirtyBitmap *copy_bitmap;
-     bool is_fleecing;
+@@ -365,7 +368,13 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
+ 
+     GLOBAL_STATE_CODE();
  
 -    cluster_size = block_copy_calculate_cluster_size(target->bs, errp);
 +    if (min_cluster_size && !is_power_of_2(min_cluster_size)) {
@@ -82,10 +82,10 @@ index 3c61e52bae..c9a722a5a6 100644
          return NULL;
      }
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index 3503702d71..4a8c5bdb62 100644
+index 5506f66857..fbc5aeb9eb 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
-@@ -479,7 +479,8 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -481,7 +481,8 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
  
      s->discard_source = flags & BDRV_O_CBW_DISCARD_SOURCE;
      s->bcs = block_copy_state_new(bs->file, s->target, bs, bitmap,
@@ -108,10 +108,10 @@ index bdc703bacd..77857c6c68 100644
  
  /* Function should be called prior any actual copy request */
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 4297e5beda..33e7e3c090 100644
+index 82960797dc..f2fec625cc 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -4825,12 +4825,18 @@
+@@ -4880,12 +4880,18 @@
  #     @on-cbw-error parameter will decide how this failure is handled.
  #     Default 0. (Since 7.1)
  #

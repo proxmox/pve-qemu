@@ -63,15 +63,15 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  block/monitor/block-hmp-cmds.c |   1 +
- pve-backup.c                   | 143 ++++++++++++++++++++++++++++++++-
+ pve-backup.c                   | 145 ++++++++++++++++++++++++++++++++-
  qapi/block-core.json           |   8 +-
- 3 files changed, 148 insertions(+), 4 deletions(-)
+ 3 files changed, 150 insertions(+), 4 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 6efe28cef5..ca29cc4281 100644
+index 1656859e03..f6cc9e5cf7 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1064,6 +1064,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1072,6 +1072,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
          NULL, NULL,
          devlist, qdict_haskey(qdict, "speed"), speed,
          false, 0, // BackupPerf max-workers
@@ -80,21 +80,22 @@ index 6efe28cef5..ca29cc4281 100644
  
      hmp_handle_error(mon, error);
 diff --git a/pve-backup.c b/pve-backup.c
-index e6b17b797e..00aaff6509 100644
+index 777db7938e..4c728951ac 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -7,8 +7,10 @@
+@@ -7,9 +7,11 @@
  #include "sysemu/blockdev.h"
  #include "block/block_int-global-state.h"
  #include "block/blockjob.h"
 +#include "block/copy-before-write.h"
  #include "block/dirty-bitmap.h"
+ #include "block/graph-lock.h"
  #include "qapi/qapi-commands-block.h"
 +#include "qapi/qmp/qdict.h"
  #include "qapi/qmp/qerror.h"
  #include "qemu/cutils.h"
  
-@@ -80,8 +82,15 @@ static void pvebackup_init(void)
+@@ -81,8 +83,15 @@ static void pvebackup_init(void)
  // initialize PVEBackupState at startup
  opts_init(pvebackup_init);
  
@@ -110,7 +111,7 @@ index e6b17b797e..00aaff6509 100644
      size_t size;
      uint64_t block_size;
      uint8_t dev_id;
-@@ -361,6 +370,25 @@ static void pvebackup_complete_cb(void *opaque, int ret)
+@@ -355,6 +364,25 @@ static void pvebackup_complete_cb(void *opaque, int ret)
      PVEBackupDevInfo *di = opaque;
      di->completed_ret = ret;
  
@@ -134,9 +135,9 @@ index e6b17b797e..00aaff6509 100644
 +    }
 +
      /*
-      * Schedule stream cleanup in async coroutine. close_image and finish might
-      * take a while, so we can't block on them here. This way it also doesn't
-@@ -521,9 +549,82 @@ static void create_backup_jobs_bh(void *opaque) {
+      * Needs to happen outside of coroutine, because it takes the graph write lock.
+      */
+@@ -525,9 +553,84 @@ static void create_backup_jobs_bh(void *opaque) {
  
          bdrv_drained_begin(di->bs);
  
@@ -144,7 +145,9 @@ index e6b17b797e..00aaff6509 100644
 +
 +        BlockDriverState *source_bs = di->bs;
 +        bool discard_source = false;
++        bdrv_graph_co_rdlock();
 +        const char *job_id = bdrv_get_device_name(di->bs);
++        bdrv_graph_co_rdunlock();
 +        if (di->fleecing.bs) {
 +            QDict *cbw_opts = qdict_new();
 +            qdict_put_str(cbw_opts, "driver", "copy-before-write");
@@ -221,7 +224,7 @@ index e6b17b797e..00aaff6509 100644
              BLOCKDEV_ON_ERROR_REPORT, JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn,
              &local_err);
  
-@@ -581,6 +682,14 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -585,6 +688,14 @@ static void create_backup_jobs_bh(void *opaque) {
      aio_co_enter(data->ctx, data->co);
  }
  
@@ -236,15 +239,15 @@ index e6b17b797e..00aaff6509 100644
  /*
   * Returns a list of device infos, which needs to be freed by the caller. In
   * case of an error, errp will be set, but the returned value might still be a
-@@ -588,6 +697,7 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -592,6 +703,7 @@ static void create_backup_jobs_bh(void *opaque) {
   */
- static GList coroutine_fn *get_device_info(
+ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
      const char *devlist,
 +    bool fleecing,
      Error **errp)
  {
      gchar **devs = NULL;
-@@ -611,6 +721,31 @@ static GList coroutine_fn *get_device_info(
+@@ -615,6 +727,31 @@ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
              }
              PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
              di->bs = bs;
@@ -276,7 +279,7 @@ index e6b17b797e..00aaff6509 100644
              di_list = g_list_append(di_list, di);
              d++;
          }
-@@ -660,6 +795,7 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -664,6 +801,7 @@ UuidInfo coroutine_fn *qmp_backup(
      const char *devlist,
      bool has_speed, int64_t speed,
      bool has_max_workers, int64_t max_workers,
@@ -284,16 +287,16 @@ index e6b17b797e..00aaff6509 100644
      Error **errp)
  {
      assert(qemu_in_coroutine());
-@@ -687,7 +823,7 @@ UuidInfo coroutine_fn *qmp_backup(
-     /* Todo: try to auto-detect format based on file name */
+@@ -692,7 +830,7 @@ UuidInfo coroutine_fn *qmp_backup(
      format = has_format ? format : BACKUP_FORMAT_VMA;
  
+     bdrv_graph_co_rdlock();
 -    di_list = get_device_info(devlist, &local_err);
 +    di_list = get_device_info(devlist, has_fleecing && fleecing, &local_err);
+     bdrv_graph_co_rdunlock();
      if (local_err) {
          error_propagate(errp, local_err);
-         goto err;
-@@ -1086,5 +1222,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1100,5 +1238,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->query_bitmap_info = true;
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
@@ -301,10 +304,10 @@ index e6b17b797e..00aaff6509 100644
      return ret;
  }
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 58fd637e86..0bc5f42677 100644
+index 48eec4ef29..1c036e488e 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -933,6 +933,10 @@
+@@ -935,6 +935,10 @@
  #
  # @max-workers: see @BackupPerf for details. Default 16.
  #
@@ -315,7 +318,7 @@ index 58fd637e86..0bc5f42677 100644
  # Returns: the uuid of the backup job
  #
  ##
-@@ -953,7 +957,8 @@
+@@ -955,7 +959,8 @@
                                      '*firewall-file': 'str',
                                      '*devlist': 'str',
                                      '*speed': 'int',
@@ -325,7 +328,7 @@ index 58fd637e86..0bc5f42677 100644
    'returns': 'UuidInfo', 'coroutine': true }
  
  ##
-@@ -1009,6 +1014,7 @@
+@@ -1011,6 +1016,7 @@
              'pbs-dirty-bitmap-migration': 'bool',
              'pbs-masterkey': 'bool',
              'pbs-library-version': 'str',

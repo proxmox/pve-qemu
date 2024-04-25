@@ -199,7 +199,7 @@ index 0000000000..e46abf1070
 +    return bs;
 +}
 diff --git a/block/backup.c b/block/backup.c
-index 39410dcf8d..af87fa6aa9 100644
+index 2516eac5a7..aec140e0c8 100644
 --- a/block/backup.c
 +++ b/block/backup.c
 @@ -29,28 +29,6 @@
@@ -231,7 +231,7 @@ index 39410dcf8d..af87fa6aa9 100644
  static const BlockJobDriver backup_job_driver;
  
  static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
-@@ -457,6 +435,14 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
+@@ -461,6 +439,14 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
      }
  
      cluster_size = block_copy_cluster_size(bcs);
@@ -247,7 +247,7 @@ index 39410dcf8d..af87fa6aa9 100644
      if (perf->max_chunk && perf->max_chunk < cluster_size) {
          error_setg(errp, "Required max-chunk (%" PRIi64 ") is less than backup "
 diff --git a/block/meson.build b/block/meson.build
-index 59b71ba9f3..6fde9f7dcd 100644
+index e709b67d37..f7d1b7ac42 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -4,6 +4,7 @@ block_ss.add(files(
@@ -255,11 +255,11 @@ index 59b71ba9f3..6fde9f7dcd 100644
    'amend.c',
    'backup.c',
 +  'backup-dump.c',
-   'copy-before-write.c',
    'blkdebug.c',
    'blklogwrites.c',
+   'blkverify.c',
 diff --git a/include/block/block_int-common.h b/include/block/block_int-common.h
-index 74195c3004..0a0339eee4 100644
+index 4e31d161c5..2fc6c37bc9 100644
 --- a/include/block/block_int-common.h
 +++ b/include/block/block_int-common.h
 @@ -26,6 +26,7 @@
@@ -312,10 +312,10 @@ index 74195c3004..0a0339eee4 100644
      BDRV_TRACKED_READ,
      BDRV_TRACKED_WRITE,
 diff --git a/job.c b/job.c
-index 72d57f0934..93e22d180b 100644
+index 99a2e54b54..d7a18b8e6a 100644
 --- a/job.c
 +++ b/job.c
-@@ -330,7 +330,8 @@ static bool job_started_locked(Job *job)
+@@ -331,7 +331,8 @@ static bool job_started_locked(Job *job)
  }
  
  /* Called with job_mutex held. */

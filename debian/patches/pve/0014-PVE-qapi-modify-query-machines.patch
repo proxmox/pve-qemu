@@ -30,10 +30,10 @@ index 3860a50c3b..40821e2317 100644
              info->default_cpu_type = g_strdup(mc->default_cpu_type);
          }
 diff --git a/qapi/machine.json b/qapi/machine.json
-index 5c9a4d55f4..fbb61f18e4 100644
+index 03a72efc11..297ad0e0e5 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
-@@ -139,6 +139,8 @@
+@@ -146,6 +146,8 @@
  #
  # @is-default: whether the machine is default
  #
@@ -42,7 +42,7 @@ index 5c9a4d55f4..fbb61f18e4 100644
  # @cpu-max: maximum number of CPUs supported by the machine type
  #     (since 1.5)
  #
-@@ -163,7 +165,7 @@
+@@ -170,7 +172,7 @@
  ##
  { 'struct': 'MachineInfo',
    'data': { 'name': 'str', '*alias': 'str',

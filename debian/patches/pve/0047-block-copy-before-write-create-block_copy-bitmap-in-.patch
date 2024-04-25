@@ -28,10 +28,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  4 files changed, 60 insertions(+), 58 deletions(-)
 
 diff --git a/block/block-copy.c b/block/block-copy.c
-index e13d7bc6b6..b61685f1a2 100644
+index 9ee3dd7ef5..8fca2c3698 100644
 --- a/block/block-copy.c
 +++ b/block/block-copy.c
-@@ -346,6 +346,7 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
+@@ -351,6 +351,7 @@ static int64_t block_copy_calculate_cluster_size(BlockDriverState *target,
  }
  
  BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
@@ -39,7 +39,7 @@ index e13d7bc6b6..b61685f1a2 100644
                                       const BdrvDirtyBitmap *bitmap,
                                       Error **errp)
  {
-@@ -360,7 +361,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
+@@ -367,7 +368,7 @@ BlockCopyState *block_copy_state_new(BdrvChild *source, BdrvChild *target,
          return NULL;
      }
  
@@ -49,10 +49,10 @@ index e13d7bc6b6..b61685f1a2 100644
      if (!copy_bitmap) {
          return NULL;
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index 0a219c2b75..d3b95bd600 100644
+index 2cbf6f9346..afa5f473d2 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
-@@ -470,7 +470,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -472,7 +472,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
              ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
               bs->file->bs->supported_zero_flags);
  
