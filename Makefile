@@ -31,7 +31,8 @@ PC_BIOS_FW_PURGE_LIST_IN = \
 	s390-ccw.img \
 	s390-netboot.img \
 	u-boot.e500 \
-	.*\.dtb \
+	.*[a-zA-Z0-9]\.dtb \
+	.*[a-zA-Z0-9]\.dts \
 	qemu_vga.ndrv \
 	slof.bin \
 	opensbi-riscv.*-generic-fw_dynamic.bin \
