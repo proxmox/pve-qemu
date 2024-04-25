@@ -59,10 +59,10 @@ index a6ff6a4875..e7f74d1c63 100644
      qapi_free_BalloonInfo(info);
  }
 diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-index d004cf29d2..2660ed520b 100644
+index 609e39a821..8cb6dfcac3 100644
 --- a/hw/virtio/virtio-balloon.c
 +++ b/hw/virtio/virtio-balloon.c
-@@ -782,8 +782,37 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
+@@ -781,8 +781,37 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
  static void virtio_balloon_stat(void *opaque, BalloonInfo *info)
  {
      VirtIOBalloon *dev = opaque;
@@ -103,10 +103,10 @@ index d004cf29d2..2660ed520b 100644
  
  static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
 diff --git a/qapi/machine.json b/qapi/machine.json
-index b6d634b30d..03a72efc11 100644
+index e8b60641f2..2054cdc70d 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
-@@ -1087,9 +1087,29 @@
+@@ -1079,9 +1079,29 @@
  # @actual: the logical size of the VM in bytes Formula used:
  #     logical_vm_size = vm_ram_size - balloon_size
  #
@@ -138,10 +138,10 @@ index b6d634b30d..03a72efc11 100644
  ##
  # @query-balloon:
 diff --git a/qapi/pragma.json b/qapi/pragma.json
-index 0aa4eeddd3..eae9f54700 100644
+index 59fbe74b8c..be8fa304c5 100644
 --- a/qapi/pragma.json
 +++ b/qapi/pragma.json
-@@ -35,6 +35,7 @@
+@@ -90,6 +90,7 @@
      'member-name-exceptions': [     # visible in:
          'ACPISlotType',             # query-acpi-ospm-status
          'AcpiTableOptions',         # -acpitable

@@ -26,10 +26,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 migration/pbs-state.c
 
 diff --git a/include/migration/misc.h b/include/migration/misc.h
-index 1bc8902e6d..43eb0e46d6 100644
+index c9e200f4eb..12c99ebc69 100644
 --- a/include/migration/misc.h
 +++ b/include/migration/misc.h
-@@ -80,4 +80,7 @@ bool migration_in_bg_snapshot(void);
+@@ -117,4 +117,7 @@ bool migration_in_bg_snapshot(void);
  /* migration/block-dirty-bitmap.c */
  void dirty_bitmap_mig_init(void);
  
@@ -38,7 +38,7 @@ index 1bc8902e6d..43eb0e46d6 100644
 +
  #endif
 diff --git a/migration/meson.build b/migration/meson.build
-index 8f9d122187..2b9d2cc881 100644
+index 800f12a60d..35a4306183 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
 @@ -7,7 +7,9 @@ migration_files = files(
@@ -52,17 +52,17 @@ index 8f9d122187..2b9d2cc881 100644
  system_ss.add(files(
    'block-dirty-bitmap.c',
 diff --git a/migration/migration.c b/migration/migration.c
-index 982ab85f04..b84924442d 100644
+index 86bf76e925..b8d7e471a4 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
-@@ -202,6 +202,7 @@ void migration_object_init(void)
+@@ -239,6 +239,7 @@ void migration_object_init(void)
      blk_mig_init();
      ram_mig_init();
      dirty_bitmap_mig_init();
 +    pbs_state_mig_init();
  }
  
- void migration_cancel(const Error *error)
+ typedef struct {
 diff --git a/migration/pbs-state.c b/migration/pbs-state.c
 new file mode 100644
 index 0000000000..887e998b9e
@@ -174,10 +174,10 @@ index 0000000000..887e998b9e
 +                         NULL);
 +}
 diff --git a/pve-backup.c b/pve-backup.c
-index 903afcd7e9..777db7938e 100644
+index 9c13a92623..9d480a8eec 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -1096,6 +1096,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1091,6 +1091,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->pbs_library_version = g_strdup(proxmox_backup_qemu_version());
      ret->pbs_dirty_bitmap = true;
      ret->pbs_dirty_bitmap_savevm = true;
@@ -186,10 +186,10 @@ index 903afcd7e9..777db7938e 100644
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index a4050268ca..7b977459fa 100644
+index fc32ff9957..f516d8e95a 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -993,6 +993,11 @@
+@@ -1004,6 +1004,11 @@
  # @pbs-dirty-bitmap-savevm: True if 'dirty-bitmaps' migration capability can
  #                           safely be set for savevm-async.
  #
@@ -201,7 +201,7 @@ index a4050268ca..7b977459fa 100644
  # @pbs-masterkey: True if the QMP backup call supports the 'master_keyfile'
  #                 parameter.
  #
-@@ -1003,6 +1008,7 @@
+@@ -1017,6 +1022,7 @@
    'data': { 'pbs-dirty-bitmap': 'bool',
              'query-bitmap-info': 'bool',
              'pbs-dirty-bitmap-savevm': 'bool',

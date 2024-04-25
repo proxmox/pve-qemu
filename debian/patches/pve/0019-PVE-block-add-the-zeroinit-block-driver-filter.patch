@@ -14,7 +14,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 block/zeroinit.c
 
 diff --git a/block/meson.build b/block/meson.build
-index 59ff6d380c..8ded0dc18b 100644
+index e1f03fd773..b530e117b5 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -39,6 +39,7 @@ block_ss.add(files(
@@ -27,7 +27,7 @@ index 59ff6d380c..8ded0dc18b 100644
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
 diff --git a/block/zeroinit.c b/block/zeroinit.c
 new file mode 100644
-index 0000000000..1f2032bf99
+index 0000000000..696558d8d6
 --- /dev/null
 +++ b/block/zeroinit.c
 @@ -0,0 +1,214 @@
@@ -116,9 +116,9 @@ index 0000000000..1f2032bf99
 +                           &child_of_bds,
 +                           BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY, false,
 +                           &local_err);
-+    bdrv_graph_wrlock(bs);
++    bdrv_graph_wrlock();
 +    bs->file = file;
-+    bdrv_graph_wrunlock(bs);
++    bdrv_graph_wrunlock();
 +    if (local_err) {
 +        ret = -EINVAL;
 +        error_propagate(errp, local_err);
@@ -131,9 +131,9 @@ index 0000000000..1f2032bf99
 +    ret = 0;
 +fail:
 +    if (ret < 0) {
-+        bdrv_graph_wrlock(bs);
++        bdrv_graph_wrlock();
 +        bdrv_unref_child(bs, bs->file);
-+        bdrv_graph_wrunlock(bs);
++        bdrv_graph_wrunlock();
 +    }
 +    qemu_opts_del(opts);
 +    return ret;

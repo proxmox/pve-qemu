@@ -94,17 +94,17 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1103 ++++++++++++++++++++++++++++++++
- qapi/block-core.json           |  229 +++++++
+ pve-backup.c                   | 1098 ++++++++++++++++++++++++++++++++
+ qapi/block-core.json           |  233 +++++++
  qapi/common.json               |   14 +
  qapi/machine.json              |   16 +-
- 14 files changed, 1718 insertions(+), 14 deletions(-)
+ 14 files changed, 1717 insertions(+), 14 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
 
 diff --git a/block/meson.build b/block/meson.build
-index f7d1b7ac42..9df99aceb5 100644
+index e99914eaa4..6bba803f94 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -44,6 +44,11 @@ block_ss.add(files(
@@ -120,10 +120,10 @@ index f7d1b7ac42..9df99aceb5 100644
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  system_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index c729cbf1eb..1656859e03 100644
+index d954bec6f1..5000c084c5 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1037,3 +1037,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+@@ -1008,3 +1008,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
      qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
                                 !!read_only, read_only_mode, errp);
  }
@@ -167,7 +167,7 @@ index c729cbf1eb..1656859e03 100644
 +    hmp_handle_error(mon, error);
 +}
 diff --git a/blockdev.c b/blockdev.c
-index 38a40e3e32..3049811be8 100644
+index d27d8c38ec..5e5dbc1da9 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -37,6 +37,7 @@
@@ -179,7 +179,7 @@ index 38a40e3e32..3049811be8 100644
  #include "monitor/monitor.h"
  #include "qemu/error-report.h"
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
-index 10fdd822e0..15937793c1 100644
+index d5ab880492..6c97248d1b 100644
 --- a/hmp-commands-info.hx
 +++ b/hmp-commands-info.hx
 @@ -471,6 +471,20 @@ SRST
@@ -204,7 +204,7 @@ index 10fdd822e0..15937793c1 100644
      {
          .name       = "usernet",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index 893c3bd240..5c1ffbc602 100644
+index 7506de251c..d5f9c28194 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
 @@ -101,6 +101,35 @@ ERST
@@ -265,10 +265,10 @@ index 7a7def7530..cba7afe70c 100644
  void hmp_device_add(Monitor *mon, const QDict *qdict);
  void hmp_device_del(Monitor *mon, const QDict *qdict);
 diff --git a/meson.build b/meson.build
-index 8cb1ccd5e1..955f579308 100644
+index 620cc594b2..d16b97cf3c 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1803,6 +1803,7 @@ endif
+@@ -1923,6 +1923,7 @@ endif
  has_gettid = cc.has_function('gettid')
  
  libuuid = cc.find_library('uuid', required: true)
@@ -586,10 +586,10 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..903afcd7e9
+index 0000000000..9c13a92623
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1103 @@
+@@ -0,0 +1,1098 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -1112,9 +1112,6 @@ index 0000000000..903afcd7e9
 +            sync_mode = MIRROR_SYNC_MODE_BITMAP;
 +            bitmap_mode = BITMAP_SYNC_MODE_ON_SUCCESS;
 +        }
-+        AioContext *aio_context = bdrv_get_aio_context(di->bs);
-+        aio_context_acquire(aio_context);
-+
 +        bdrv_drained_begin(di->bs);
 +
 +        BlockJob *job = backup_job_create(
@@ -1124,8 +1121,6 @@ index 0000000000..903afcd7e9
 +            &local_err);
 +
 +        bdrv_drained_end(di->bs);
-+
-+        aio_context_release(aio_context);
 +
 +        di->job = job;
 +        if (job) {
@@ -1694,10 +1689,10 @@ index 0000000000..903afcd7e9
 +    return ret;
 +}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 299e3fc350..c155d74230 100644
+index f7c2b63c5d..e49c7b5bc9 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -841,6 +841,235 @@
+@@ -851,6 +851,239 @@
  { 'command': 'query-block', 'returns': ['BlockInfo'],
    'allow-preconfig': true }
  
@@ -1766,6 +1761,9 @@ index 299e3fc350..c155d74230 100644
 +# @config-file: a configuration file to include into
 +#               the backup archive.
 +#
++# @firewall-file: a firewall configuration file to include into the backup
++#     archive.
++#
 +# @speed: the maximum speed, in bytes per second
 +#
 +# @devlist: list of block device names (separated by ',', ';'
@@ -1833,8 +1831,6 @@ index 299e3fc350..c155d74230 100644
 +#
 +# Cancel the current executing backup process.
 +#
-+# Returns: nothing on success
-+#
 +# Notes: This command succeeds even if there is no backup process running.
 +#
 +##
@@ -1857,6 +1853,9 @@ index 299e3fc350..c155d74230 100644
 +#                 parameter.
 +#
 +# @pbs-library-version: Running version of libproxmox-backup-qemu0 library.
++#
++# @backup-max-workers: Whether the 'max-workers' @BackupPerf setting is
++#     supported or not.
 +#
 +##
 +{ 'struct': 'ProxmoxSupportStatus',
@@ -1934,10 +1933,10 @@ index 299e3fc350..c155d74230 100644
  # @BlockDeviceTimedStats:
  #
 diff --git a/qapi/common.json b/qapi/common.json
-index 6fed9cde1a..630a2a8f9a 100644
+index 7558ce5430..6e3d800373 100644
 --- a/qapi/common.json
 +++ b/qapi/common.json
-@@ -207,3 +207,17 @@
+@@ -200,3 +200,17 @@
  ##
  { 'struct': 'HumanReadableText',
    'data': { 'human-readable-text': 'str' } }
@@ -1956,7 +1955,7 @@ index 6fed9cde1a..630a2a8f9a 100644
 +##
 +{ 'struct': 'UuidInfo', 'data': {'UUID': 'str'} }
 diff --git a/qapi/machine.json b/qapi/machine.json
-index a9fd40d844..d97f024173 100644
+index 1d69bffaa0..731d8d2f60 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
 @@ -4,6 +4,8 @@

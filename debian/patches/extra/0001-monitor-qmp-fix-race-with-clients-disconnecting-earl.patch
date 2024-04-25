@@ -144,7 +144,7 @@ index a239945e8d..589c9524f8 100644
          monitor_qmp_caps_reset(mon);
          data = qmp_greeting(mon);
 diff --git a/qapi/qmp-dispatch.c b/qapi/qmp-dispatch.c
-index 176b549473..790bb7d1da 100644
+index f3488afeef..2624eb3470 100644
 --- a/qapi/qmp-dispatch.c
 +++ b/qapi/qmp-dispatch.c
 @@ -117,16 +117,28 @@ typedef struct QmpDispatchBH {
@@ -180,7 +180,7 @@ index 176b549473..790bb7d1da 100644
      aio_co_wake(data->co);
  }
  
-@@ -253,6 +265,7 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
+@@ -250,6 +262,7 @@ QDict *coroutine_mixed_fn qmp_dispatch(const QmpCommandList *cmds, QObject *requ
              .ret        = &ret,
              .errp       = &err,
              .co         = qemu_coroutine_self(),

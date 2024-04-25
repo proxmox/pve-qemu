@@ -20,7 +20,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 26 deletions(-)
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
-index dad8fe6375..7aff9763ad 100644
+index f3ed2935c4..29138dcc49 100644
 --- a/block/alloc-track.c
 +++ b/block/alloc-track.c
 @@ -25,15 +25,9 @@
@@ -47,7 +47,7 @@ index dad8fe6375..7aff9763ad 100644
 -
  fail:
      if (ret < 0) {
-         bdrv_graph_wrlock(bs);
+         bdrv_graph_wrlock();
 @@ -289,18 +281,8 @@ track_child_perm(BlockDriverState *bs, BdrvChild *c, BdrvChildRole role,
                   BlockReopenQueue *reopen_queue, uint64_t perm, uint64_t shared,
                   uint64_t *nperm, uint64_t *nshared)

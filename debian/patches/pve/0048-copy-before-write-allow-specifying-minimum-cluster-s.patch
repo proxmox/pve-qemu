@@ -82,10 +82,10 @@ index 7e3b378528..adb1cbb440 100644
          return NULL;
      }
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index 5506f66857..fbc5aeb9eb 100644
+index cd65524e26..ac05a4993f 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
-@@ -481,7 +481,8 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -477,7 +477,8 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
  
      s->discard_source = flags & BDRV_O_CBW_DISCARD_SOURCE;
      s->bcs = block_copy_state_new(bs->file, s->target, bs, bitmap,
@@ -94,7 +94,7 @@ index 5506f66857..fbc5aeb9eb 100644
 +                                  opts->min_cluster_size, errp);
      if (!s->bcs) {
          error_prepend(errp, "Cannot create block-copy-state: ");
-         ret = -EINVAL;
+         return -EINVAL;
 diff --git a/include/block/block-copy.h b/include/block/block-copy.h
 index bdc703bacd..77857c6c68 100644
 --- a/include/block/block-copy.h
@@ -108,12 +108,12 @@ index bdc703bacd..77857c6c68 100644
  
  /* Function should be called prior any actual copy request */
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 82960797dc..f2fec625cc 100644
+index d796d49abb..edbf6e78b9 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -4880,12 +4880,18 @@
+@@ -4930,12 +4930,18 @@
  #     @on-cbw-error parameter will decide how this failure is handled.
- #     Default 0. (Since 7.1)
+ #     Default 0.  (Since 7.1)
  #
 +# @min-cluster-size: Minimum size of blocks used by copy-before-write
 +#     operations.  Has to be a power of 2.  No effect if smaller than

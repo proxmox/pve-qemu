@@ -49,10 +49,10 @@ index 9ee3dd7ef5..8fca2c3698 100644
      if (!copy_bitmap) {
          return NULL;
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index 2cbf6f9346..afa5f473d2 100644
+index 6d89af0b29..ed2c228da7 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
-@@ -472,7 +472,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -468,7 +468,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
              ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
               bs->file->bs->supported_zero_flags);
  
@@ -60,7 +60,7 @@ index 2cbf6f9346..afa5f473d2 100644
 +    s->bcs = block_copy_state_new(bs->file, s->target, bs, bitmap, errp);
      if (!s->bcs) {
          error_prepend(errp, "Cannot create block-copy-state: ");
-         ret = -EINVAL;
+         return -EINVAL;
 diff --git a/include/block/block-copy.h b/include/block/block-copy.h
 index 0700953ab8..8b41643bfa 100644
 --- a/include/block/block-copy.h

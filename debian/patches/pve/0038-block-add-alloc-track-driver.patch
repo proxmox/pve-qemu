@@ -42,7 +42,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
 new file mode 100644
-index 0000000000..14698c362e
+index 0000000000..b9f8ea9137
 --- /dev/null
 +++ b/block/alloc-track.c
 @@ -0,0 +1,366 @@
@@ -140,9 +140,9 @@ index 0000000000..14698c362e
 +    file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
 +                           BDRV_CHILD_DATA | BDRV_CHILD_METADATA, false,
 +                           &local_err);
-+    bdrv_graph_wrlock(bs);
++    bdrv_graph_wrlock();
 +    bs->file = file;
-+    bdrv_graph_wrunlock(bs);
++    bdrv_graph_wrunlock();
 +    if (local_err) {
 +        ret = -EINVAL;
 +        error_propagate(errp, local_err);
@@ -186,9 +186,9 @@ index 0000000000..14698c362e
 +
 +fail:
 +    if (ret < 0) {
-+        bdrv_graph_wrlock(bs);
++        bdrv_graph_wrlock();
 +        bdrv_unref_child(bs, bs->file);
-+        bdrv_graph_wrunlock(bs);
++        bdrv_graph_wrunlock();
 +        if (s->bitmap) {
 +            bdrv_release_dirty_bitmap(s->bitmap);
 +        }
@@ -413,7 +413,7 @@ index 0000000000..14698c362e
 +
 +block_init(bdrv_alloc_track_init);
 diff --git a/block/meson.build b/block/meson.build
-index 549c0c7103..73777a1620 100644
+index 1945e04eeb..2873f3a25a 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -2,6 +2,7 @@ block_ss.add(genh)
@@ -425,10 +425,10 @@ index 549c0c7103..73777a1620 100644
    'backup.c',
    'backup-dump.c',
 diff --git a/block/stream.c b/block/stream.c
-index 87a97cb8a2..3a04e95ee2 100644
+index d2da83ae7c..f941cba14e 100644
 --- a/block/stream.c
 +++ b/block/stream.c
-@@ -114,6 +114,40 @@ static int stream_prepare(Job *job)
+@@ -120,6 +120,40 @@ static int stream_prepare(Job *job)
              ret = -EPERM;
              goto out;
          }
@@ -451,11 +451,11 @@ index 87a97cb8a2..3a04e95ee2 100644
 +
 +            bdrv_ref(unfiltered_bs); // unrefed by bdrv_replace_node()
 +            bdrv_drained_begin(file_bs);
-+            bdrv_graph_wrlock(s->target_bs);
++            bdrv_graph_wrlock();
 +
 +            bdrv_replace_node(unfiltered_bs, file_bs, &local_err);
 +
-+            bdrv_graph_wrunlock(s->target_bs);
++            bdrv_graph_wrunlock();
 +            bdrv_drained_end(file_bs);
 +            bdrv_unref(unfiltered_bs);
 +

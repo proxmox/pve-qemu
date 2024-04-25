@@ -45,7 +45,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  10 files changed, 37 insertions(+), 8 deletions(-)
 
 diff --git a/block/backup.c b/block/backup.c
-index aec140e0c8..f19b751fe6 100644
+index 16d611c4ca..1963e47ab9 100644
 --- a/block/backup.c
 +++ b/block/backup.c
 @@ -332,7 +332,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
@@ -109,7 +109,7 @@ index 8fca2c3698..7e3b378528 100644
  }
  
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index afa5f473d2..5506f66857 100644
+index ed2c228da7..cd65524e26 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -44,6 +44,7 @@ typedef struct BDRVCopyBeforeWriteState {
@@ -140,7 +140,7 @@ index afa5f473d2..5506f66857 100644
              *nshared &= ~(BLK_PERM_WRITE | BLK_PERM_RESIZE);
          }
      }
-@@ -472,7 +479,9 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -468,7 +475,9 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
              ((BDRV_REQ_FUA | BDRV_REQ_MAY_UNMAP | BDRV_REQ_NO_FALLBACK) &
               bs->file->bs->supported_zero_flags);
  
@@ -150,8 +150,8 @@ index afa5f473d2..5506f66857 100644
 +                                  flags & BDRV_O_CBW_DISCARD_SOURCE, errp);
      if (!s->bcs) {
          error_prepend(errp, "Cannot create block-copy-state: ");
-         ret = -EINVAL;
-@@ -546,12 +555,14 @@ static BlockDriver bdrv_cbw_filter = {
+         return -EINVAL;
+@@ -535,12 +544,14 @@ static BlockDriver bdrv_cbw_filter = {
  BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
                                    BlockDriverState *target,
                                    const char *filter_node_name,
@@ -166,7 +166,7 @@ index afa5f473d2..5506f66857 100644
  
      assert(source->total_sectors == target->total_sectors);
      GLOBAL_STATE_CODE();
-@@ -564,7 +575,7 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
+@@ -553,7 +564,7 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
      qdict_put_str(opts, "file", bdrv_get_node_name(source));
      qdict_put_str(opts, "target", bdrv_get_node_name(target));
  
@@ -188,10 +188,10 @@ index 6e72bb25e9..01af0cd3c4 100644
                                    Error **errp);
  void bdrv_cbw_drop(BlockDriverState *bs);
 diff --git a/block/replication.c b/block/replication.c
-index 5ded5f1ca9..bd75a6aee3 100644
+index ca6bd0a720..0415a5e8b7 100644
 --- a/block/replication.c
 +++ b/block/replication.c
-@@ -604,8 +604,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
+@@ -582,8 +582,8 @@ static void replication_start(ReplicationState *rs, ReplicationMode mode,
  
          s->backup_job = backup_job_create(
                                  NULL, s->secondary_disk->bs, s->hidden_disk->bs,
@@ -203,10 +203,10 @@ index 5ded5f1ca9..bd75a6aee3 100644
                                  BLOCKDEV_ON_ERROR_REPORT, JOB_INTERNAL,
                                  backup_job_completed, bs, NULL, &local_err);
 diff --git a/blockdev.c b/blockdev.c
-index 3049811be8..e167ad1e54 100644
+index 5e5dbc1da9..1054a69279 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -2854,7 +2854,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
+@@ -2727,7 +2727,7 @@ static BlockJob *do_backup_common(BackupCommon *backup,
  
      job = backup_job_create(backup->job_id, bs, target_bs, backup->speed,
                              backup->sync, bmap, backup->bitmap_mode,
@@ -216,10 +216,10 @@ index 3049811be8..e167ad1e54 100644
                              &perf,
                              backup->on_source_error,
 diff --git a/include/block/block-common.h b/include/block/block-common.h
-index d7599564db..7f56364e73 100644
+index a846023a09..338fe5ff7a 100644
 --- a/include/block/block-common.h
 +++ b/include/block/block-common.h
-@@ -246,6 +246,8 @@ typedef enum {
+@@ -243,6 +243,8 @@ typedef enum {
                                        read-write fails */
  #define BDRV_O_IO_URING    0x40000 /* use io_uring instead of the thread pool */
  
@@ -241,10 +241,10 @@ index 8b41643bfa..bdc703bacd 100644
  
  /* Function should be called prior any actual copy request */
 diff --git a/include/block/block_int-global-state.h b/include/block/block_int-global-state.h
-index 57265a617a..df731688b4 100644
+index cc1387ae02..f0c642b194 100644
 --- a/include/block/block_int-global-state.h
 +++ b/include/block/block_int-global-state.h
-@@ -189,7 +189,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
+@@ -195,7 +195,7 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
                              MirrorSyncMode sync_mode,
                              BdrvDirtyBitmap *sync_bitmap,
                              BitmapSyncMode bitmap_mode,
@@ -254,10 +254,10 @@ index 57265a617a..df731688b4 100644
                              BackupPerf *perf,
                              BlockdevOnError on_source_error,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 7b977459fa..82960797dc 100644
+index f516d8e95a..d796d49abb 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1834,6 +1834,9 @@
+@@ -1849,6 +1849,9 @@
  #     node specified by @drive.  If this option is not given, a node
  #     name is autogenerated.  (Since: 4.2)
  #
@@ -267,7 +267,7 @@ index 7b977459fa..82960797dc 100644
  # @x-perf: Performance options.  (Since 6.0)
  #
  # Features:
-@@ -1855,6 +1858,7 @@
+@@ -1870,6 +1873,7 @@
              '*on-target-error': 'BlockdevOnError',
              '*auto-finalize': 'bool', '*auto-dismiss': 'bool',
              '*filter-node-name': 'str',

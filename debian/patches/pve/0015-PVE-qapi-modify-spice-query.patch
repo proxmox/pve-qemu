@@ -14,10 +14,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  2 files changed, 7 insertions(+)
 
 diff --git a/qapi/ui.json b/qapi/ui.json
-index a0158baf23..20d8994f49 100644
+index f610bce118..6ea26a9acb 100644
 --- a/qapi/ui.json
 +++ b/qapi/ui.json
-@@ -318,11 +318,14 @@
+@@ -314,11 +314,14 @@
  #
  # @channels: a list of @SpiceChannel for each active spice channel
  #
@@ -33,7 +33,7 @@ index a0158baf23..20d8994f49 100644
    'if': 'CONFIG_SPICE' }
  
 diff --git a/ui/spice-core.c b/ui/spice-core.c
-index 0eb138cf43..56d677efe1 100644
+index ea20e6153c..55a15fba8b 100644
 --- a/ui/spice-core.c
 +++ b/ui/spice-core.c
 @@ -548,6 +548,10 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)

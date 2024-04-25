@@ -26,7 +26,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 vma.h
 
 diff --git a/block/meson.build b/block/meson.build
-index 8ded0dc18b..e709b67d37 100644
+index b530e117b5..b245daa98e 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -42,6 +42,8 @@ block_ss.add(files(
@@ -39,10 +39,10 @@ index 8ded0dc18b..e709b67d37 100644
  system_ss.add(files('block-ram-registrar.c'))
  
 diff --git a/meson.build b/meson.build
-index 6c77d9687d..8cb1ccd5e1 100644
+index 91a0aa64c6..620cc594b2 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1802,6 +1802,8 @@ endif
+@@ -1922,6 +1922,8 @@ endif
  
  has_gettid = cc.has_function('gettid')
  
@@ -51,7 +51,7 @@ index 6c77d9687d..8cb1ccd5e1 100644
  # libselinux
  selinux = dependency('libselinux',
                       required: get_option('selinux'),
-@@ -3975,6 +3977,9 @@ if have_tools
+@@ -4023,6 +4025,9 @@ if have_tools
                 dependencies: [blockdev, qemuutil, gnutls, selinux],
                 install: true)
  
@@ -59,8 +59,8 @@ index 6c77d9687d..8cb1ccd5e1 100644
 +                   dependencies: [authz, block, crypto, io, qom], install: true)
 +
    subdir('storage-daemon')
-   subdir('contrib/rdmacm-mux')
-   subdir('contrib/elf2dmp')
+ 
+   foreach exe: [ 'qemu-img', 'qemu-io', 'qemu-nbd', 'qemu-storage-daemon']
 diff --git a/vma-reader.c b/vma-reader.c
 new file mode 100644
 index 0000000000..d0b6721812

@@ -14,10 +14,10 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  create mode 100644 pbs-restore.c
 
 diff --git a/meson.build b/meson.build
-index 955f579308..c70f2a4937 100644
+index d16b97cf3c..6de51c34cb 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -3981,6 +3981,10 @@ if have_tools
+@@ -4029,6 +4029,10 @@ if have_tools
    vma = executable('vma', files('vma.c', 'vma-reader.c') + genh,
                     dependencies: [authz, block, crypto, io, qom], install: true)
  
@@ -26,8 +26,8 @@ index 955f579308..c70f2a4937 100644
 +                    libproxmox_backup_qemu], install: true)
 +
    subdir('storage-daemon')
-   subdir('contrib/rdmacm-mux')
-   subdir('contrib/elf2dmp')
+ 
+   foreach exe: [ 'qemu-img', 'qemu-io', 'qemu-nbd', 'qemu-storage-daemon']
 diff --git a/pbs-restore.c b/pbs-restore.c
 new file mode 100644
 index 0000000000..f03d9bab8d

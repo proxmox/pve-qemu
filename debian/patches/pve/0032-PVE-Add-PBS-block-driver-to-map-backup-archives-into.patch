@@ -17,13 +17,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  block/meson.build    |   2 +
  block/pbs.c          | 307 +++++++++++++++++++++++++++++++++++++++++++
  meson.build          |   2 +-
- qapi/block-core.json |  13 ++
+ qapi/block-core.json |  29 ++++
  qapi/pragma.json     |   1 +
- 5 files changed, 324 insertions(+), 1 deletion(-)
+ 5 files changed, 340 insertions(+), 1 deletion(-)
  create mode 100644 block/pbs.c
 
 diff --git a/block/meson.build b/block/meson.build
-index 9df99aceb5..549c0c7103 100644
+index 6bba803f94..1945e04eeb 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -49,6 +49,8 @@ block_ss.add(files(
@@ -349,10 +349,10 @@ index 0000000000..dd72356bd3
 +
 +block_init(bdrv_pbs_init);
 diff --git a/meson.build b/meson.build
-index c70f2a4937..18c3a312eb 100644
+index 6de51c34cb..3bc039f60f 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -4390,7 +4390,7 @@ summary_info += {'bzip2 support':     libbzip2}
+@@ -4477,7 +4477,7 @@ summary_info += {'bzip2 support':     libbzip2}
  summary_info += {'lzfse support':     liblzfse}
  summary_info += {'zstd support':      zstd}
  summary_info += {'NUMA host support': numa}
@@ -362,10 +362,10 @@ index c70f2a4937..18c3a312eb 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libudev':           libudev}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index c155d74230..a4050268ca 100644
+index e49c7b5bc9..fc32ff9957 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3451,6 +3451,7 @@
+@@ -3457,6 +3457,7 @@
              'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
              'raw', 'rbd',
              { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
@@ -373,7 +373,7 @@ index c155d74230..a4050268ca 100644
              'ssh', 'throttle', 'vdi', 'vhdx',
              { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
              { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
-@@ -3537,6 +3538,17 @@
+@@ -3543,6 +3544,33 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -381,6 +381,22 @@ index c155d74230..a4050268ca 100644
 +# @BlockdevOptionsPbs:
 +#
 +# Driver specific block device options for the PBS backend.
++#
++# @repository: Proxmox Backup Server repository.
++#
++# @snapshot: backup snapshots ID.
++#
++# @archive: archive name.
++#
++# @keyfile: keyfile to use for encryption.
++#
++# @password: password to use for connection.
++#
++# @fingerprint: backup server fingerprint.
++#
++# @key_password: password to unlock key.
++#
++# @namespace: namespace where backup snapshot lives.
 +#
 +##
 +{ 'struct': 'BlockdevOptionsPbs',
@@ -391,7 +407,7 @@ index c155d74230..a4050268ca 100644
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -4945,6 +4957,7 @@
+@@ -4977,6 +5005,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',
@@ -400,10 +416,10 @@ index c155d74230..a4050268ca 100644
        'nvme-io_uring': { 'type': 'BlockdevOptionsNvmeIoUring',
                           'if': 'CONFIG_BLKIO' },
 diff --git a/qapi/pragma.json b/qapi/pragma.json
-index eae9f54700..03467983b3 100644
+index be8fa304c5..7ff46bd128 100644
 --- a/qapi/pragma.json
 +++ b/qapi/pragma.json
-@@ -45,6 +45,7 @@
+@@ -100,6 +100,7 @@
          'BlockInfo',                # query-block
          'BlockdevAioOptions',       # blockdev-add, -blockdev
          'BlockdevDriver',           # blockdev-add, query-blockstats, ...

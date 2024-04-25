@@ -35,17 +35,17 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 534 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 531 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  38 +++
  qapi/migration.json          |  34 +++
- qapi/misc.json               |  16 ++
+ qapi/misc.json               |  18 ++
  qemu-options.hx              |  12 +
  system/vl.c                  |  10 +
- 11 files changed, 680 insertions(+)
+ 11 files changed, 679 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
-index f5b37eb74a..10fdd822e0 100644
+index ad1b1306e3..d5ab880492 100644
 --- a/hmp-commands-info.hx
 +++ b/hmp-commands-info.hx
 @@ -525,6 +525,19 @@ SRST
@@ -69,10 +69,10 @@ index f5b37eb74a..10fdd822e0 100644
          .name       = "balloon",
          .args_type  = "",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index 765349ed14..893c3bd240 100644
+index 2e2a3bcf98..7506de251c 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
-@@ -1875,3 +1875,20 @@ SRST
+@@ -1862,3 +1862,20 @@ SRST
    List event channels in the guest
  ERST
  #endif
@@ -94,12 +94,12 @@ index 765349ed14..893c3bd240 100644
 +        .coroutine  = true,
 +    },
 diff --git a/include/migration/snapshot.h b/include/migration/snapshot.h
-index e72083b117..c846d37806 100644
+index 9e4dcaaa75..2581730d74 100644
 --- a/include/migration/snapshot.h
 +++ b/include/migration/snapshot.h
-@@ -61,4 +61,6 @@ bool delete_snapshot(const char *name,
-                     bool has_devices, strList *devices,
-                     Error **errp);
+@@ -68,4 +68,6 @@ bool delete_snapshot(const char *name,
+  */
+ void load_snapshot_resume(RunState state);
  
 +int load_snapshot_from_blockdev(const char *filename, Error **errp);
 +
@@ -126,10 +126,10 @@ index 13f9a2dedb..7a7def7530 100644
  void coroutine_fn hmp_screendump(Monitor *mon, const QDict *qdict);
  void hmp_chardev_add(Monitor *mon, const QDict *qdict);
 diff --git a/migration/meson.build b/migration/meson.build
-index 0e689eac09..8f9d122187 100644
+index 95d1cf2250..800f12a60d 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
-@@ -27,6 +27,7 @@ system_ss.add(files(
+@@ -28,6 +28,7 @@ system_ss.add(files(
    'options.c',
    'postcopy-ram.c',
    'savevm.c',
@@ -139,10 +139,10 @@ index 0e689eac09..8f9d122187 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..8f63c4c637
+index 0000000000..779e4e2a78
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,534 @@
+@@ -0,0 +1,531 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -300,7 +300,6 @@ index 0000000000..8f63c4c637
 +static void process_savevm_finalize(void *opaque)
 +{
 +    int ret;
-+    AioContext *iohandler_ctx = iohandler_get_aio_context();
 +    MigrationState *ms = migrate_get_current();
 +
 +    bool aborted = savevm_aborted();
@@ -317,9 +316,7 @@ index 0000000000..8f63c4c637
 +     * so move it back. It can stay in the main context and live out its live
 +     * there, since we're done with it after this method ends anyway.
 +     */
-+    aio_context_acquire(iohandler_ctx);
 +    blk_set_aio_context(snap_state.target, qemu_get_aio_context(), NULL);
-+    aio_context_release(iohandler_ctx);
 +
 +    ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
 +    if (ret < 0) {
@@ -396,12 +393,12 @@ index 0000000000..8f63c4c637
 +         * lock. Similar to what is done in migration.c, call the exact variant
 +         * only once pend_precopy in the estimate is below the threshold.
 +         */
-+        qemu_mutex_unlock_iothread();
++        bql_unlock();
 +        qemu_savevm_state_pending_estimate(&pend_precopy, &pend_postcopy);
 +        if (pend_precopy <= threshold) {
 +            qemu_savevm_state_pending_exact(&pend_precopy, &pend_postcopy);
 +        }
-+        qemu_mutex_lock_iothread();
++        bql_lock();
 +        pending_size = pend_precopy + pend_postcopy;
 +
 +        /*
@@ -482,7 +479,7 @@ index 0000000000..8f63c4c637
 +        return;
 +    }
 +
-+    if (migration_is_running(ms->state)) {
++    if (migration_is_running()) {
 +        error_set(errp, ERROR_CLASS_GENERIC_ERROR, QERR_MIGRATION_ACTIVE);
 +        return;
 +    }
@@ -731,10 +728,10 @@ index 871898ac46..ef4634e5c1 100644
 +    }
 +}
 diff --git a/qapi/migration.json b/qapi/migration.json
-index 197d3faa43..b41465fbe9 100644
+index 8c65b90328..ed20d066cd 100644
 --- a/qapi/migration.json
 +++ b/qapi/migration.json
-@@ -298,6 +298,40 @@
+@@ -297,6 +297,40 @@
             '*dirty-limit-throttle-time-per-round': 'uint64',
             '*dirty-limit-ring-full-time': 'uint64'} }
  
@@ -776,10 +773,10 @@ index 197d3faa43..b41465fbe9 100644
  # @query-migrate:
  #
 diff --git a/qapi/misc.json b/qapi/misc.json
-index cda2effa81..94a58bb0bf 100644
+index ec30e5c570..7147199a12 100644
 --- a/qapi/misc.json
 +++ b/qapi/misc.json
-@@ -456,6 +456,22 @@
+@@ -454,6 +454,24 @@
  ##
  { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
  
@@ -787,6 +784,8 @@ index cda2effa81..94a58bb0bf 100644
 +# @savevm-start:
 +#
 +# Prepare for snapshot and halt VM. Save VM state to statefile.
++#
++# @statefile: target file that state should be written to.
 +#
 +##
 +{ 'command': 'savevm-start', 'data': { '*statefile': 'str' } }
@@ -803,10 +802,10 @@ index cda2effa81..94a58bb0bf 100644
  # @CommandLineParameterType:
  #
 diff --git a/qemu-options.hx b/qemu-options.hx
-index b6b4ad9e67..881b0b3c43 100644
+index 8ce85d4559..511ab9415e 100644
 --- a/qemu-options.hx
 +++ b/qemu-options.hx
-@@ -4590,6 +4590,18 @@ SRST
+@@ -4610,6 +4610,18 @@ SRST
      Start right away with a saved state (``loadvm`` in monitor)
  ERST
  
@@ -826,7 +825,7 @@ index b6b4ad9e67..881b0b3c43 100644
  DEF("daemonize", 0, QEMU_OPTION_daemonize, \
      "-daemonize      daemonize QEMU after initializing\n", QEMU_ARCH_ALL)
 diff --git a/system/vl.c b/system/vl.c
-index d2a3b3f457..57f7ba0525 100644
+index c644222982..2738ab7c91 100644
 --- a/system/vl.c
 +++ b/system/vl.c
 @@ -163,6 +163,7 @@ static const char *accelerators;
@@ -837,10 +836,10 @@ index d2a3b3f457..57f7ba0525 100644
  static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
  static QTAILQ_HEAD(, DeviceOption) device_opts = QTAILQ_HEAD_INITIALIZER(device_opts);
  static int display_remote;
-@@ -2715,6 +2716,12 @@ void qmp_x_exit_preconfig(Error **errp)
- 
-     if (loadvm) {
+@@ -2712,6 +2713,12 @@ void qmp_x_exit_preconfig(Error **errp)
+         RunState state = autostart ? RUN_STATE_RUNNING : runstate_get();
          load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
+         load_snapshot_resume(state);
 +    } else if (loadstate) {
 +        Error *local_err = NULL;
 +        if (load_snapshot_from_blockdev(loadstate, &local_err) < 0) {
@@ -850,7 +849,7 @@ index d2a3b3f457..57f7ba0525 100644
      }
      if (replay_mode != REPLAY_MODE_NONE) {
          replay_vmstate_init();
-@@ -3265,6 +3272,9 @@ void qemu_init(int argc, char **argv)
+@@ -3259,6 +3266,9 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_loadvm:
                  loadvm = optarg;
                  break;
