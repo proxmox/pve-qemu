@@ -24,6 +24,7 @@ endif
 
 PC_BIOS_FW_PURGE_LIST_IN = \
 	hppa-firmware.img \
+	hppa-firmware64.img \
 	openbios-ppc \
 	openbios-sparc32 \
 	openbios-sparc64 \
