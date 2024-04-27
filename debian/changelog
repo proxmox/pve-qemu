@@ -1,3 +1,9 @@
+pve-qemu-kvm (8.2.2-1) bookworm; urgency=medium
+
+  * update submodule and patches to QEMU 8.2.2
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 27 Apr 2024 12:44:30 +0200
+
 pve-qemu-kvm (8.1.5-5) bookworm; urgency=medium
 
   * implement support for backup fleecing
