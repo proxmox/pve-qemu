@@ -1,1 +1,2 @@
 source-is-missing [roms/SLOF/*.oco]
+source-is-missing [linux-user/*/vdso-*.so]
