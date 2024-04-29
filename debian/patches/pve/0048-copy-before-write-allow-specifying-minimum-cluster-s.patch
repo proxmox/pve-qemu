@@ -82,7 +82,7 @@ index 7e3b378528..adb1cbb440 100644
          return NULL;
      }
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index cd65524e26..ac05a4993f 100644
+index 853e01a1eb..47b3cdd09f 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -477,7 +477,8 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,

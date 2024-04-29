@@ -15,7 +15,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 13 insertions(+), 3 deletions(-)
 
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index 3e3af30c08..6d89af0b29 100644
+index 5a9456d426..c0e70669a2 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -325,14 +325,24 @@ static int coroutine_fn GRAPH_RDLOCK

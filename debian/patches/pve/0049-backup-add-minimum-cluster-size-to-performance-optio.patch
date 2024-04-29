@@ -36,7 +36,7 @@ index 1963e47ab9..fe69723ada 100644
          goto error;
      }
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index ac05a4993f..d1e87f8cf4 100644
+index 47b3cdd09f..bba58326d7 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -546,6 +546,7 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
