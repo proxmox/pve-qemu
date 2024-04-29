@@ -33,7 +33,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index b866e42271..a2dddf6f57 100644
+index 3ee95c0e7a..641236dbf8 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -364,9 +364,13 @@ static void cbw_child_perm(BlockDriverState *bs, BdrvChild *c,

@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Mon, 29 Apr 2024 15:41:11 +0200
+Subject: [PATCH] block/copy-before-write: use uint64_t for timeout in
+ nanoseconds
+
+rather than the uint32_t for which the maximum is slightly more than 4
+seconds and larger values would overflow. The QAPI interface allows
+specifying the number of seconds, so only values 0 to 4 are safe right
+now, other values lead to a much lower timeout than a user expects.
+
+The block_copy() call where this is used already takes a uint64_t for
+the timeout, so no change required there.
+
+Fixes: 6db7fd1ca9 ("block/copy-before-write: implement cbw-timeout option")
+Reported-by: Friedrich Weber <f.weber@proxmox.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Tested-by: Friedrich Weber <f.weber@proxmox.com>
+---
+ block/copy-before-write.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/block/copy-before-write.c b/block/copy-before-write.c
+index b866e42271..3ee95c0e7a 100644
+--- a/block/copy-before-write.c
++++ b/block/copy-before-write.c
+@@ -43,7 +43,7 @@ typedef struct BDRVCopyBeforeWriteState {
+     BlockCopyState *bcs;
+     BdrvChild *target;
+     OnCbwError on_cbw_error;
+-    uint32_t cbw_timeout_ns;
++    uint64_t cbw_timeout_ns;
+ 
+     /*
+      * @lock: protects access to @access_bitmap, @done_bitmap and

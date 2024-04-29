@@ -109,13 +109,13 @@ index b61685f1a2..3c61e52bae 100644
  }
  
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index d3b95bd600..3503702d71 100644
+index ba827b0aba..2d92ae4043 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -44,6 +44,7 @@ typedef struct BDRVCopyBeforeWriteState {
      BdrvChild *target;
      OnCbwError on_cbw_error;
-     uint32_t cbw_timeout_ns;
+     uint64_t cbw_timeout_ns;
 +    bool discard_source;
  
      /*

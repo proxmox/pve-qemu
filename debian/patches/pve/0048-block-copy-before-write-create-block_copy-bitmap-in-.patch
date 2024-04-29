@@ -49,7 +49,7 @@ index e13d7bc6b6..b61685f1a2 100644
      if (!copy_bitmap) {
          return NULL;
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index 0a219c2b75..d3b95bd600 100644
+index 71cf50343f..ba827b0aba 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -470,7 +470,7 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
