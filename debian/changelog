@@ -1,3 +1,9 @@
+pve-qemu-kvm (9.0.0-1) bookworm; urgency=medium
+
+  * update submodule and patches to QEMU 9.0.0
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 29 Apr 2024 10:51:37 +0200
+
 pve-qemu-kvm (8.2.2-1) bookworm; urgency=medium
 
   * update submodule and patches to QEMU 8.2.2
