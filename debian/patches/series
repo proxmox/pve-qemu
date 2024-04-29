@@ -59,3 +59,4 @@ pve/0047-qapi-blockdev-backup-add-discard-source-parameter.patch
 pve/0048-copy-before-write-allow-specifying-minimum-cluster-s.patch
 pve/0049-backup-add-minimum-cluster-size-to-performance-optio.patch
 pve/0050-PVE-backup-add-fleecing-option.patch
+pve/0051-PVE-backup-improve-error-when-copy-before-write-fail.patch
