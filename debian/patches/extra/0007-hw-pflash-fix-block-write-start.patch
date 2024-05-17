@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Gerd Hoffmann <kraxel@redhat.com>
+Date: Thu, 16 May 2024 10:46:34 +0200
+Subject: [PATCH] hw/pflash: fix block write start
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Move the pflash_blk_write_start() call.  We need the offset of the
+first data write, not the offset for the setup (number-of-bytes)
+write.  Without this fix u-boot can do block writes to the first
+flash block only.
+
+While being at it drop a leftover FIXME.
+
+Cc: qemu-stable@nongnu.org
+Resolves: https://gitlab.com/qemu-project/qemu/-/issues/2343
+Fixes: fcc79f2e0955 ("hw/pflash: implement update buffer for block writes")
+Signed-off-by: Gerd Hoffmann <kraxel@redhat.com>
+Reviewed-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+(picked up from https://lists.nongnu.org/archive/html/qemu-stable/2024-05/msg00091.html)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/block/pflash_cfi01.c | 8 +++-----
+ 1 file changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/hw/block/pflash_cfi01.c b/hw/block/pflash_cfi01.c
+index 1bda8424b9..c8f1cf5a87 100644
+--- a/hw/block/pflash_cfi01.c
++++ b/hw/block/pflash_cfi01.c
+@@ -518,10 +518,6 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
+             break;
+         case 0xe8: /* Write to buffer */
+             trace_pflash_write(pfl->name, "write to buffer");
+-            /* FIXME should save @offset, @width for case 1+ */
+-            qemu_log_mask(LOG_UNIMP,
+-                          "%s: Write to buffer emulation is flawed\n",
+-                          __func__);
+             pfl->status |= 0x80; /* Ready! */
+             break;
+         case 0xf0: /* Probe for AMD flash */
+@@ -574,7 +570,6 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
+             }
+             pfl->counter = value;
+             pfl->wcycle++;
+-            pflash_blk_write_start(pfl, offset);
+             break;
+         case 0x60:
+             if (cmd == 0xd0) {
+@@ -605,6 +600,9 @@ static void pflash_write(PFlashCFI01 *pfl, hwaddr offset,
+         switch (pfl->cmd) {
+         case 0xe8: /* Block write */
+             /* FIXME check @offset, @width */
++            if (pfl->blk_offset == -1 && pfl->counter) {
++                pflash_blk_write_start(pfl, offset);
++            }
+             if (!pfl->ro && (pfl->blk_offset != -1)) {
+                 pflash_data_write(pfl, offset, value, width, be);
+             } else {

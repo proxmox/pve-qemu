@@ -3,6 +3,13 @@ extra/0002-scsi-megasas-Internal-cdbs-have-16-byte-length.patch
 extra/0003-ide-avoid-potential-deadlock-when-draining-during-tr.patch
 extra/0004-Revert-x86-acpi-workaround-Windows-not-handling-name.patch
 extra/0005-block-copy-before-write-use-uint64_t-for-timeout-in-.patch
+extra/0006-virtio-gpu-fix-v2-migration.patch
+extra/0007-hw-pflash-fix-block-write-start.patch
+extra/0008-target-i386-fix-operand-size-for-DATA16-REX.W-POPCNT.patch
+extra/0009-target-i386-rdpkru-wrpkru-are-no-prefix-instructions.patch
+extra/0010-target-i386-fix-feature-dependency-for-WAITPKG.patch
+extra/0011-Revert-virtio-pci-fix-use-of-a-released-vector.patch
+extra/0012-hw-core-machine-move-compatibility-flags-for-VirtIO-.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch

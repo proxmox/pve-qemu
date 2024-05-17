@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Thu, 16 May 2024 15:21:07 +0200
+Subject: [PATCH] hw/core/machine: move compatibility flags for VirtIO-net USO
+ to machine 8.1
+
+Migration from an 8.2 or 9.0 binary to an 8.1 binary with machine
+version 8.1 can fail with:
+
+> kvm: Features 0x1c0010130afffa7 unsupported. Allowed features: 0x10179bfffe7
+> kvm: Failed to load virtio-net:virtio
+> kvm: error while loading state for instance 0x0 of device '0000:00:12.0/virtio-net'
+> kvm: load of migration failed: Operation not permitted
+
+The series
+
+53da8b5a99 virtio-net: Add support for USO features
+9da1684954 virtio-net: Add USO flags to vhost support.
+f03e0cf63b tap: Add check for USO features
+2ab0ec3121 tap: Add USO support to tap device.
+
+only landed in QEMU 8.2, so the compatibility flags should be part of
+machine version 8.1.
+
+Moving the flags unfortunately breaks forward migration with machine
+version 8.1 from a binary without this patch to a binary with this
+patch when the feature is enabled by the guest.
+
+Fixes: 53da8b5a99 ("virtio-net: Add support for USO features")
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/core/machine.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/hw/core/machine.c b/hw/core/machine.c
+index d33a37a6f6..4273de16a0 100644
+--- a/hw/core/machine.c
++++ b/hw/core/machine.c
+@@ -46,15 +46,15 @@ GlobalProperty hw_compat_8_1[] = {
+     { "ramfb", "x-migrate", "off" },
+     { "vfio-pci-nohotplug", "x-ramfb-migrate", "off" },
+     { "igb", "x-pcie-flr-init", "off" },
++    { TYPE_VIRTIO_NET, "host_uso", "off"},
++    { TYPE_VIRTIO_NET, "guest_uso4", "off"},
++    { TYPE_VIRTIO_NET, "guest_uso6", "off"},
+ };
+ const size_t hw_compat_8_1_len = G_N_ELEMENTS(hw_compat_8_1);
+ 
+ GlobalProperty hw_compat_8_0[] = {
+     { "migration", "multifd-flush-after-each-section", "on"},
+     { TYPE_PCI_DEVICE, "x-pcie-ari-nextfn-1", "on" },
+-    { TYPE_VIRTIO_NET, "host_uso", "off"},
+-    { TYPE_VIRTIO_NET, "guest_uso4", "off"},
+-    { TYPE_VIRTIO_NET, "guest_uso6", "off"},
+ };
+ const size_t hw_compat_8_0_len = G_N_ELEMENTS(hw_compat_8_0);
+ 
