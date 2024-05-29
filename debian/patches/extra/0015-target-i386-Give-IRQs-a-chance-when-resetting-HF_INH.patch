@@ -1,0 +1,80 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Ruihan Li <lrh2000@pku.edu.cn>
+Date: Mon, 15 Apr 2024 14:45:21 +0800
+Subject: [PATCH] target/i386: Give IRQs a chance when resetting
+ HF_INHIBIT_IRQ_MASK
+
+When emulated with QEMU, interrupts will never come in the following
+loop. However, if the NOP instruction is uncommented, interrupts will
+fire as normal.
+
+	loop:
+		cli
+    		call do_sti
+		jmp loop
+
+	do_sti:
+		sti
+		# nop
+		ret
+
+This behavior is different from that of a real processor. For example,
+if KVM is enabled, interrupts will always fire regardless of whether the
+NOP instruction is commented or not. Also, the Intel Software Developer
+Manual states that after the STI instruction is executed, the interrupt
+inhibit should end as soon as the next instruction (e.g., the RET
+instruction if the NOP instruction is commented) is executed.
+
+This problem is caused because the previous code may choose not to end
+the TB even if the HF_INHIBIT_IRQ_MASK has just been reset (e.g., in the
+case where the STI instruction is immediately followed by the RET
+instruction), so that IRQs may not have a change to trigger. This commit
+fixes the problem by always terminating the current TB to give IRQs a
+chance to trigger when HF_INHIBIT_IRQ_MASK is reset.
+
+Reviewed-by: Richard Henderson <richard.henderson@linaro.org>
+Signed-off-by: Ruihan Li <lrh2000@pku.edu.cn>
+Message-ID: <20240415064518.4951-4-lrh2000@pku.edu.cn>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 6a5a63f74ba5c5355b7a8468d3d814bfffe928fb)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/i386/tcg/translate.c | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/target/i386/tcg/translate.c b/target/i386/tcg/translate.c
+index 3e949fe964..b5ebff2c89 100644
+--- a/target/i386/tcg/translate.c
++++ b/target/i386/tcg/translate.c
+@@ -2798,13 +2798,17 @@ static void gen_bnd_jmp(DisasContext *s)
+ static void
+ do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
+ {
++    bool inhibit_reset;
++
+     gen_update_cc_op(s);
+ 
+     /* If several instructions disable interrupts, only the first does it.  */
+-    if (inhibit && !(s->flags & HF_INHIBIT_IRQ_MASK)) {
+-        gen_set_hflag(s, HF_INHIBIT_IRQ_MASK);
+-    } else {
++    inhibit_reset = false;
++    if (s->flags & HF_INHIBIT_IRQ_MASK) {
+         gen_reset_hflag(s, HF_INHIBIT_IRQ_MASK);
++        inhibit_reset = true;
++    } else if (inhibit) {
++        gen_set_hflag(s, HF_INHIBIT_IRQ_MASK);
+     }
+ 
+     if (s->base.tb->flags & HF_RF_MASK) {
+@@ -2815,7 +2819,9 @@ do_gen_eob_worker(DisasContext *s, bool inhibit, bool recheck_tf, bool jr)
+         tcg_gen_exit_tb(NULL, 0);
+     } else if (s->flags & HF_TF_MASK) {
+         gen_helper_single_step(tcg_env);
+-    } else if (jr) {
++    } else if (jr &&
++               /* give irqs a chance to happen */
++               !inhibit_reset) {
+         tcg_gen_lookup_and_goto_ptr();
+     } else {
+         tcg_gen_exit_tb(NULL, 0);

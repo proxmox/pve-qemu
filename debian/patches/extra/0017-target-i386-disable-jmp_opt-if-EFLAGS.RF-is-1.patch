@@ -1,0 +1,31 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Fri, 24 May 2024 17:17:47 +0200
+Subject: [PATCH] target/i386: disable jmp_opt if EFLAGS.RF is 1
+
+If EFLAGS.RF is 1, special processing in gen_eob_worker() is needed and
+therefore goto_tb cannot be used.
+
+Suggested-by: Richard Henderson <richard.henderson@linaro.org>
+Reviewed-by: Richard Henderson <richard.henderson@linaro.org>
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 8225bff7c5db504f50e54ef66b079854635dba70)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/i386/tcg/translate.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/target/i386/tcg/translate.c b/target/i386/tcg/translate.c
+index b5ebff2c89..c2c5e73b3f 100644
+--- a/target/i386/tcg/translate.c
++++ b/target/i386/tcg/translate.c
+@@ -6971,7 +6971,7 @@ static void i386_tr_init_disas_context(DisasContextBase *dcbase, CPUState *cpu)
+     dc->cpuid_7_1_eax_features = env->features[FEAT_7_1_EAX];
+     dc->cpuid_xsave_features = env->features[FEAT_XSAVE];
+     dc->jmp_opt = !((cflags & CF_NO_GOTO_TB) ||
+-                    (flags & (HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
++                    (flags & (HF_RF_MASK | HF_TF_MASK | HF_INHIBIT_IRQ_MASK)));
+     /*
+      * If jmp_opt, we want to handle each string instruction individually.
+      * For icount also disable repz optimization so that each iteration
