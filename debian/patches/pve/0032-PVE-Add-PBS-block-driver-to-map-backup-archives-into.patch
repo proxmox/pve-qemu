@@ -15,11 +15,11 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build    |   2 +
- block/pbs.c          | 310 +++++++++++++++++++++++++++++++++++++++++++
+ block/pbs.c          | 313 +++++++++++++++++++++++++++++++++++++++++++
  meson.build          |   2 +-
  qapi/block-core.json |  29 ++++
  qapi/pragma.json     |   1 +
- 5 files changed, 343 insertions(+), 1 deletion(-)
+ 5 files changed, 346 insertions(+), 1 deletion(-)
  create mode 100644 block/pbs.c
 
 diff --git a/block/meson.build b/block/meson.build
@@ -37,10 +37,10 @@ index 6bba803f94..1945e04eeb 100644
  system_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/pbs.c b/block/pbs.c
 new file mode 100644
-index 0000000000..9112d4dfe6
+index 0000000000..aee66c2e93
 --- /dev/null
 +++ b/block/pbs.c
-@@ -0,0 +1,310 @@
+@@ -0,0 +1,313 @@
 +/*
 + * Proxmox Backup Server read-only block driver
 + */
@@ -202,13 +202,16 @@ index 0000000000..9112d4dfe6
 +
 +    /* acquire handle and length */
 +    ret = proxmox_restore_open_image(s->conn, s->archive, &pbs_error);
-+    if (ret < 0 || ret > UINT8_MAX) {
++    if (ret < 0) {
 +        if (pbs_error && errp) error_setg(errp, "PBS open_image failed: %s", pbs_error);
 +        if (pbs_error) proxmox_backup_free_error(pbs_error);
 +        return -ENODEV;
-+    } else {
-+        s->aid = ret;
 +    }
++    if (ret > UINT8_MAX) {
++        error_setg(errp, "PBS open_image returned an ID larger than %u", UINT8_MAX);
++        return -ENODEV;
++    }
++    s->aid = ret;
 +
 +    s->length = proxmox_restore_get_image_length(s->conn, s->aid, &pbs_error);
 +    if (s->length < 0) {
