@@ -94,11 +94,11 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1096 ++++++++++++++++++++++++++++++++
+ pve-backup.c                   | 1092 ++++++++++++++++++++++++++++++++
  qapi/block-core.json           |  233 +++++++
  qapi/common.json               |   14 +
  qapi/machine.json              |   16 +-
- 14 files changed, 1715 insertions(+), 14 deletions(-)
+ 14 files changed, 1711 insertions(+), 14 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
@@ -586,10 +586,10 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..ef1738af52
+index 0000000000..c755bf302b
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1096 @@
+@@ -0,0 +1,1092 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -678,7 +678,6 @@ index 0000000000..ef1738af52
 +    uint64_t block_size;
 +    uint8_t dev_id;
 +    int completed_ret; // INT_MAX if not completed
-+    char targetfile[PATH_MAX];
 +    BdrvDirtyBitmap *bitmap;
 +    BlockDriverState *target;
 +    BlockJob *job;
@@ -1571,9 +1570,6 @@ index 0000000000..ef1738af52
 +            bdrv_co_unref(di->target);
 +        }
 +
-+        if (di->targetfile[0]) {
-+            unlink(di->targetfile);
-+        }
 +        g_free(di);
 +    }
 +    g_list_free(di_list);
