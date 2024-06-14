@@ -96,10 +96,10 @@ index dc6cafe7fa..a27d2d7d9f 100644
  
  #endif /* COPY_BEFORE_WRITE_H */
 diff --git a/pve-backup.c b/pve-backup.c
-index 7cc1dd3724..07709aa350 100644
+index ec82d7d827..1694fc89b9 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -379,6 +379,15 @@ static void pvebackup_complete_cb(void *opaque, int ret)
+@@ -375,6 +375,15 @@ static void pvebackup_complete_cb(void *opaque, int ret)
          di->fleecing.snapshot_access = NULL;
      }
      if (di->fleecing.cbw) {

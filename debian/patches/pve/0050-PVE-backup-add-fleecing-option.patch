@@ -63,9 +63,9 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  block/monitor/block-hmp-cmds.c |   1 +
- pve-backup.c                   | 143 ++++++++++++++++++++++++++++++++-
+ pve-backup.c                   | 135 ++++++++++++++++++++++++++++++++-
  qapi/block-core.json           |  10 ++-
- 3 files changed, 150 insertions(+), 4 deletions(-)
+ 3 files changed, 142 insertions(+), 4 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
 index 5000c084c5..70b3de4c7e 100644
@@ -80,7 +80,7 @@ index 5000c084c5..70b3de4c7e 100644
  
      hmp_handle_error(mon, error);
 diff --git a/pve-backup.c b/pve-backup.c
-index 9d480a8eec..7cc1dd3724 100644
+index 91f7be00f4..ec82d7d827 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -7,9 +7,11 @@
@@ -95,7 +95,7 @@ index 9d480a8eec..7cc1dd3724 100644
  #include "qapi/qmp/qerror.h"
  #include "qemu/cutils.h"
  
-@@ -81,8 +83,15 @@ static void pvebackup_init(void)
+@@ -80,8 +82,15 @@ static void pvebackup_init(void)
  // initialize PVEBackupState at startup
  opts_init(pvebackup_init);
  
@@ -111,7 +111,7 @@ index 9d480a8eec..7cc1dd3724 100644
      size_t size;
      uint64_t block_size;
      uint8_t dev_id;
-@@ -355,6 +364,25 @@ static void pvebackup_complete_cb(void *opaque, int ret)
+@@ -354,6 +363,22 @@ static void pvebackup_complete_cb(void *opaque, int ret)
      PVEBackupDevInfo *di = opaque;
      di->completed_ret = ret;
  
@@ -121,9 +121,6 @@ index 9d480a8eec..7cc1dd3724 100644
 +     * - For snapshot_access, allows doing bdrv_unref() directly. Doing it via bdrv_co_unref() would
 +     *   just spawn a BH calling bdrv_unref().
 +     * - For cbw, draining would need to spawn a BH.
-+     *
-+     * Note that the AioContext lock is already acquired by our caller, i.e.
-+     * job_finalize_single_locked()
 +     */
 +    if (di->fleecing.snapshot_access) {
 +        bdrv_unref(di->fleecing.snapshot_access);
@@ -137,7 +134,7 @@ index 9d480a8eec..7cc1dd3724 100644
      /*
       * Needs to happen outside of coroutine, because it takes the graph write lock.
       */
-@@ -522,9 +550,82 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -520,9 +545,77 @@ static void create_backup_jobs_bh(void *opaque) {
          }
          bdrv_drained_begin(di->bs);
  
@@ -182,11 +179,6 @@ index 9d480a8eec..7cc1dd3724 100644
 +            qdict_put_str(snapshot_access_opts, "driver", "snapshot-access");
 +            qdict_put_str(snapshot_access_opts, "file", bdrv_get_node_name(di->fleecing.cbw));
 +
-+            /*
-+             * Holding the AioContext lock here would cause a deadlock, because bdrv_open_driver()
-+             * will aquire it a second time. But it's allowed to be held exactly once when polling
-+             * and that happens when the bdrv_refresh_total_sectors() call is made there.
-+             */
 +            di->fleecing.snapshot_access =
 +                bdrv_open(NULL, NULL, snapshot_access_opts, BDRV_O_RDWR | BDRV_O_UNMAP, &local_err);
 +            if (!di->fleecing.snapshot_access) {
@@ -222,7 +214,7 @@ index 9d480a8eec..7cc1dd3724 100644
              BLOCKDEV_ON_ERROR_REPORT, JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn,
              &local_err);
  
-@@ -580,6 +681,14 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -578,6 +671,14 @@ static void create_backup_jobs_bh(void *opaque) {
      aio_co_enter(data->ctx, data->co);
  }
  
@@ -237,7 +229,7 @@ index 9d480a8eec..7cc1dd3724 100644
  /*
   * Returns a list of device infos, which needs to be freed by the caller. In
   * case of an error, errp will be set, but the returned value might still be a
-@@ -587,6 +696,7 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -585,6 +686,7 @@ static void create_backup_jobs_bh(void *opaque) {
   */
  static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
      const char *devlist,
@@ -245,7 +237,7 @@ index 9d480a8eec..7cc1dd3724 100644
      Error **errp)
  {
      gchar **devs = NULL;
-@@ -610,6 +720,31 @@ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
+@@ -608,6 +710,31 @@ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
              }
              PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
              di->bs = bs;
@@ -277,7 +269,7 @@ index 9d480a8eec..7cc1dd3724 100644
              di_list = g_list_append(di_list, di);
              d++;
          }
-@@ -659,6 +794,7 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -657,6 +784,7 @@ UuidInfo coroutine_fn *qmp_backup(
      const char *devlist,
      bool has_speed, int64_t speed,
      bool has_max_workers, int64_t max_workers,
@@ -285,7 +277,7 @@ index 9d480a8eec..7cc1dd3724 100644
      Error **errp)
  {
      assert(qemu_in_coroutine());
-@@ -687,7 +823,7 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -685,7 +813,7 @@ UuidInfo coroutine_fn *qmp_backup(
      format = has_format ? format : BACKUP_FORMAT_VMA;
  
      bdrv_graph_co_rdlock();
@@ -294,7 +286,7 @@ index 9d480a8eec..7cc1dd3724 100644
      bdrv_graph_co_rdunlock();
      if (local_err) {
          error_propagate(errp, local_err);
-@@ -1095,5 +1231,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1093,5 +1221,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->query_bitmap_info = true;
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;

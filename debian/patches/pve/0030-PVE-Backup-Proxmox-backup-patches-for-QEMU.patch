@@ -94,11 +94,11 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1098 ++++++++++++++++++++++++++++++++
+ pve-backup.c                   | 1096 ++++++++++++++++++++++++++++++++
  qapi/block-core.json           |  233 +++++++
  qapi/common.json               |   14 +
  qapi/machine.json              |   16 +-
- 14 files changed, 1717 insertions(+), 14 deletions(-)
+ 14 files changed, 1715 insertions(+), 14 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
@@ -586,10 +586,10 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..9c13a92623
+index 0000000000..ef1738af52
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1098 @@
+@@ -0,0 +1,1096 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -626,7 +626,6 @@ index 0000000000..9c13a92623
 + * ---end-bad-example--
 + *
 + * ==> Always use CoMutext inside coroutines.
-+ * ==> Never acquire/release AioContext withing coroutines (because that use QemuRecMutex)
 + *
 + */
 +
@@ -1078,8 +1077,7 @@ index 0000000000..9c13a92623
 +}
 +
 +/*
-+ * backup_job_create can *not* be run from a coroutine (and requires an
-+ * acquired AioContext), so this can't either.
++ * backup_job_create can *not* be run from a coroutine, so this can't either.
 + * The caller is responsible that backup_mutex is held nonetheless.
 + */
 +static void create_backup_jobs_bh(void *opaque) {
