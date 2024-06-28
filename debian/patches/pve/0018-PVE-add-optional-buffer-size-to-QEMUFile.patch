@@ -193,7 +193,7 @@ index 32fd4a34fd..36a0cd8cc8 100644
  
  /*
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index 779e4e2a78..bf36fc06d2 100644
+index 72cf6588c2..fb4e8ea689 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
 @@ -379,7 +379,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
@@ -205,7 +205,7 @@ index 779e4e2a78..bf36fc06d2 100644
  
      if (!snap_state.file) {
          error_set(errp, ERROR_CLASS_GENERIC_ERROR, "failed to open '%s'", statefile);
-@@ -496,7 +496,8 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
+@@ -503,7 +503,8 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
      blk_op_block_all(be, blocker);
  
      /* restore the VM state */

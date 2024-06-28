@@ -27,7 +27,8 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 [FE: further improve aborting
      adapt to removal of QEMUFileOps
      improve condition for entering final stage
-     adapt to QAPI and other changes for 8.2]
+     adapt to QAPI and other changes for 8.2
+     make sure to not call vm_start() from coroutine]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hmp-commands-info.hx         |  13 +
@@ -35,13 +36,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 531 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 538 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  38 +++
  qapi/migration.json          |  34 +++
  qapi/misc.json               |  18 ++
  qemu-options.hx              |  12 +
  system/vl.c                  |  10 +
- 11 files changed, 679 insertions(+)
+ 11 files changed, 686 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -139,10 +140,10 @@ index 95d1cf2250..800f12a60d 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..779e4e2a78
+index 0000000000..72cf6588c2
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,531 @@
+@@ -0,0 +1,538 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -570,29 +571,10 @@ index 0000000000..779e4e2a78
 +    }
 +}
 +
-+void coroutine_fn qmp_savevm_end(Error **errp)
++static void coroutine_fn wait_for_close_co(void *opaque)
 +{
 +    int64_t timeout;
 +
-+    if (snap_state.state == SAVE_STATE_DONE) {
-+        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-+                  "VM snapshot not started\n");
-+        return;
-+    }
-+
-+    if (snap_state.state == SAVE_STATE_ACTIVE) {
-+        snap_state.state = SAVE_STATE_CANCELLED;
-+        goto wait_for_close;
-+    }
-+
-+    if (snap_state.saved_vm_running) {
-+        vm_start();
-+        snap_state.saved_vm_running = false;
-+    }
-+
-+    snap_state.state = SAVE_STATE_DONE;
-+
-+wait_for_close:
 +    if (!snap_state.target) {
 +        DPRINTF("savevm-end: no target file open\n");
 +        return;
@@ -618,6 +600,32 @@ index 0000000000..779e4e2a78
 +    }
 +
 +    DPRINTF("savevm-end: cleanup done\n");
++}
++
++void qmp_savevm_end(Error **errp)
++{
++    if (snap_state.state == SAVE_STATE_DONE) {
++        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
++                  "VM snapshot not started\n");
++        return;
++    }
++
++    Coroutine *wait_for_close = qemu_coroutine_create(wait_for_close_co, NULL);
++
++    if (snap_state.state == SAVE_STATE_ACTIVE) {
++        snap_state.state = SAVE_STATE_CANCELLED;
++        qemu_coroutine_enter(wait_for_close);
++        return;
++    }
++
++    if (snap_state.saved_vm_running) {
++        vm_start();
++        snap_state.saved_vm_running = false;
++    }
++
++    snap_state.state = SAVE_STATE_DONE;
++
++    qemu_coroutine_enter(wait_for_close);
 +}
 +
 +int load_snapshot_from_blockdev(const char *filename, Error **errp)
@@ -773,7 +781,7 @@ index 8c65b90328..ed20d066cd 100644
  # @query-migrate:
  #
 diff --git a/qapi/misc.json b/qapi/misc.json
-index ec30e5c570..7147199a12 100644
+index ec30e5c570..3c68633f68 100644
 --- a/qapi/misc.json
 +++ b/qapi/misc.json
 @@ -454,6 +454,24 @@
@@ -796,7 +804,7 @@ index ec30e5c570..7147199a12 100644
 +# Resume VM after a snapshot.
 +#
 +##
-+{ 'command': 'savevm-end', 'coroutine': true }
++{ 'command': 'savevm-end' }
 +
  ##
  # @CommandLineParameterType:
