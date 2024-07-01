@@ -1,3 +1,14 @@
+pve-qemu-kvm (9.0.0-4) bookworm; urgency=medium
+
+  * fix crash after saving a snapshot without including VM state when a VirtIO
+    block device with iothread is configured.
+
+  * fix edge case in error handling when opening a block device from PBS fails
+
+  * minor code cleanup in backup code
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 01 Jul 2024 11:26:11 +0200
+
 pve-qemu-kvm (9.0.0-3) bookworm; urgency=medium
 
   * fix crash when doing resize after hotplugging a disk using io_uring
