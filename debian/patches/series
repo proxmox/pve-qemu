@@ -16,6 +16,8 @@ extra/0015-target-i386-Give-IRQs-a-chance-when-resetting-HF_INH.patch
 extra/0016-target-i386-hyper-v-Correct-kvm_hv_handle_exit-retur.patch
 extra/0017-target-i386-disable-jmp_opt-if-EFLAGS.RF-is-1.patch
 extra/0018-target-i386-no-single-step-exception-after-MOV-or-PO.patch
+extra/0019-qcow2-Don-t-open-data_file-with-BDRV_O_NO_IO.patch
+extra/0020-block-Parse-filenames-only-when-explicitly-requested.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
