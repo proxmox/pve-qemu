@@ -1,3 +1,15 @@
+pve-qemu-kvm (9.0.0-5) bookworm; urgency=medium
+
+  * backport fix for CVE-2024-4467 to prevent malicious qcow2 image files from
+    already causing bad effects if being queried via 'qemu-img info'. For
+    Proxmox VE, this is an additional safe guard, as currently it directly
+    creates and manages the qcow2 images used by VMs and does not allow
+    unprivileged users to import them
+
+  * fix #4726: code cleanup: avoid superfluous check in vma backup code
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 03 Jul 2024 13:13:35 +0200
+
 pve-qemu-kvm (9.0.0-4) bookworm; urgency=medium
 
   * fix crash after saving a snapshot without including VM state when a VirtIO
