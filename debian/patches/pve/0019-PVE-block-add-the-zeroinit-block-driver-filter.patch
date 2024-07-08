@@ -5,12 +5,13 @@ Subject: [PATCH] PVE: block: add the zeroinit block driver filter
 
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: adapt to changed function signatures
-     adhere to block graph lock requirements]
+     adhere to block graph lock requirements
+     use dedicated function to open file child]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build |   1 +
- block/zeroinit.c  | 214 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 215 insertions(+)
+ block/zeroinit.c  | 207 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 208 insertions(+)
  create mode 100644 block/zeroinit.c
 
 diff --git a/block/meson.build b/block/meson.build
@@ -27,10 +28,10 @@ index e1f03fd773..b530e117b5 100644
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
 diff --git a/block/zeroinit.c b/block/zeroinit.c
 new file mode 100644
-index 0000000000..696558d8d6
+index 0000000000..7998c9332d
 --- /dev/null
 +++ b/block/zeroinit.c
-@@ -0,0 +1,214 @@
+@@ -0,0 +1,207 @@
 +/*
 + * Filter to fake a zero-initialized block device.
 + *
@@ -96,7 +97,6 @@ index 0000000000..696558d8d6
 +                          Error **errp)
 +{
 +    BDRVZeroinitState *s = bs->opaque;
-+    BdrvChild *file = NULL;
 +    QemuOpts *opts;
 +    Error *local_err = NULL;
 +    int ret;
@@ -112,15 +112,9 @@ index 0000000000..696558d8d6
 +    }
 +
 +    /* Open the raw file */
-+    file = bdrv_open_child(qemu_opt_get(opts, "x-next"), options, "next", bs,
-+                           &child_of_bds,
-+                           BDRV_CHILD_FILTERED | BDRV_CHILD_PRIMARY, false,
-+                           &local_err);
-+    bdrv_graph_wrlock();
-+    bs->file = file;
-+    bdrv_graph_wrunlock();
-+    if (local_err) {
-+        ret = -EINVAL;
++    ret = bdrv_open_file_child(qemu_opt_get(opts, "x-next"), options, "next",
++                               bs, &local_err);
++    if (ret < 0) {
 +        error_propagate(errp, local_err);
 +        goto fail;
 +    }
