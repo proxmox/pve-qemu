@@ -1,3 +1,10 @@
+pve-qemu-kvm (9.0.0-6) bookworm; urgency=medium
+
+  * fix a regression in the zeroinit block driver that prevented importing and
+    cloning disks to RBD storages which are not using the krbd setting
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 08 Jul 2024 16:11:15 +0200
+
 pve-qemu-kvm (9.0.0-5) bookworm; urgency=medium
 
   * backport fix for CVE-2024-4467 to prevent malicious qcow2 image files from
