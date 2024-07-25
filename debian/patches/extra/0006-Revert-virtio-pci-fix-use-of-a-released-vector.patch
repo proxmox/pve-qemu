@@ -24,10 +24,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 2 insertions(+), 35 deletions(-)
 
 diff --git a/hw/virtio/virtio-pci.c b/hw/virtio/virtio-pci.c
-index cb159fd078..cb6940fc0e 100644
+index e04218a9fb..fd66713848 100644
 --- a/hw/virtio/virtio-pci.c
 +++ b/hw/virtio/virtio-pci.c
-@@ -1424,38 +1424,6 @@ static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
+@@ -1410,38 +1410,6 @@ static int virtio_pci_add_mem_cap(VirtIOPCIProxy *proxy,
      return offset;
  }
  
@@ -66,7 +66,7 @@ index cb159fd078..cb6940fc0e 100644
  int virtio_pci_add_shm_cap(VirtIOPCIProxy *proxy,
                             uint8_t bar, uint64_t offset, uint64_t length,
                             uint8_t id)
-@@ -1602,8 +1570,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
+@@ -1588,8 +1556,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
          } else {
              val = VIRTIO_NO_VECTOR;
          }
@@ -76,7 +76,7 @@ index cb159fd078..cb6940fc0e 100644
          break;
      case VIRTIO_PCI_COMMON_STATUS:
          if (!(val & VIRTIO_CONFIG_S_DRIVER_OK)) {
-@@ -1643,7 +1610,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
+@@ -1629,7 +1596,7 @@ static void virtio_pci_common_write(void *opaque, hwaddr addr,
          } else {
              val = VIRTIO_NO_VECTOR;
          }

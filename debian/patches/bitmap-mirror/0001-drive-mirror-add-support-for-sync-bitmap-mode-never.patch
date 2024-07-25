@@ -364,10 +364,10 @@ index d2201e27f4..cc1387ae02 100644
                    BlockdevOnError on_source_error,
                    BlockdevOnError on_target_error,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 746d1694c2..45ab548dfe 100644
+index 4b18e01b85..0902b0a024 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -2174,6 +2174,15 @@
+@@ -2170,6 +2170,15 @@
  #     destination (all the disk, only the sectors allocated in the
  #     topmost image, or only new I/O).
  #
@@ -383,7 +383,7 @@ index 746d1694c2..45ab548dfe 100644
  # @granularity: granularity of the dirty bitmap, default is 64K if the
  #     image format doesn't have clusters, 4K if the clusters are
  #     smaller than that, else the cluster size.  Must be a power of 2
-@@ -2216,7 +2225,9 @@
+@@ -2212,7 +2221,9 @@
  { 'struct': 'DriveMirror',
    'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
              '*format': 'str', '*node-name': 'str', '*replaces': 'str',
@@ -394,7 +394,7 @@ index 746d1694c2..45ab548dfe 100644
              '*speed': 'int', '*granularity': 'uint32',
              '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
              '*on-target-error': 'BlockdevOnError',
-@@ -2496,6 +2507,15 @@
+@@ -2492,6 +2503,15 @@
  #     destination (all the disk, only the sectors allocated in the
  #     topmost image, or only new I/O).
  #
@@ -410,7 +410,7 @@ index 746d1694c2..45ab548dfe 100644
  # @granularity: granularity of the dirty bitmap, default is 64K if the
  #     image format doesn't have clusters, 4K if the clusters are
  #     smaller than that, else the cluster size.  Must be a power of 2
-@@ -2544,7 +2564,8 @@
+@@ -2540,7 +2560,8 @@
  { 'command': 'blockdev-mirror',
    'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
              '*replaces': 'str',

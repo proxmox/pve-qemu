@@ -254,7 +254,7 @@ index cc1387ae02..f0c642b194 100644
                              BackupPerf *perf,
                              BlockdevOnError on_source_error,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index f516d8e95a..d796d49abb 100644
+index cb58a664ef..282e2e8a8c 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -1849,6 +1849,9 @@

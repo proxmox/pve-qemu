@@ -119,10 +119,10 @@ index 43bc0bd520..60e98c87f1 100644
      };
      return raw_co_create(&options, errp);
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 45ab548dfe..f7c2b63c5d 100644
+index 0902b0a024..0653c244cf 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -4956,6 +4956,10 @@
+@@ -4952,6 +4952,10 @@
  # @extent-size-hint: Extent size hint to add to the image file; 0 for
  #     not adding an extent size hint (default: 1 MB, since 5.1)
  #
@@ -133,7 +133,7 @@ index 45ab548dfe..f7c2b63c5d 100644
  # Since: 2.12
  ##
  { 'struct': 'BlockdevCreateOptionsFile',
-@@ -4963,7 +4967,8 @@
+@@ -4959,7 +4963,8 @@
              'size':                 'size',
              '*preallocation':       'PreallocMode',
              '*nocow':               'bool',

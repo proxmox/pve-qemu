@@ -82,7 +82,7 @@ index 1054a69279..cbe224387b 100644
  
      if ((backup->sync == MIRROR_SYNC_MODE_BITMAP) ||
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index edbf6e78b9..6e7ee87633 100644
+index 9caf04cbe9..df934647ed 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -1790,11 +1790,16 @@
