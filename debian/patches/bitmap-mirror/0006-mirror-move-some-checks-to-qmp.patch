@@ -62,7 +62,7 @@ index 6b3cce1007..2f1223852b 100644
  
          if (bitmap_mode != BITMAP_SYNC_MODE_NEVER) {
 diff --git a/blockdev.c b/blockdev.c
-index 5b75a085ee..d27d8c38ec 100644
+index 37b8437f3e..ed8198f351 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -2852,7 +2852,36 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,

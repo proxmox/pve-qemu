@@ -25,7 +25,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  4 files changed, 23 insertions(+), 6 deletions(-)
 
 diff --git a/block/block-copy.c b/block/block-copy.c
-index 7e3b378528..adb1cbb440 100644
+index cc618e4561..12d662e9d4 100644
 --- a/block/block-copy.c
 +++ b/block/block-copy.c
 @@ -310,6 +310,7 @@ void block_copy_set_copy_opts(BlockCopyState *s, bool use_copy_range,

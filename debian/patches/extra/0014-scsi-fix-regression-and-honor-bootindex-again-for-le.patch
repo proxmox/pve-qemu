@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Wed, 10 Jul 2024 17:25:29 +0200
+Subject: [PATCH] scsi: fix regression and honor bootindex again for legacy
+ drives
+
+Commit 3089637461 ("scsi: Don't ignore most usb-storage properties")
+removed the call to object_property_set_int() and thus the 'set'
+method for the bootindex property was also not called anymore. Here
+that method is device_set_bootindex() (as configured by
+scsi_dev_instance_init() -> device_add_bootindex_property()) which as
+a side effect registers the device via add_boot_device_path().
+
+As reported by a downstream user [0], the bootindex property did not
+have the desired effect anymore for legacy drives. Fix the regression
+by explicitly calling the add_boot_device_path() function after
+checking that the bootindex is not yet used (to avoid
+add_boot_device_path() calling exit()).
+
+[0]: https://forum.proxmox.com/threads/149772/post-679433
+
+Cc: qemu-stable@nongnu.org
+Fixes: 3089637461 ("scsi: Don't ignore most usb-storage properties")
+Suggested-by: Kevin Wolf <kwolf@redhat.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Link: https://lore.kernel.org/r/20240710152529.1737407-1-f.ebner@proxmox.com
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 57a8a80d1a5b28797b21d30bfc60601945820e51)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/scsi/scsi-bus.c | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/hw/scsi/scsi-bus.c b/hw/scsi/scsi-bus.c
+index 9e40b0c920..53eff5dd3d 100644
+--- a/hw/scsi/scsi-bus.c
++++ b/hw/scsi/scsi-bus.c
+@@ -384,6 +384,7 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
+     DeviceState *dev;
+     SCSIDevice *s;
+     DriveInfo *dinfo;
++    Error *local_err = NULL;
+ 
+     if (blk_is_sg(blk)) {
+         driver = "scsi-generic";
+@@ -403,6 +404,14 @@ SCSIDevice *scsi_bus_legacy_add_drive(SCSIBus *bus, BlockBackend *blk,
+     s = SCSI_DEVICE(dev);
+     s->conf = *conf;
+ 
++    check_boot_index(conf->bootindex, &local_err);
++    if (local_err) {
++        object_unparent(OBJECT(dev));
++        error_propagate(errp, local_err);
++        return NULL;
++    }
++    add_boot_device_path(conf->bootindex, dev, NULL);
++
+     qdev_prop_set_uint32(dev, "scsi-id", unit);
+     if (object_property_find(OBJECT(dev), "removable")) {
+         qdev_prop_set_bit(dev, "removable", removable);

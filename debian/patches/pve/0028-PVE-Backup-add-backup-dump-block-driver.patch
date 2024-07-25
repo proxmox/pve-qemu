@@ -199,7 +199,7 @@ index 0000000000..e46abf1070
 +    return bs;
 +}
 diff --git a/block/backup.c b/block/backup.c
-index 270957c0cd..16d611c4ca 100644
+index eba5b11493..1963e47ab9 100644
 --- a/block/backup.c
 +++ b/block/backup.c
 @@ -29,28 +29,6 @@
@@ -231,7 +231,7 @@ index 270957c0cd..16d611c4ca 100644
  static const BlockJobDriver backup_job_driver;
  
  static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
-@@ -461,6 +439,14 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
+@@ -462,6 +440,14 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
      }
  
      cluster_size = block_copy_cluster_size(bcs);

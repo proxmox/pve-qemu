@@ -258,7 +258,7 @@ index 1bdce3b657..0c5c72df2e 100644
                       errp);
      if (!job) {
 diff --git a/blockdev.c b/blockdev.c
-index 057601dcf0..8682814a7a 100644
+index 4c33c3f5f0..f3e508a6a7 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -2776,6 +2776,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
@@ -349,7 +349,7 @@ index 057601dcf0..8682814a7a 100644
                             has_granularity, granularity,
                             has_buf_size, buf_size,
 diff --git a/include/block/block_int-global-state.h b/include/block/block_int-global-state.h
-index d2201e27f4..cc1387ae02 100644
+index eb2d92a226..f0c642b194 100644
 --- a/include/block/block_int-global-state.h
 +++ b/include/block/block_int-global-state.h
 @@ -158,7 +158,9 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
@@ -364,10 +364,10 @@ index d2201e27f4..cc1387ae02 100644
                    BlockdevOnError on_source_error,
                    BlockdevOnError on_target_error,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 4b18e01b85..0902b0a024 100644
+index b179d65520..905da8be72 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -2170,6 +2170,15 @@
+@@ -2174,6 +2174,15 @@
  #     destination (all the disk, only the sectors allocated in the
  #     topmost image, or only new I/O).
  #
@@ -383,7 +383,7 @@ index 4b18e01b85..0902b0a024 100644
  # @granularity: granularity of the dirty bitmap, default is 64K if the
  #     image format doesn't have clusters, 4K if the clusters are
  #     smaller than that, else the cluster size.  Must be a power of 2
-@@ -2212,7 +2221,9 @@
+@@ -2216,7 +2225,9 @@
  { 'struct': 'DriveMirror',
    'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
              '*format': 'str', '*node-name': 'str', '*replaces': 'str',
@@ -394,7 +394,7 @@ index 4b18e01b85..0902b0a024 100644
              '*speed': 'int', '*granularity': 'uint32',
              '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
              '*on-target-error': 'BlockdevOnError',
-@@ -2492,6 +2503,15 @@
+@@ -2496,6 +2507,15 @@
  #     destination (all the disk, only the sectors allocated in the
  #     topmost image, or only new I/O).
  #
@@ -410,7 +410,7 @@ index 4b18e01b85..0902b0a024 100644
  # @granularity: granularity of the dirty bitmap, default is 64K if the
  #     image format doesn't have clusters, 4K if the clusters are
  #     smaller than that, else the cluster size.  Must be a power of 2
-@@ -2540,7 +2560,8 @@
+@@ -2544,7 +2564,8 @@
  { 'command': 'blockdev-mirror',
    'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
              '*replaces': 'str',
