@@ -1,3 +1,14 @@
+pve-qemu-kvm (9.0.2-1) bookworm; urgency=medium
+
+  * update submodule and patches to QEMU 9.0.2. While our version had most
+    stable fixes included already, there are new fixes for VirtIO and VGA
+    display screen blanking (#4786)
+
+  * backport fix for a regression with the LSI-53c895a controller and one for
+    the boot order getting ignored for USB storage
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 29 Jul 2024 18:59:40 +0200
+
 pve-qemu-kvm (9.0.0-6) bookworm; urgency=medium
 
   * fix a regression in the zeroinit block driver that prevented importing and
