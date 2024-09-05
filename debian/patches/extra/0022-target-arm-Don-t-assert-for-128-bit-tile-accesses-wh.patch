@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Maydell <peter.maydell@linaro.org>
+Date: Mon, 22 Jul 2024 18:29:54 +0100
+Subject: [PATCH] target/arm: Don't assert for 128-bit tile accesses when SVL
+ is 128
+
+For an instruction which accesses a 128-bit element tile when
+the SVL is also 128 (for example MOV z0.Q, p0/M, ZA0H.Q[w0,0]),
+we will assert in get_tile_rowcol():
+
+qemu-system-aarch64: ../../tcg/tcg-op.c:926: tcg_gen_deposit_z_i32: Assertion `len > 0' failed.
+
+This happens because we calculate
+    len = ctz32(streaming_vec_reg_size(s)) - esz;$
+but if the SVL and the element size are the same len is 0, and
+the deposit operation asserts.
+
+In this case the ZA storage contains exactly one 128 bit
+element ZA tile, and the horizontal or vertical slice is just
+that tile. This means that regardless of the index value in
+the Ws register, we always access that tile. (In pseudocode terms,
+we calculate (index + offset) MOD 1, which is 0.)
+
+Special case the len == 0 case to avoid hitting the assertion
+in tcg_gen_deposit_z_i32().
+
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+Reviewed-by: Richard Henderson <richard.henderson@linaro.org>
+Message-id: 20240722172957.1041231-2-peter.maydell@linaro.org
+(cherry picked from commit 56f1c0db928aae0b83fd91c89ddb226b137e2b21)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/arm/tcg/translate-sme.c | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/target/arm/tcg/translate-sme.c b/target/arm/tcg/translate-sme.c
+index 185a8a917b..a50a419af2 100644
+--- a/target/arm/tcg/translate-sme.c
++++ b/target/arm/tcg/translate-sme.c
+@@ -49,7 +49,15 @@ static TCGv_ptr get_tile_rowcol(DisasContext *s, int esz, int rs,
+     /* Prepare a power-of-two modulo via extraction of @len bits. */
+     len = ctz32(streaming_vec_reg_size(s)) - esz;
+ 
+-    if (vertical) {
++    if (!len) {
++        /*
++         * SVL is 128 and the element size is 128. There is exactly
++         * one 128x128 tile in the ZA storage, and so we calculate
++         * (Rs + imm) MOD 1, which is always 0. We need to special case
++         * this because TCG doesn't allow deposit ops with len 0.
++         */
++        tcg_gen_movi_i32(tmp, 0);
++    } else if (vertical) {
+         /*
+          * Compute the byte offset of the index within the tile:
+          *     (index % (svl / size)) * size

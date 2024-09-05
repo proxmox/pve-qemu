@@ -120,10 +120,10 @@ index e99914eaa4..6bba803f94 100644
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  system_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index d954bec6f1..5000c084c5 100644
+index bdf2eb50b6..439a7a14c8 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1008,3 +1008,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+@@ -1009,3 +1009,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
      qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
                                 !!read_only, read_only_mode, errp);
  }

@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Cl=C3=A9ment=20Mathieu--Drif?=
+ <clement.mathieu--drif@eviden.com>
+Date: Tue, 9 Jul 2024 14:26:08 +0000
+Subject: [PATCH] intel_iommu: fix FRCD construction macro
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The constant must be unsigned, otherwise the two's complement
+overrides the other fields when a PASID is present.
+
+Fixes: 1b2b12376c8a ("intel-iommu: PASID support")
+Signed-off-by: Clément Mathieu--Drif <clement.mathieu--drif@eviden.com>
+Reviewed-by: Yi Liu <yi.l.liu@intel.com>
+Reviewed-by: Zhenzhong Duan <zhenzhong.duan@intel.com>
+Reviewed-by: Minwoo Im <minwoo.im@samsung.com>
+Message-Id: <20240709142557.317271-2-clement.mathieu--drif@eviden.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry picked from commit a3c8d7e38550c3d5a46e6fa94ffadfa625a4861d)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/i386/intel_iommu_internal.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/i386/intel_iommu_internal.h b/hw/i386/intel_iommu_internal.h
+index f8cf99bddf..cbc4030031 100644
+--- a/hw/i386/intel_iommu_internal.h
++++ b/hw/i386/intel_iommu_internal.h
+@@ -267,7 +267,7 @@
+ /* For the low 64-bit of 128-bit */
+ #define VTD_FRCD_FI(val)        ((val) & ~0xfffULL)
+ #define VTD_FRCD_PV(val)        (((val) & 0xffffULL) << 40)
+-#define VTD_FRCD_PP(val)        (((val) & 0x1) << 31)
++#define VTD_FRCD_PP(val)        (((val) & 0x1ULL) << 31)
+ #define VTD_FRCD_IR_IDX(val)    (((val) & 0xffffULL) << 48)
+ 
+ /* DMA Remapping Fault Conditions */

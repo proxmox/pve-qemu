@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Maydell <peter.maydell@linaro.org>
+Date: Mon, 22 Jul 2024 18:29:56 +0100
+Subject: [PATCH] target/arm: Avoid shifts by -1 in tszimm_shr() and
+ tszimm_shl()
+
+The function tszimm_esz() returns a shift amount, or possibly -1 in
+certain cases that correspond to unallocated encodings in the
+instruction set.  We catch these later in the trans_ functions
+(generally with an "a-esz < 0" check), but before we do the
+decodetree-generated code will also call tszimm_shr() or tszimm_sl(),
+which will use the tszimm_esz() return value as a shift count without
+checking that it is not negative, which is undefined behaviour.
+
+Avoid the UB by checking the return value in tszimm_shr() and
+tszimm_shl().
+
+Cc: qemu-stable@nongnu.org
+Resolves: Coverity CID 1547617, 1547694
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+Reviewed-by: Richard Henderson <richard.henderson@linaro.org>
+Message-id: 20240722172957.1041231-4-peter.maydell@linaro.org
+(cherry picked from commit 76916dfa89e8900639c1055c07a295c06628a0bc)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/arm/tcg/translate-sve.c | 18 ++++++++++++++++--
+ 1 file changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/target/arm/tcg/translate-sve.c b/target/arm/tcg/translate-sve.c
+index ada05aa530..466a19c25a 100644
+--- a/target/arm/tcg/translate-sve.c
++++ b/target/arm/tcg/translate-sve.c
+@@ -50,13 +50,27 @@ static int tszimm_esz(DisasContext *s, int x)
+ 
+ static int tszimm_shr(DisasContext *s, int x)
+ {
+-    return (16 << tszimm_esz(s, x)) - x;
++    /*
++     * We won't use the tszimm_shr() value if tszimm_esz() returns -1 (the
++     * trans function will check for esz < 0), so we can return any
++     * value we like from here in that case as long as we avoid UB.
++     */
++    int esz = tszimm_esz(s, x);
++    if (esz < 0) {
++        return esz;
++    }
++    return (16 << esz) - x;
+ }
+ 
+ /* See e.g. LSL (immediate, predicated).  */
+ static int tszimm_shl(DisasContext *s, int x)
+ {
+-    return x - (8 << tszimm_esz(s, x));
++    /* As with tszimm_shr(), value will be unused if esz < 0 */
++    int esz = tszimm_esz(s, x);
++    if (esz < 0) {
++        return esz;
++    }
++    return x - (8 << esz);
+ }
+ 
+ /* The SH bit is in bit 8.  Extract the low 8 and shift.  */

@@ -1,0 +1,70 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: David Woodhouse <dwmw@amazon.co.uk>
+Date: Tue, 9 Jul 2024 13:34:44 +0100
+Subject: [PATCH] net: Reinstate '-net nic, model=help' output as documented in
+ man page
+
+While refactoring the NIC initialization code, I broke '-net nic,model=help'
+which no longer outputs a list of available NIC models.
+
+Fixes: 2cdeca04adab ("net: report list of available models according to platform")
+Cc: qemu-stable@nongnu.org
+Signed-off-by: David Woodhouse <dwmw@amazon.co.uk>
+Reviewed-by: Michael Tokarev <mjt@tls.msk.ru>
+Signed-off-by: Jason Wang <jasowang@redhat.com>
+(cherry picked from commit 64f75f57f9d2c8c12ac6d9355fa5d3a2af5879ca)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ net/net.c | 25 ++++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/net/net.c b/net/net.c
+index a2f0c828bb..e6ca2529bb 100644
+--- a/net/net.c
++++ b/net/net.c
+@@ -1150,6 +1150,21 @@ NICInfo *qemu_find_nic_info(const char *typename, bool match_default,
+     return NULL;
+ }
+ 
++static bool is_nic_model_help_option(const char *model)
++{
++    if (model && is_help_option(model)) {
++        /*
++         * Trigger the help output by instantiating the hash table which
++         * will gather tha available models as they get registered.
++         */
++        if (!nic_model_help) {
++            nic_model_help = g_hash_table_new_full(g_str_hash, g_str_equal,
++                                                   g_free, NULL);
++        }
++        return true;
++    }
++    return false;
++}
+ 
+ /* "I have created a device. Please configure it if you can" */
+ bool qemu_configure_nic_device(DeviceState *dev, bool match_default,
+@@ -1733,6 +1748,12 @@ void net_check_clients(void)
+ 
+ static int net_init_client(void *dummy, QemuOpts *opts, Error **errp)
+ {
++    const char *model = qemu_opt_get_del(opts, "model");
++
++    if (is_nic_model_help_option(model)) {
++        return 0;
++    }
++
+     return net_client_init(opts, false, errp);
+ }
+ 
+@@ -1789,9 +1810,7 @@ static int net_param_nic(void *dummy, QemuOpts *opts, Error **errp)
+     memset(ni, 0, sizeof(*ni));
+     ni->model = qemu_opt_get_del(opts, "model");
+ 
+-    if (!nic_model_help && !g_strcmp0(ni->model, "help")) {
+-        nic_model_help = g_hash_table_new_full(g_str_hash, g_str_equal,
+-                                               g_free, NULL);
++    if (is_nic_model_help_option(ni->model)) {
+         return 0;
+     }
+ 

@@ -68,10 +68,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  3 files changed, 142 insertions(+), 4 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 5000c084c5..70b3de4c7e 100644
+index 439a7a14c8..d0e7771dcc 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1043,6 +1043,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1044,6 +1044,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
          NULL, NULL,
          devlist, qdict_haskey(qdict, "speed"), speed,
          false, 0, // BackupPerf max-workers
