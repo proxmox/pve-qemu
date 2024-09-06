@@ -1,3 +1,13 @@
+pve-qemu-kvm (9.0.2-3) bookworm; urgency=medium
+
+  * pick up fix for VirtIO PCI regressions
+
+  * pick up stable fixes for 9.0, including fixes for VirtIO-net, ARM and
+    x86(_64) emulation, CVEs to harden NBD server against malicious clients,
+    as well as a few others (VNC, physmem, Intel IOMMU, ...).
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 06 Sep 2024 16:21:42 +0200
+
 pve-qemu-kvm (9.0.2-2) bookworm; urgency=medium
 
   * actually update submodule to QEMU 9.0.2. The previous release was still
