@@ -28,7 +28,8 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
      adapt to removal of QEMUFileOps
      improve condition for entering final stage
      adapt to QAPI and other changes for 8.2
-     make sure to not call vm_start() from coroutine]
+     make sure to not call vm_start() from coroutine
+     stop CPU throttling after finishing]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hmp-commands-info.hx         |  13 +
@@ -36,13 +37,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 538 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 545 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  38 +++
  qapi/migration.json          |  34 +++
  qapi/misc.json               |  18 ++
  qemu-options.hx              |  12 +
  system/vl.c                  |  10 +
- 11 files changed, 686 insertions(+)
+ 11 files changed, 693 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -140,10 +141,10 @@ index 95d1cf2250..800f12a60d 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..72cf6588c2
+index 0000000000..1af32604c7
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,538 @@
+@@ -0,0 +1,545 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -154,6 +155,7 @@ index 0000000000..72cf6588c2
 +#include "migration/global_state.h"
 +#include "migration/ram.h"
 +#include "migration/qemu-file.h"
++#include "sysemu/cpu-throttle.h"
 +#include "sysemu/sysemu.h"
 +#include "sysemu/runstate.h"
 +#include "block/block.h"
@@ -341,6 +343,12 @@ index 0000000000..72cf6588c2
 +    migrate_set_state(&ms->state, MIGRATION_STATUS_SETUP,
 +        ret || aborted ? MIGRATION_STATUS_FAILED : MIGRATION_STATUS_COMPLETED);
 +    ms->to_dst_file = NULL;
++
++    /*
++     * Same as in migration_iteration_finish(): saving RAM might've turned on CPU throttling for
++     * auto-converge, make sure to disable it.
++     */
++    cpu_throttle_stop();
 +
 +    qemu_savevm_state_cleanup();
 +
