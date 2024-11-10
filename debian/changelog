@@ -1,3 +1,10 @@
+pve-qemu-kvm (9.0.2-4) bookworm; urgency=medium
+
+  * async snapshot: ensure any dynamic vCPU-throttling applied for
+    auto-converge gets always disabled again after finishing the snapshot.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 10 Nov 2024 11:23:09 +0100
+
 pve-qemu-kvm (9.0.2-3) bookworm; urgency=medium
 
   * pick up fix for VirtIO PCI regressions
