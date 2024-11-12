@@ -1,0 +1,135 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Thu, 7 Nov 2024 17:51:15 +0100
+Subject: [PATCH] PVE backup: factor out setting up snapshot access for
+ fleecing
+
+Avoids some line bloat in the create_backup_jobs_bh() function and is
+in preparation for setting up the snapshot access independently of
+fleecing, in particular that will be useful for providing access to
+the snapshot via NBD.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ pve-backup.c | 95 ++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 58 insertions(+), 37 deletions(-)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index c4178758b3..051ebffe48 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -525,6 +525,62 @@ static int coroutine_fn pvebackup_co_add_config(
+     goto out;
+ }
+ 
++/*
++ * Setup a snapshot-access block node for a device with associated fleecing image.
++ */
++static int setup_snapshot_access(PVEBackupDevInfo *di, Error **errp)
++{
++    Error *local_err = NULL;
++
++    if (!di->fleecing.bs) {
++        error_setg(errp, "no associated fleecing image");
++        return -1;
++    }
++
++    QDict *cbw_opts = qdict_new();
++    qdict_put_str(cbw_opts, "driver", "copy-before-write");
++    qdict_put_str(cbw_opts, "file", bdrv_get_node_name(di->bs));
++    qdict_put_str(cbw_opts, "target", bdrv_get_node_name(di->fleecing.bs));
++
++    if (di->bitmap) {
++        /*
++         * Only guest writes to parts relevant for the backup need to be intercepted with
++         * old data being copied to the fleecing image.
++         */
++        qdict_put_str(cbw_opts, "bitmap.node", bdrv_get_node_name(di->bs));
++        qdict_put_str(cbw_opts, "bitmap.name", bdrv_dirty_bitmap_name(di->bitmap));
++    }
++    /*
++     * Fleecing storage is supposed to be fast and it's better to break backup than guest
++     * writes. Certain guest drivers like VirtIO-win have 60 seconds timeout by default, so
++     * abort a bit before that.
++     */
++    qdict_put_str(cbw_opts, "on-cbw-error", "break-snapshot");
++    qdict_put_int(cbw_opts, "cbw-timeout", 45);
++
++    di->fleecing.cbw = bdrv_insert_node(di->bs, cbw_opts, BDRV_O_RDWR, &local_err);
++
++    if (!di->fleecing.cbw) {
++        error_setg(errp, "appending cbw node for fleecing failed: %s",
++                   local_err ? error_get_pretty(local_err) : "unknown error");
++        return -1;
++    }
++
++    QDict *snapshot_access_opts = qdict_new();
++    qdict_put_str(snapshot_access_opts, "driver", "snapshot-access");
++    qdict_put_str(snapshot_access_opts, "file", bdrv_get_node_name(di->fleecing.cbw));
++
++    di->fleecing.snapshot_access =
++        bdrv_open(NULL, NULL, snapshot_access_opts, BDRV_O_RDWR | BDRV_O_UNMAP, &local_err);
++    if (!di->fleecing.snapshot_access) {
++        error_setg(errp, "setting up snapshot access for fleecing failed: %s",
++                   local_err ? error_get_pretty(local_err) : "unknown error");
++        return -1;
++    }
++
++    return 0;
++}
++
+ /*
+  * backup_job_create can *not* be run from a coroutine, so this can't either.
+  * The caller is responsible that backup_mutex is held nonetheless.
+@@ -569,49 +625,14 @@ static void create_backup_jobs_bh(void *opaque) {
+         const char *job_id = bdrv_get_device_name(di->bs);
+         bdrv_graph_co_rdunlock();
+         if (di->fleecing.bs) {
+-            QDict *cbw_opts = qdict_new();
+-            qdict_put_str(cbw_opts, "driver", "copy-before-write");
+-            qdict_put_str(cbw_opts, "file", bdrv_get_node_name(di->bs));
+-            qdict_put_str(cbw_opts, "target", bdrv_get_node_name(di->fleecing.bs));
+-
+-            if (di->bitmap) {
+-                /*
+-                 * Only guest writes to parts relevant for the backup need to be intercepted with
+-                 * old data being copied to the fleecing image.
+-                 */
+-                qdict_put_str(cbw_opts, "bitmap.node", bdrv_get_node_name(di->bs));
+-                qdict_put_str(cbw_opts, "bitmap.name", bdrv_dirty_bitmap_name(di->bitmap));
+-            }
+-            /*
+-             * Fleecing storage is supposed to be fast and it's better to break backup than guest
+-             * writes. Certain guest drivers like VirtIO-win have 60 seconds timeout by default, so
+-             * abort a bit before that.
+-             */
+-            qdict_put_str(cbw_opts, "on-cbw-error", "break-snapshot");
+-            qdict_put_int(cbw_opts, "cbw-timeout", 45);
+-
+-            di->fleecing.cbw = bdrv_insert_node(di->bs, cbw_opts, BDRV_O_RDWR, &local_err);
+-
+-            if (!di->fleecing.cbw) {
+-                error_setg(errp, "appending cbw node for fleecing failed: %s",
+-                           local_err ? error_get_pretty(local_err) : "unknown error");
+-                bdrv_drained_end(di->bs);
+-                break;
+-            }
+-
+-            QDict *snapshot_access_opts = qdict_new();
+-            qdict_put_str(snapshot_access_opts, "driver", "snapshot-access");
+-            qdict_put_str(snapshot_access_opts, "file", bdrv_get_node_name(di->fleecing.cbw));
+-
+-            di->fleecing.snapshot_access =
+-                bdrv_open(NULL, NULL, snapshot_access_opts, BDRV_O_RDWR | BDRV_O_UNMAP, &local_err);
+-            if (!di->fleecing.snapshot_access) {
++            if (setup_snapshot_access(di, &local_err) < 0) {
+                 error_setg(errp, "setting up snapshot access for fleecing failed: %s",
+                            local_err ? error_get_pretty(local_err) : "unknown error");
+                 cleanup_snapshot_access(di);
+                 bdrv_drained_end(di->bs);
+                 break;
+             }
++
+             source_bs = di->fleecing.snapshot_access;
+             discard_source = true;
+ 

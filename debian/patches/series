@@ -89,3 +89,6 @@ pve/0045-backup-add-minimum-cluster-size-to-performance-optio.patch
 pve/0046-PVE-backup-add-fleecing-option.patch
 pve/0047-PVE-backup-improve-error-when-copy-before-write-fail.patch
 pve/0048-PVE-backup-fixup-error-handling-for-fleecing.patch
+pve/0049-PVE-backup-factor-out-setting-up-snapshot-access-for.patch
+pve/0050-PVE-backup-save-device-name-in-device-info-structure.patch
+pve/0051-PVE-backup-include-device-name-in-error-when-setting.patch

@@ -1,0 +1,135 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Thu, 7 Nov 2024 17:51:16 +0100
+Subject: [PATCH] PVE backup: save device name in device info structure
+
+The device name needs to be queried while holding the graph read lock
+and since it doesn't change during the whole operation, just get it
+once during setup and avoid the need to query it again in different
+places.
+
+Also in preparation to use it more often in error messages and for the
+upcoming external backup access API.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ pve-backup.c | 29 +++++++++++++++--------------
+ 1 file changed, 15 insertions(+), 14 deletions(-)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index 051ebffe48..33c23e53c2 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -94,6 +94,7 @@ typedef struct PVEBackupDevInfo {
+     size_t size;
+     uint64_t block_size;
+     uint8_t dev_id;
++    char* device_name;
+     int completed_ret; // INT_MAX if not completed
+     BdrvDirtyBitmap *bitmap;
+     BlockDriverState *target;
+@@ -327,6 +328,8 @@ static void coroutine_fn pvebackup_co_complete_stream(void *opaque)
+     }
+ 
+     di->bs = NULL;
++    g_free(di->device_name);
++    di->device_name = NULL;
+ 
+     assert(di->target == NULL);
+ 
+@@ -621,9 +624,6 @@ static void create_backup_jobs_bh(void *opaque) {
+ 
+         BlockDriverState *source_bs = di->bs;
+         bool discard_source = false;
+-        bdrv_graph_co_rdlock();
+-        const char *job_id = bdrv_get_device_name(di->bs);
+-        bdrv_graph_co_rdunlock();
+         if (di->fleecing.bs) {
+             if (setup_snapshot_access(di, &local_err) < 0) {
+                 error_setg(errp, "setting up snapshot access for fleecing failed: %s",
+@@ -654,7 +654,7 @@ static void create_backup_jobs_bh(void *opaque) {
+         }
+ 
+         BlockJob *job = backup_job_create(
+-            job_id, source_bs, di->target, backup_state.speed, sync_mode, di->bitmap,
++            di->device_name, source_bs, di->target, backup_state.speed, sync_mode, di->bitmap,
+             bitmap_mode, false, discard_source, NULL, &perf, BLOCKDEV_ON_ERROR_REPORT,
+             BLOCKDEV_ON_ERROR_REPORT, JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn,
+             &local_err);
+@@ -751,6 +751,7 @@ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
+             }
+             PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
+             di->bs = bs;
++            di->device_name = g_strdup(bdrv_get_device_name(bs));
+ 
+             if (fleecing && device_uses_fleecing(*d)) {
+                 g_autofree gchar *fleecing_devid = g_strconcat(*d, "-fleecing", NULL);
+@@ -789,6 +790,7 @@ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
+ 
+             PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
+             di->bs = bs;
++            di->device_name = g_strdup(bdrv_get_device_name(bs));
+             di_list = g_list_append(di_list, di);
+         }
+     }
+@@ -956,9 +958,6 @@ UuidInfo coroutine_fn *qmp_backup(
+ 
+             di->block_size = dump_cb_block_size;
+ 
+-            bdrv_graph_co_rdlock();
+-            const char *devname = bdrv_get_device_name(di->bs);
+-            bdrv_graph_co_rdunlock();
+             PBSBitmapAction action = PBS_BITMAP_ACTION_NOT_USED;
+             size_t dirty = di->size;
+ 
+@@ -973,7 +972,8 @@ UuidInfo coroutine_fn *qmp_backup(
+                     }
+                     action = PBS_BITMAP_ACTION_NEW;
+                 } else {
+-                    expect_only_dirty = proxmox_backup_check_incremental(pbs, devname, di->size) != 0;
++                    expect_only_dirty =
++                        proxmox_backup_check_incremental(pbs, di->device_name, di->size) != 0;
+                 }
+ 
+                 if (expect_only_dirty) {
+@@ -997,7 +997,8 @@ UuidInfo coroutine_fn *qmp_backup(
+                 }
+             }
+ 
+-            int dev_id = proxmox_backup_co_register_image(pbs, devname, di->size, expect_only_dirty, errp);
++            int dev_id = proxmox_backup_co_register_image(pbs, di->device_name, di->size,
++                                                          expect_only_dirty, errp);
+             if (dev_id < 0) {
+                 goto err_mutex;
+             }
+@@ -1009,7 +1010,7 @@ UuidInfo coroutine_fn *qmp_backup(
+             di->dev_id = dev_id;
+ 
+             PBSBitmapInfo *info = g_malloc(sizeof(*info));
+-            info->drive = g_strdup(devname);
++            info->drive = g_strdup(di->device_name);
+             info->action = action;
+             info->size = di->size;
+             info->dirty = dirty;
+@@ -1034,10 +1035,7 @@ UuidInfo coroutine_fn *qmp_backup(
+                 goto err_mutex;
+             }
+ 
+-            bdrv_graph_co_rdlock();
+-            const char *devname = bdrv_get_device_name(di->bs);
+-            bdrv_graph_co_rdunlock();
+-            di->dev_id = vma_writer_register_stream(vmaw, devname, di->size);
++            di->dev_id = vma_writer_register_stream(vmaw, di->device_name, di->size);
+             if (di->dev_id <= 0) {
+                 error_set(errp, ERROR_CLASS_GENERIC_ERROR,
+                           "register_stream failed");
+@@ -1148,6 +1146,9 @@ err:
+             bdrv_co_unref(di->target);
+         }
+ 
++        g_free(di->device_name);
++        di->device_name = NULL;
++
+         g_free(di);
+     }
+     g_list_free(di_list);
