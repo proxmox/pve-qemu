@@ -36,10 +36,10 @@ index 1963e47ab9..fe69723ada 100644
          goto error;
      }
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index 47b3cdd09f..bba58326d7 100644
+index ef4e666303..adb27649a8 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
-@@ -546,6 +546,7 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
+@@ -547,6 +547,7 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
                                    BlockDriverState *target,
                                    const char *filter_node_name,
                                    bool discard_source,
@@ -47,7 +47,7 @@ index 47b3cdd09f..bba58326d7 100644
                                    BlockCopyState **bcs,
                                    Error **errp)
  {
-@@ -564,6 +565,7 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
+@@ -565,6 +566,7 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
      }
      qdict_put_str(opts, "file", bdrv_get_node_name(source));
      qdict_put_str(opts, "target", bdrv_get_node_name(target));

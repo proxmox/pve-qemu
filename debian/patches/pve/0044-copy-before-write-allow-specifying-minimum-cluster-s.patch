@@ -82,10 +82,10 @@ index cc618e4561..12d662e9d4 100644
          return NULL;
      }
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index 853e01a1eb..47b3cdd09f 100644
+index 28f6a096cd..ef4e666303 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
-@@ -477,7 +477,8 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -478,7 +478,8 @@ static int cbw_open(BlockDriverState *bs, QDict *options, int flags,
  
      s->discard_source = flags & BDRV_O_CBW_DISCARD_SOURCE;
      s->bcs = block_copy_state_new(bs->file, s->target, bs, bitmap,

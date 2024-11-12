@@ -21,7 +21,7 @@ Tested-by: Friedrich Weber <f.weber@proxmox.com>
  3 files changed, 22 insertions(+), 6 deletions(-)
 
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index bba58326d7..50cc4c7aae 100644
+index adb27649a8..a5bb4d14f6 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -27,6 +27,7 @@
@@ -32,7 +32,7 @@ index bba58326d7..50cc4c7aae 100644
  #include "qemu/cutils.h"
  #include "qapi/error.h"
  #include "block/block_int.h"
-@@ -74,7 +75,8 @@ typedef struct BDRVCopyBeforeWriteState {
+@@ -75,7 +76,8 @@ typedef struct BDRVCopyBeforeWriteState {
       * @snapshot_error is normally zero. But on first copy-before-write failure
       * when @on_cbw_error == ON_CBW_ERROR_BREAK_SNAPSHOT, @snapshot_error takes
       * value of this error (<0). After that all in-flight and further
@@ -42,7 +42,7 @@ index bba58326d7..50cc4c7aae 100644
       */
      int snapshot_error;
  } BDRVCopyBeforeWriteState;
-@@ -114,7 +116,7 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
+@@ -115,7 +117,7 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
          return 0;
      }
  
@@ -51,7 +51,7 @@ index bba58326d7..50cc4c7aae 100644
          return 0;
      }
  
-@@ -138,9 +140,7 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
+@@ -139,9 +141,7 @@ static coroutine_fn int cbw_do_copy_before_write(BlockDriverState *bs,
      WITH_QEMU_LOCK_GUARD(&s->lock) {
          if (ret < 0) {
              assert(s->on_cbw_error == ON_CBW_ERROR_BREAK_SNAPSHOT);
@@ -62,7 +62,7 @@ index bba58326d7..50cc4c7aae 100644
          } else {
              bdrv_set_dirty_bitmap(s->done_bitmap, off, end - off);
          }
-@@ -214,7 +214,7 @@ cbw_snapshot_read_lock(BlockDriverState *bs, int64_t offset, int64_t bytes,
+@@ -215,7 +215,7 @@ cbw_snapshot_read_lock(BlockDriverState *bs, int64_t offset, int64_t bytes,
  
      QEMU_LOCK_GUARD(&s->lock);
  
@@ -71,7 +71,7 @@ index bba58326d7..50cc4c7aae 100644
          g_free(req);
          return NULL;
      }
-@@ -585,6 +585,12 @@ void bdrv_cbw_drop(BlockDriverState *bs)
+@@ -586,6 +586,12 @@ void bdrv_cbw_drop(BlockDriverState *bs)
      bdrv_unref(bs);
  }
  
