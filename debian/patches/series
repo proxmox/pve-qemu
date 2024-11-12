@@ -88,3 +88,4 @@ pve/0044-copy-before-write-allow-specifying-minimum-cluster-s.patch
 pve/0045-backup-add-minimum-cluster-size-to-performance-optio.patch
 pve/0046-PVE-backup-add-fleecing-option.patch
 pve/0047-PVE-backup-improve-error-when-copy-before-write-fail.patch
+pve/0048-PVE-backup-fixup-error-handling-for-fleecing.patch
