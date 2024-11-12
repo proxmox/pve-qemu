@@ -34,6 +34,7 @@ extra/0033-nbd-server-CVE-2024-7409-Close-stray-clients-at-serv.patch
 extra/0034-vnc-fix-crash-when-no-console-attached.patch
 extra/0035-nbd-server-CVE-2024-7409-Avoid-use-after-free-when-c.patch
 extra/0036-softmmu-physmem-fix-memory-leak-in-dirty_memory_exte.patch
+extra/0037-block-reqlist-allow-adding-overlapping-requests.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
