@@ -15,7 +15,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 block/zeroinit.c
 
 diff --git a/block/meson.build b/block/meson.build
-index e1f03fd773..b530e117b5 100644
+index f1262ec2ba..6a60b5d6b9 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -39,6 +39,7 @@ block_ss.add(files(
@@ -23,12 +23,12 @@ index e1f03fd773..b530e117b5 100644
    'throttle-groups.c',
    'write-threshold.c',
 +  'zeroinit.c',
- ), zstd, zlib, gnutls)
+ ), zstd, zlib)
  
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
 diff --git a/block/zeroinit.c b/block/zeroinit.c
 new file mode 100644
-index 0000000000..7998c9332d
+index 0000000000..2b2b194ccf
 --- /dev/null
 +++ b/block/zeroinit.c
 @@ -0,0 +1,207 @@
@@ -212,7 +212,7 @@ index 0000000000..7998c9332d
 +    .instance_size                    = sizeof(BDRVZeroinitState),
 +
 +    .bdrv_parse_filename              = zeroinit_parse_filename,
-+    .bdrv_file_open                   = zeroinit_open,
++    .bdrv_open                        = zeroinit_open,
 +    .bdrv_close                       = zeroinit_close,
 +    .bdrv_co_getlength                = zeroinit_co_getlength,
 +    .bdrv_child_perm                  = bdrv_default_perms,

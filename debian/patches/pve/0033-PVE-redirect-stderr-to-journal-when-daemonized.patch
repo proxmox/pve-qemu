@@ -14,10 +14,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  2 files changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/meson.build b/meson.build
-index 3bc039f60f..067e8956a7 100644
+index 7e6130cfdf..984f858bdc 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1923,6 +1923,7 @@ endif
+@@ -2013,6 +2013,7 @@ endif
  has_gettid = cc.has_function('gettid')
  
  libuuid = cc.find_library('uuid', required: true)
@@ -25,7 +25,7 @@ index 3bc039f60f..067e8956a7 100644
  libproxmox_backup_qemu = cc.find_library('proxmox_backup_qemu', required: true)
  
  # libselinux
-@@ -3530,7 +3531,7 @@ if have_block
+@@ -3597,7 +3598,7 @@ if have_block
    if host_os == 'windows'
      system_ss.add(files('os-win32.c'))
    else
@@ -35,7 +35,7 @@ index 3bc039f60f..067e8956a7 100644
  endif
  
 diff --git a/os-posix.c b/os-posix.c
-index a4284e2c07..197a2120fd 100644
+index 43f9a43f3f..a47e46d1c2 100644
 --- a/os-posix.c
 +++ b/os-posix.c
 @@ -29,6 +29,8 @@
@@ -47,7 +47,7 @@ index a4284e2c07..197a2120fd 100644
  
  #include "qemu/error-report.h"
  #include "qemu/log.h"
-@@ -302,9 +304,10 @@ void os_setup_post(void)
+@@ -306,9 +308,10 @@ void os_setup_post(void)
  
          dup2(fd, 0);
          dup2(fd, 1);

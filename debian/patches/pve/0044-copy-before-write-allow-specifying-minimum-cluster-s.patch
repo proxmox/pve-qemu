@@ -108,10 +108,10 @@ index bdc703bacd..77857c6c68 100644
  
  /* Function should be called prior any actual copy request */
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 282e2e8a8c..9caf04cbe9 100644
+index 521a1914e8..171846deb1 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -4926,12 +4926,18 @@
+@@ -4927,12 +4927,18 @@
  #     @on-cbw-error parameter will decide how this failure is handled.
  #     Default 0.  (Since 7.1)
  #

@@ -26,10 +26,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 migration/pbs-state.c
 
 diff --git a/include/migration/misc.h b/include/migration/misc.h
-index c9e200f4eb..12c99ebc69 100644
+index bfadc5613b..e2e51fcf6b 100644
 --- a/include/migration/misc.h
 +++ b/include/migration/misc.h
-@@ -117,4 +117,7 @@ bool migration_in_bg_snapshot(void);
+@@ -111,4 +111,7 @@ bool migration_in_bg_snapshot(void);
  /* migration/block-dirty-bitmap.c */
  void dirty_bitmap_mig_init(void);
  
@@ -38,25 +38,31 @@ index c9e200f4eb..12c99ebc69 100644
 +
  #endif
 diff --git a/migration/meson.build b/migration/meson.build
-index 800f12a60d..35a4306183 100644
+index 4b0c4f0f51..d039797132 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
-@@ -7,7 +7,9 @@ migration_files = files(
-   'vmstate.c',
+@@ -8,6 +8,7 @@ migration_files = files(
    'qemu-file.c',
    'yank_functions.c',
-+  'pbs-state.c',
  )
 +system_ss.add(libproxmox_backup_qemu)
  
  system_ss.add(files(
    'block-dirty-bitmap.c',
+@@ -25,6 +26,7 @@ system_ss.add(files(
+   'multifd-zlib.c',
+   'multifd-zero-page.c',
+   'options.c',
++  'pbs-state.c',
+   'postcopy-ram.c',
+   'savevm.c',
+   'savevm-async.c',
 diff --git a/migration/migration.c b/migration/migration.c
-index 86bf76e925..b8d7e471a4 100644
+index ae2be31557..fab4c20ee4 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
-@@ -239,6 +239,7 @@ void migration_object_init(void)
-     blk_mig_init();
+@@ -263,6 +263,7 @@ void migration_object_init(void)
+ 
      ram_mig_init();
      dirty_bitmap_mig_init();
 +    pbs_state_mig_init();
@@ -65,7 +71,7 @@ index 86bf76e925..b8d7e471a4 100644
  typedef struct {
 diff --git a/migration/pbs-state.c b/migration/pbs-state.c
 new file mode 100644
-index 0000000000..887e998b9e
+index 0000000000..a97187e4d7
 --- /dev/null
 +++ b/migration/pbs-state.c
 @@ -0,0 +1,104 @@
@@ -114,7 +120,7 @@ index 0000000000..887e998b9e
 +}
 +
 +/* serialize PBS state and send to target via f, called on source */
-+static int pbs_state_save_setup(QEMUFile *f, void *opaque)
++static int pbs_state_save_setup(QEMUFile *f, void *opaque, Error **errp)
 +{
 +    size_t buf_size;
 +    uint8_t *buf = proxmox_export_state(&buf_size);
@@ -174,7 +180,7 @@ index 0000000000..887e998b9e
 +                         NULL);
 +}
 diff --git a/pve-backup.c b/pve-backup.c
-index c755bf302b..5ebb6a3947 100644
+index 9f83ecb310..57477f7f2a 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -1085,6 +1085,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
@@ -186,7 +192,7 @@ index c755bf302b..5ebb6a3947 100644
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index e7cf3d94f3..282e2e8a8c 100644
+index fe0eefcea6..521a1914e8 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -1004,6 +1004,11 @@

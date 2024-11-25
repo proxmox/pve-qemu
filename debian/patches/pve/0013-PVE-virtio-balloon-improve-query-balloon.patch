@@ -18,10 +18,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  4 files changed, 82 insertions(+), 4 deletions(-)
 
 diff --git a/hw/core/machine-hmp-cmds.c b/hw/core/machine-hmp-cmds.c
-index a6ff6a4875..e7f74d1c63 100644
+index 8701f00cc7..3b4c5ef403 100644
 --- a/hw/core/machine-hmp-cmds.c
 +++ b/hw/core/machine-hmp-cmds.c
-@@ -175,7 +175,35 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
+@@ -179,7 +179,35 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
          return;
      }
  
@@ -103,10 +103,10 @@ index 609e39a821..8cb6dfcac3 100644
  
  static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
 diff --git a/qapi/machine.json b/qapi/machine.json
-index e8b60641f2..2054cdc70d 100644
+index d4317435e7..db8ed2e357 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
-@@ -1079,9 +1079,29 @@
+@@ -1164,9 +1164,29 @@
  # @actual: the logical size of the VM in bytes Formula used:
  #     logical_vm_size = vm_ram_size - balloon_size
  #

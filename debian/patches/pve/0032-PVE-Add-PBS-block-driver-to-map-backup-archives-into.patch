@@ -15,15 +15,15 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build    |   2 +
- block/pbs.c          | 313 +++++++++++++++++++++++++++++++++++++++++++
+ block/pbs.c          | 306 +++++++++++++++++++++++++++++++++++++++++++
  meson.build          |   2 +-
  qapi/block-core.json |  29 ++++
  qapi/pragma.json     |   1 +
- 5 files changed, 346 insertions(+), 1 deletion(-)
+ 5 files changed, 339 insertions(+), 1 deletion(-)
  create mode 100644 block/pbs.c
 
 diff --git a/block/meson.build b/block/meson.build
-index 6bba803f94..1945e04eeb 100644
+index 2367e1ac1b..e178047ec9 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -49,6 +49,8 @@ block_ss.add(files(
@@ -37,10 +37,10 @@ index 6bba803f94..1945e04eeb 100644
  system_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/pbs.c b/block/pbs.c
 new file mode 100644
-index 0000000000..aee66c2e93
+index 0000000000..2d5e28ce8f
 --- /dev/null
 +++ b/block/pbs.c
-@@ -0,0 +1,313 @@
+@@ -0,0 +1,306 @@
 +/*
 + * Proxmox Backup Server read-only block driver
 + */
@@ -223,12 +223,6 @@ index 0000000000..aee66c2e93
 +    return 0;
 +}
 +
-+static int pbs_file_open(BlockDriverState *bs, QDict *options, int flags,
-+                         Error **errp)
-+{
-+    return pbs_open(bs, options, flags, errp);
-+}
-+
 +static void pbs_close(BlockDriverState *bs) {
 +    BDRVPBSState *s = bs->opaque;
 +    g_free(s->repository);
@@ -336,7 +330,6 @@ index 0000000000..aee66c2e93
 +
 +    .bdrv_parse_filename    = pbs_parse_filename,
 +
-+    .bdrv_file_open         = pbs_file_open,
 +    .bdrv_open              = pbs_open,
 +    .bdrv_close             = pbs_close,
 +    .bdrv_co_getlength      = pbs_co_getlength,
@@ -355,12 +348,12 @@ index 0000000000..aee66c2e93
 +
 +block_init(bdrv_pbs_init);
 diff --git a/meson.build b/meson.build
-index 6de51c34cb..3bc039f60f 100644
+index 426f382178..7e6130cfdf 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -4477,7 +4477,7 @@ summary_info += {'bzip2 support':     libbzip2}
- summary_info += {'lzfse support':     liblzfse}
- summary_info += {'zstd support':      zstd}
+@@ -4559,7 +4559,7 @@ summary_info += {'zstd support':      zstd}
+ summary_info += {'Query Processing Library support': qpl}
+ summary_info += {'UADK Library support': uadk}
  summary_info += {'NUMA host support': numa}
 -summary_info += {'capstone':          capstone}
 +summary_info += {'PBS bdrv support':  config_host.has_key('CONFIG_PBS_BDRV')}
@@ -368,7 +361,7 @@ index 6de51c34cb..3bc039f60f 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libudev':           libudev}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index d05fffce1d..e7cf3d94f3 100644
+index ac83c3495d..fe0eefcea6 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -3457,6 +3457,7 @@
@@ -413,7 +406,7 @@ index d05fffce1d..e7cf3d94f3 100644
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -4977,6 +5005,7 @@
+@@ -4978,6 +5006,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',

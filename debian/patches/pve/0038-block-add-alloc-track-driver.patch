@@ -42,7 +42,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
 new file mode 100644
-index 0000000000..b9f8ea9137
+index 0000000000..b4a9851144
 --- /dev/null
 +++ b/block/alloc-track.c
 @@ -0,0 +1,366 @@
@@ -386,7 +386,7 @@ index 0000000000..b9f8ea9137
 +    .format_name                      = "alloc-track",
 +    .instance_size                    = sizeof(BDRVAllocTrackState),
 +
-+    .bdrv_file_open                   = track_open,
++    .bdrv_open                        = track_open,
 +    .bdrv_close                       = track_close,
 +    .bdrv_co_getlength                = track_co_getlength,
 +    .bdrv_child_perm                  = track_child_perm,
@@ -413,7 +413,7 @@ index 0000000000..b9f8ea9137
 +
 +block_init(bdrv_alloc_track_init);
 diff --git a/block/meson.build b/block/meson.build
-index 1945e04eeb..2873f3a25a 100644
+index e178047ec9..7ef7250d31 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -2,6 +2,7 @@ block_ss.add(genh)

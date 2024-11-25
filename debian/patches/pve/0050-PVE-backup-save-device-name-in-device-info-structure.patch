@@ -17,7 +17,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 15 insertions(+), 14 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 051ebffe48..33c23e53c2 100644
+index f136d004c4..8ccb281c8c 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -94,6 +94,7 @@ typedef struct PVEBackupDevInfo {

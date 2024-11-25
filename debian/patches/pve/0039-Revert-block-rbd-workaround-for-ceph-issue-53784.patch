@@ -13,7 +13,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 2 insertions(+), 40 deletions(-)
 
 diff --git a/block/rbd.c b/block/rbd.c
-index 63f60d41be..367db42dce 100644
+index 101ee59d6e..4ad3b1a7b1 100644
 --- a/block/rbd.c
 +++ b/block/rbd.c
 @@ -1515,7 +1515,6 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,

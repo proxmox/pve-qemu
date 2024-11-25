@@ -20,7 +20,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 26 deletions(-)
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
-index f3ed2935c4..29138dcc49 100644
+index fc7d58a5d0..b56425b7f0 100644
 --- a/block/alloc-track.c
 +++ b/block/alloc-track.c
 @@ -25,15 +25,9 @@

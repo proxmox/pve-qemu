@@ -14,15 +14,15 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  create mode 100644 pbs-restore.c
 
 diff --git a/meson.build b/meson.build
-index d16b97cf3c..6de51c34cb 100644
+index 979c452f74..426f382178 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -4029,6 +4029,10 @@ if have_tools
+@@ -4103,6 +4103,10 @@ if have_tools
    vma = executable('vma', files('vma.c', 'vma-reader.c') + genh,
-                    dependencies: [authz, block, crypto, io, qom], install: true)
+                    dependencies: [authz, block, crypto, io, qemuutil, qom], install: true)
  
 +  pbs_restore = executable('pbs-restore', files('pbs-restore.c') + genh,
-+                  dependencies: [authz, block, crypto, io, qom,
++                  dependencies: [authz, block, crypto, io, qemuutil, qom,
 +                    libproxmox_backup_qemu], install: true)
 +
    subdir('storage-daemon')

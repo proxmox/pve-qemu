@@ -247,7 +247,7 @@ index eba5b11493..1963e47ab9 100644
      if (perf->max_chunk && perf->max_chunk < cluster_size) {
          error_setg(errp, "Required max-chunk (%" PRIi64 ") is less than backup "
 diff --git a/block/meson.build b/block/meson.build
-index b245daa98e..e99914eaa4 100644
+index 652c8cbdb7..e1cf5a2e65 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -4,6 +4,7 @@ block_ss.add(files(
@@ -259,7 +259,7 @@ index b245daa98e..e99914eaa4 100644
    'blklogwrites.c',
    'blkverify.c',
 diff --git a/include/block/block_int-common.h b/include/block/block_int-common.h
-index 761276127e..b3e6697613 100644
+index ebb4e56a50..e717a74e5f 100644
 --- a/include/block/block_int-common.h
 +++ b/include/block/block_int-common.h
 @@ -26,6 +26,7 @@

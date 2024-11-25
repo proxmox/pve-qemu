@@ -16,15 +16,15 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hw/core/machine-qmp-cmds.c |  5 +++++
  include/hw/boards.h        |  2 ++
- qapi/machine.json          |  4 +++-
- system/vl.c                | 25 +++++++++++++++++++++++++
- 4 files changed, 35 insertions(+), 1 deletion(-)
+ qapi/machine.json          |  3 +++
+ system/vl.c                | 24 ++++++++++++++++++++++++
+ 4 files changed, 34 insertions(+)
 
 diff --git a/hw/core/machine-qmp-cmds.c b/hw/core/machine-qmp-cmds.c
-index 314351cdff..628a3537c5 100644
+index 52a6d74820..362128842d 100644
 --- a/hw/core/machine-qmp-cmds.c
 +++ b/hw/core/machine-qmp-cmds.c
-@@ -94,6 +94,11 @@ MachineInfoList *qmp_query_machines(Error **errp)
+@@ -94,6 +94,11 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
          if (strcmp(mc->name, MACHINE_GET_CLASS(current_machine)->name) == 0) {
              info->has_is_current = true;
              info->is_current = true;
@@ -37,10 +37,10 @@ index 314351cdff..628a3537c5 100644
  
          if (mc->default_cpu_type) {
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index 8b8f6d5c00..dd6d0a1447 100644
+index 48ff6d8b93..5cddeb7fcb 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
-@@ -246,6 +246,8 @@ struct MachineClass {
+@@ -252,6 +252,8 @@ struct MachineClass {
      const char *desc;
      const char *deprecation_reason;
  
@@ -50,52 +50,51 @@ index 8b8f6d5c00..dd6d0a1447 100644
      void (*reset)(MachineState *state, ShutdownCause reason);
      void (*wakeup)(MachineState *state);
 diff --git a/qapi/machine.json b/qapi/machine.json
-index a024d5b05d..1d69bffaa0 100644
+index 0c703316f5..dc46a3e93f 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
-@@ -168,6 +168,8 @@
+@@ -190,6 +190,8 @@
  #
  # @acpi: machine type supports ACPI (since 8.0)
  #
 +# @pve-version: custom PVE version suffix specified as 'machine+pveN'
 +#
- # Since: 1.2
- ##
- { 'struct': 'MachineInfo',
-@@ -175,7 +177,7 @@
-             '*is-default': 'bool', '*is-current': 'bool', 'cpu-max': 'int',
+ # @compat-props: The machine type's compatibility properties.  Only
+ #     present when query-machines argument @compat-props is true.
+ #     (since 9.1)
+@@ -206,6 +208,7 @@
              'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
              'deprecated': 'bool', '*default-cpu-type': 'str',
--            '*default-ram-id': 'str', 'acpi': 'bool' } }
-+            '*default-ram-id': 'str', 'acpi': 'bool', '*pve-version': 'str' } }
+             '*default-ram-id': 'str', 'acpi': 'bool',
++            '*pve-version': 'str',
+             '*compat-props': { 'type': ['CompatProperty'],
+                                'features': ['unstable'] } } }
  
- ##
- # @query-machines:
 diff --git a/system/vl.c b/system/vl.c
-index 20ebf2c920..4d39e32097 100644
+index 200468a753..0dbdba6421 100644
 --- a/system/vl.c
 +++ b/system/vl.c
-@@ -1659,6 +1659,7 @@ static const QEMUOption *lookup_opt(int argc, char **argv,
- static MachineClass *select_machine(QDict *qdict, Error **errp)
+@@ -1675,6 +1675,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
  {
+     ERRP_GUARD();
      const char *machine_type = qdict_get_try_str(qdict, "type");
 +    const char *pvever = qdict_get_try_str(qdict, "pvever");
-     GSList *machines = object_class_get_list(TYPE_MACHINE, false);
-     MachineClass *machine_class;
-     Error *local_err = NULL;
-@@ -1676,6 +1677,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
-         }
-     }
+     g_autoptr(GSList) machines = object_class_get_list(TYPE_MACHINE, false);
+     MachineClass *machine_class = NULL;
  
-+    if (machine_class) {
+@@ -1694,7 +1695,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+     if (!machine_class) {
+         error_append_hint(errp,
+                           "Use -machine help to list supported machines\n");
++    } else {
 +        machine_class->pve_version = g_strdup(pvever);
 +        qdict_del(qdict, "pvever");
-+    }
+     }
 +
-     g_slist_free(machines);
-     if (local_err) {
-         error_append_hint(&local_err, "Use -machine help to list supported machines\n");
-@@ -3313,12 +3319,31 @@ void qemu_init(int argc, char **argv)
+     return machine_class;
+ }
+ 
+@@ -3329,12 +3334,31 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_machine:
                  {
                      bool help;

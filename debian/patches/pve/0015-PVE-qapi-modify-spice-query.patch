@@ -14,10 +14,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  2 files changed, 7 insertions(+)
 
 diff --git a/qapi/ui.json b/qapi/ui.json
-index f610bce118..6ea26a9acb 100644
+index 8c8464faac..cebda37f8f 100644
 --- a/qapi/ui.json
 +++ b/qapi/ui.json
-@@ -314,11 +314,14 @@
+@@ -312,11 +312,14 @@
  #
  # @channels: a list of @SpiceChannel for each active spice channel
  #

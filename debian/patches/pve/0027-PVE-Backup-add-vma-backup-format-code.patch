@@ -26,12 +26,12 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 vma.h
 
 diff --git a/block/meson.build b/block/meson.build
-index b530e117b5..b245daa98e 100644
+index 6a60b5d6b9..652c8cbdb7 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -42,6 +42,8 @@ block_ss.add(files(
    'zeroinit.c',
- ), zstd, zlib, gnutls)
+ ), zstd, zlib)
  
 +block_ss.add(files('../vma-writer.c'), libuuid)
 +
@@ -39,10 +39,10 @@ index b530e117b5..b245daa98e 100644
  system_ss.add(files('block-ram-registrar.c'))
  
 diff --git a/meson.build b/meson.build
-index 91a0aa64c6..620cc594b2 100644
+index aa7ea85d0b..7eee5b4249 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -1922,6 +1922,8 @@ endif
+@@ -2012,6 +2012,8 @@ endif
  
  has_gettid = cc.has_function('gettid')
  
@@ -51,12 +51,12 @@ index 91a0aa64c6..620cc594b2 100644
  # libselinux
  selinux = dependency('libselinux',
                       required: get_option('selinux'),
-@@ -4023,6 +4025,9 @@ if have_tools
-                dependencies: [blockdev, qemuutil, gnutls, selinux],
+@@ -4097,6 +4099,9 @@ if have_tools
+                dependencies: [blockdev, qemuutil, selinux],
                 install: true)
  
 +  vma = executable('vma', files('vma.c', 'vma-reader.c') + genh,
-+                   dependencies: [authz, block, crypto, io, qom], install: true)
++                   dependencies: [authz, block, crypto, io, qemuutil, qom], install: true)
 +
    subdir('storage-daemon')
  

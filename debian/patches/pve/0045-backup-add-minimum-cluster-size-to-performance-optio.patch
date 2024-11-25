@@ -68,10 +68,10 @@ index 01af0cd3c4..dc6cafe7fa 100644
                                    Error **errp);
  void bdrv_cbw_drop(BlockDriverState *bs);
 diff --git a/blockdev.c b/blockdev.c
-index 1054a69279..cbe224387b 100644
+index 8080c47fa6..3f67eb413d 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -2654,6 +2654,9 @@ static BlockJob *do_backup_common(BackupCommon *backup,
+@@ -2656,6 +2656,9 @@ static BlockJob *do_backup_common(BackupCommon *backup,
          if (backup->x_perf->has_max_chunk) {
              perf.max_chunk = backup->x_perf->max_chunk;
          }
@@ -82,7 +82,7 @@ index 1054a69279..cbe224387b 100644
  
      if ((backup->sync == MIRROR_SYNC_MODE_BITMAP) ||
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 9caf04cbe9..df934647ed 100644
+index 171846deb1..653df22046 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -1790,11 +1790,16 @@

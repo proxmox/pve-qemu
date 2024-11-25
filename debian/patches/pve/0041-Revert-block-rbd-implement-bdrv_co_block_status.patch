@@ -24,7 +24,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 112 deletions(-)
 
 diff --git a/block/rbd.c b/block/rbd.c
-index 347b121626..e61b359b97 100644
+index e341745255..436d3d7811 100644
 --- a/block/rbd.c
 +++ b/block/rbd.c
 @@ -108,12 +108,6 @@ typedef struct RBDTask {
@@ -152,7 +152,7 @@ index 347b121626..e61b359b97 100644
  static int64_t coroutine_fn qemu_rbd_co_getlength(BlockDriverState *bs)
  {
      BDRVRBDState *s = bs->opaque;
-@@ -1800,7 +1689,6 @@ static BlockDriver bdrv_rbd = {
+@@ -1801,7 +1690,6 @@ static BlockDriver bdrv_rbd = {
  #ifdef LIBRBD_SUPPORTS_WRITE_ZEROES
      .bdrv_co_pwrite_zeroes  = qemu_rbd_co_pwrite_zeroes,
  #endif
