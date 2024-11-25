@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Akihiko Odaki <akihiko.odaki@daynix.com>
+Date: Fri, 22 Nov 2024 14:03:08 +0900
+Subject: [PATCH] virtio-net: Fix size check in dhclient workaround
+
+work_around_broken_dhclient() accesses IP and UDP headers to detect
+relevant packets and to calculate checksums, but it didn't check if
+the packet has size sufficient to accommodate them, causing out-of-bound
+access hazards. Fix this by correcting the size requirement.
+
+Fixes: 1d41b0c1ec66 ("Work around dhclient brokenness")
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Akihiko Odaki <akihiko.odaki@daynix.com>
+(picked from https://lore.kernel.org/qemu-devel/20241122-queue-v3-2-f2ff03b8dbfd@daynix.com/#t)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/net/virtio-net.c | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/hw/net/virtio-net.c b/hw/net/virtio-net.c
+index 90d05f94d4..c1fe457359 100644
+--- a/hw/net/virtio-net.c
++++ b/hw/net/virtio-net.c
+@@ -1692,8 +1692,11 @@ static void virtio_net_hdr_swap(VirtIODevice *vdev, struct virtio_net_hdr *hdr)
+ static void work_around_broken_dhclient(struct virtio_net_hdr *hdr,
+                                         uint8_t *buf, size_t size)
+ {
++    size_t csum_size = ETH_HLEN + sizeof(struct ip_header) +
++                       sizeof(struct udp_header);
++
+     if ((hdr->flags & VIRTIO_NET_HDR_F_NEEDS_CSUM) && /* missing csum */
+-        (size > 27 && size < 1500) && /* normal sized MTU */
++        (size >= csum_size && size < 1500) && /* normal sized MTU */
+         (buf[12] == 0x08 && buf[13] == 0x00) && /* ethertype == IPv4 */
+         (buf[23] == 17) && /* ip.protocol == UDP */
+         (buf[34] == 0 && buf[35] == 67)) { /* udp.srcport == bootps */

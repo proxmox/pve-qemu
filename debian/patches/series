@@ -2,6 +2,8 @@ extra/0001-monitor-qmp-fix-race-with-clients-disconnecting-earl.patch
 extra/0002-scsi-megasas-Internal-cdbs-have-16-byte-length.patch
 extra/0003-ide-avoid-potential-deadlock-when-draining-during-tr.patch
 extra/0004-Revert-x86-acpi-workaround-Windows-not-handling-name.patch
+extra/0005-virtio-net-Add-queues-before-loading-them.patch
+extra/0006-virtio-net-Fix-size-check-in-dhclient-workaround.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
