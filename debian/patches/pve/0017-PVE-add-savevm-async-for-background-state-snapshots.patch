@@ -37,13 +37,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 540 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 537 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  38 +++
  qapi/migration.json          |  34 +++
  qapi/misc.json               |  18 ++
  qemu-options.hx              |  12 +
  system/vl.c                  |  10 +
- 11 files changed, 688 insertions(+)
+ 11 files changed, 685 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -141,10 +141,10 @@ index 020127d901..4b0c4f0f51 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..4f1ef0ebd8
+index 0000000000..59bb0b57d9
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,540 @@
+@@ -0,0 +1,537 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -292,7 +292,7 @@ index 0000000000..4f1ef0ebd8
 +    DPRINTF("save_snapshot_error: %s\n", msg);
 +
 +    if (!snap_state.error) {
-+        error_set(&snap_state.error, ERROR_CLASS_GENERIC_ERROR, "%s", msg);
++        error_setg(&snap_state.error, "%s", msg);
 +    }
 +
 +    g_free (msg);
@@ -483,14 +483,12 @@ index 0000000000..4f1ef0ebd8
 +    int bdrv_oflags = BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_NO_FLUSH;
 +
 +    if (snap_state.state != SAVE_STATE_DONE) {
-+        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-+                  "VM snapshot already started\n");
++        error_setg(errp, "VM snapshot already started\n");
 +        return;
 +    }
 +
 +    if (migration_is_running()) {
-+        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-+                  "There's a migration process in progress");
++        error_setg(errp, "There's a migration process in progress");
 +        return;
 +    }
 +
@@ -522,7 +520,7 @@ index 0000000000..4f1ef0ebd8
 +    qdict_put_str(options, "driver", "raw");
 +    snap_state.target = blk_new_open(statefile, NULL, options, bdrv_oflags, &local_err);
 +    if (!snap_state.target) {
-+        error_set(errp, ERROR_CLASS_GENERIC_ERROR, "failed to open '%s'", statefile);
++        error_setg(errp, "failed to open '%s'", statefile);
 +        goto restart;
 +    }
 +
@@ -531,7 +529,7 @@ index 0000000000..4f1ef0ebd8
 +    snap_state.file = qemu_file_new_output(ioc);
 +
 +    if (!snap_state.file) {
-+        error_set(errp, ERROR_CLASS_GENERIC_ERROR, "failed to open '%s'", statefile);
++        error_setg(errp, "failed to open '%s'", statefile);
 +        goto restart;
 +    }
 +
@@ -608,8 +606,7 @@ index 0000000000..4f1ef0ebd8
 +void qmp_savevm_end(Error **errp)
 +{
 +    if (snap_state.state == SAVE_STATE_DONE) {
-+        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-+                  "VM snapshot not started\n");
++        error_setg(errp, "VM snapshot not started\n");
 +        return;
 +    }
 +
