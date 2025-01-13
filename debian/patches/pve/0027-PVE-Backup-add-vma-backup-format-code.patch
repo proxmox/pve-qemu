@@ -15,11 +15,11 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build |   2 +
  meson.build       |   5 +
- vma-reader.c      | 870 ++++++++++++++++++++++++++++++++++++++++++++
+ vma-reader.c      | 868 ++++++++++++++++++++++++++++++++++++++++++++
  vma-writer.c      | 817 +++++++++++++++++++++++++++++++++++++++++
  vma.c             | 901 ++++++++++++++++++++++++++++++++++++++++++++++
  vma.h             | 150 ++++++++
- 6 files changed, 2745 insertions(+)
+ 6 files changed, 2743 insertions(+)
  create mode 100644 vma-reader.c
  create mode 100644 vma-writer.c
  create mode 100644 vma.c
@@ -63,10 +63,10 @@ index aa7ea85d0b..7eee5b4249 100644
    foreach exe: [ 'qemu-img', 'qemu-io', 'qemu-nbd', 'qemu-storage-daemon']
 diff --git a/vma-reader.c b/vma-reader.c
 new file mode 100644
-index 0000000000..d0b6721812
+index 0000000000..65015d2e1e
 --- /dev/null
 +++ b/vma-reader.c
-@@ -0,0 +1,870 @@
+@@ -0,0 +1,868 @@
 +/*
 + * VMA: Virtual Machine Archive
 + *
@@ -381,7 +381,6 @@ index 0000000000..d0b6721812
 +    }
 +
 +
-+    int count = 0;
 +    for (i = 1; i < 256; i++) {
 +        VmaDeviceInfoHeader *dih = &h->dev_info[i];
 +        uint32_t devname_ptr = GUINT32_FROM_BE(dih->devname_ptr);
@@ -389,7 +388,6 @@ index 0000000000..d0b6721812
 +        const char *devname =  get_header_str(vmar, devname_ptr);
 +
 +        if (size && devname) {
-+            count++;
 +            vmar->devinfo[i].size = size;
 +            vmar->devinfo[i].devname = devname;
 +
