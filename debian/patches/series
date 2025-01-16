@@ -61,3 +61,4 @@ pve/0048-PVE-backup-fixup-error-handling-for-fleecing.patch
 pve/0049-PVE-backup-factor-out-setting-up-snapshot-access-for.patch
 pve/0050-PVE-backup-save-device-name-in-device-info-structure.patch
 pve/0051-PVE-backup-include-device-name-in-error-when-setting.patch
+pve/0052-adapt-machine-version-deprecation-for-Proxmox-VE.patch

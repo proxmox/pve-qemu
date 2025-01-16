@@ -1,0 +1,137 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Fri, 3 Jan 2025 14:03:12 +0100
+Subject: [PATCH] adapt machine version deprecation for Proxmox VE
+
+In commit a35f8577a0 ("include/hw: add macros for deprecation &
+removal of versioned machines"), a new machine version deprecation and
+removal policy was introduced. After only 3 years a machine version
+will be deprecated while being removed after 6 years.
+
+The deprecation is a bit early considering major PVE releases are
+approximately every 2 years. This means that a deprecation warning can
+already happen for a machine version that was introduced during the
+previous major release. This would scare users for no good reason, so
+avoid deprecating machine versions in PVE too early and define a
+baseline of machine versions that will be supported throughout a
+single major PVE release.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ include/hw/boards.h | 78 +++++++++++++++++++++++++++++----------------
+ 1 file changed, 51 insertions(+), 27 deletions(-)
+
+diff --git a/include/hw/boards.h b/include/hw/boards.h
+index 5cddeb7fcb..b1e7787499 100644
+--- a/include/hw/boards.h
++++ b/include/hw/boards.h
+@@ -607,42 +607,66 @@ struct MachineState {
+ 
+ 
+ /*
+- * How many years/major releases for each phase
+- * of the life cycle. Assumes use of versioning
+- * scheme where major is bumped each year
++ * Baseline of machine versions that are still considered supported throughout
++ * current major Proxmox VE release. Machine versions older than this are
++ * considered to be deprecated in Proxmox VE.
++ *
++ * Machine versions older than 6 years are removed just like in upstream QEMU.
++ * (policy takes effect with QEMU 10.1). Assumes yearly major QEMU release.
++ *
++ * QEMU release cylce N.0 in ~April, N.1 in ~August, N.2 in ~December
++ * Debian/PVE release cylce ~every two years in summer
++ *
++ * PVE - last QEMU - machine versions dropped - baseline
++ *   8         9.2              2.3 and older        2.4
++ *   9        11.2              5.2 and older        6.0
++ *  10        13.2              7.2 and older        8.0
++ */
++#define MACHINE_VER_BASELINE_PVE_MAJOR 2
++#define MACHINE_VER_BASELINE_PVE_MINOR 4
++#define MACHINE_VER_DELETION_MAJOR (QEMU_VERSION_MAJOR - 6)
++#define MACHINE_VER_DELETION_MINOR QEMU_VERSION_MINOR
++
++/*
++ * Proxmox VE needs to support the baseline throughout a major PVE release. So
++ * a QEMU release where the baseline is already deleted cannot be used.
++ * Removal policy after 6 years takes effect with QEMU 10.1.
+  */
+-#define MACHINE_VER_DELETION_MAJOR 6
+-#define MACHINE_VER_DEPRECATION_MAJOR 3
++#if ((QEMU_VERSION_MAJOR > 10) || ((QEMU_VERSION_MAJOR == 10) && (QEMU_VERSION_MINOR >= 1)))
++#if ((MACHINE_VER_BASELINE_PVE_MAJOR < MACHINE_VER_DELETION_MAJOR) || \
++     ((MACHINE_VER_BASELINE_PVE_MAJOR == MACHINE_VER_DELETION_MAJOR) && \
++      (MACHINE_VER_BASELINE_PVE_MINOR < MACHINE_VER_DELETION_MINOR)))
++#error "Baseline machine version needed by Proxmox VE not supported anymore by this QEMU release"
++#endif
++#endif
+ 
+ /*
+  * Expands to a static string containing a deprecation
+  * message for a versioned machine type
+  */
+ #define MACHINE_VER_DEPRECATION_MSG \
+-    "machines more than " stringify(MACHINE_VER_DEPRECATION_MAJOR) \
+-    " years old are subject to deletion after " \
+-    stringify(MACHINE_VER_DELETION_MAJOR) " years"
+-
+-#define _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor) \
+-    (((QEMU_VERSION_MAJOR - major) > cutoff) || \
+-     (((QEMU_VERSION_MAJOR - major) == cutoff) && \
+-      (QEMU_VERSION_MINOR - minor) >= 0))
+-
+-#define _MACHINE_VER_IS_EXPIRED2(cutoff, major, minor) \
+-    _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor)
+-#define _MACHINE_VER_IS_EXPIRED3(cutoff, major, minor, micro) \
+-    _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor)
+-#define _MACHINE_VER_IS_EXPIRED4(cutoff, major, minor, _unused, tag) \
+-    _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor)
+-#define _MACHINE_VER_IS_EXPIRED5(cutoff, major, minor, micro, _unused, tag)   \
+-    _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor)
+-
+-#define _MACHINE_IS_EXPIRED(cutoff, ...) \
++    "old machine version is subject to deletion during current major Proxmox VE release"
++
++#define _MACHINE_VER_IS_EXPIRED_IMPL(baseline_major, baseline_minor, major, minor) \
++    ((major < baseline_major) || \
++     ((major == baseline_major) && \
++      (minor < baseline_minor)))
++
++#define _MACHINE_VER_IS_EXPIRED2(baseline_major, baseline_minor, major, minor) \
++    _MACHINE_VER_IS_EXPIRED_IMPL(baseline_major, baseline_minor, major, minor)
++#define _MACHINE_VER_IS_EXPIRED3(baseline_major, baseline_minor, major, minor, micro) \
++    _MACHINE_VER_IS_EXPIRED_IMPL(baseline_major, baseline_minor, major, minor)
++#define _MACHINE_VER_IS_EXPIRED4(baseline_major, baseline_minor, major, minor, _unused, tag) \
++    _MACHINE_VER_IS_EXPIRED_IMPL(baseline_major, baseline_minor, major, minor)
++#define _MACHINE_VER_IS_EXPIRED5(baseline_major, baseline_minor, major, minor, micro, _unused, tag)   \
++    _MACHINE_VER_IS_EXPIRED_IMPL(baseline_major, baseline_minor, major, minor)
++
++#define _MACHINE_IS_EXPIRED(baseline_major, baseline_minor, ...) \
+     _MACHINE_VER_PICK(__VA_ARGS__, \
+                       _MACHINE_VER_IS_EXPIRED5, \
+                       _MACHINE_VER_IS_EXPIRED4, \
+                       _MACHINE_VER_IS_EXPIRED3, \
+-                      _MACHINE_VER_IS_EXPIRED2) (cutoff, __VA_ARGS__)
++                      _MACHINE_VER_IS_EXPIRED2) (baseline_major, baseline_minor, __VA_ARGS__)
+ 
+ /*
+  * Evaluates true when a machine type with (major, minor)
+@@ -651,7 +675,7 @@ struct MachineState {
+  * lifecycle rules
+  */
+ #define MACHINE_VER_IS_DEPRECATED(...) \
+-    _MACHINE_IS_EXPIRED(MACHINE_VER_DEPRECATION_MAJOR, __VA_ARGS__)
++    _MACHINE_IS_EXPIRED(MACHINE_VER_BASELINE_PVE_MAJOR, MACHINE_VER_BASELINE_PVE_MINOR, __VA_ARGS__)
+ 
+ /*
+  * Evaluates true when a machine type with (major, minor)
+@@ -660,7 +684,7 @@ struct MachineState {
+  * lifecycle rules
+  */
+ #define MACHINE_VER_SHOULD_DELETE(...) \
+-    _MACHINE_IS_EXPIRED(MACHINE_VER_DELETION_MAJOR, __VA_ARGS__)
++    _MACHINE_IS_EXPIRED(MACHINE_VER_DELETION_MAJOR, MACHINE_VER_DELETION_MINOR, __VA_ARGS__)
+ 
+ /*
+  * Sets the deprecation reason for a versioned machine based
