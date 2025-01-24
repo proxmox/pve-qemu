@@ -24,6 +24,7 @@ endif
 
 PC_BIOS_FW_PURGE_LIST_IN = \
 	hppa-firmware.img \
+	hppa-firmware64.img \
 	openbios-ppc \
 	openbios-sparc32 \
 	openbios-sparc64 \
@@ -31,7 +32,8 @@ PC_BIOS_FW_PURGE_LIST_IN = \
 	s390-ccw.img \
 	s390-netboot.img \
 	u-boot.e500 \
-	.*\.dtb \
+	.*[a-zA-Z0-9]\.dtb \
+	.*[a-zA-Z0-9]\.dts \
 	qemu_vga.ndrv \
 	slof.bin \
 	opensbi-riscv.*-generic-fw_dynamic.bin \
@@ -56,7 +58,7 @@ $(BUILDDIR): submodule
 deb kvm: $(DEBS)
 $(DEB_DBG): $(DEB)
 $(DEB): $(BUILDDIR)
-	cd $(BUILDDIR); dpkg-buildpackage -b -us -uc -j
+	cd $(BUILDDIR); dpkg-buildpackage -b -us -uc
 	lintian $(DEBS)
 
 sbuild: $(DSC)

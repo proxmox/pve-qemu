@@ -27,7 +27,9 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 [FE: further improve aborting
      adapt to removal of QEMUFileOps
      improve condition for entering final stage
-     adapt to QAPI and other changes for 8.0]
+     adapt to QAPI and other changes for 8.2
+     make sure to not call vm_start() from coroutine
+     stop CPU throttling after finishing]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hmp-commands-info.hx         |  13 +
@@ -35,17 +37,17 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 531 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 545 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  38 +++
  qapi/migration.json          |  34 +++
- qapi/misc.json               |  16 ++
+ qapi/misc.json               |  18 ++
  qemu-options.hx              |  12 +
- softmmu/vl.c                 |  10 +
- 11 files changed, 677 insertions(+)
+ system/vl.c                  |  10 +
+ 11 files changed, 693 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
-index f5b37eb74a..10fdd822e0 100644
+index ad1b1306e3..d5ab880492 100644
 --- a/hmp-commands-info.hx
 +++ b/hmp-commands-info.hx
 @@ -525,6 +525,19 @@ SRST
@@ -69,10 +71,10 @@ index f5b37eb74a..10fdd822e0 100644
          .name       = "balloon",
          .args_type  = "",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index 2cbd0f77a0..e352f86872 100644
+index 2e2a3bcf98..7506de251c 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
-@@ -1865,3 +1865,20 @@ SRST
+@@ -1862,3 +1862,20 @@ SRST
    List event channels in the guest
  ERST
  #endif
@@ -94,12 +96,12 @@ index 2cbd0f77a0..e352f86872 100644
 +        .coroutine  = true,
 +    },
 diff --git a/include/migration/snapshot.h b/include/migration/snapshot.h
-index e72083b117..c846d37806 100644
+index 9e4dcaaa75..2581730d74 100644
 --- a/include/migration/snapshot.h
 +++ b/include/migration/snapshot.h
-@@ -61,4 +61,6 @@ bool delete_snapshot(const char *name,
-                     bool has_devices, strList *devices,
-                     Error **errp);
+@@ -68,4 +68,6 @@ bool delete_snapshot(const char *name,
+  */
+ void load_snapshot_resume(RunState state);
  
 +int load_snapshot_from_blockdev(const char *filename, Error **errp);
 +
@@ -126,10 +128,10 @@ index 13f9a2dedb..7a7def7530 100644
  void coroutine_fn hmp_screendump(Monitor *mon, const QDict *qdict);
  void hmp_chardev_add(Monitor *mon, const QDict *qdict);
 diff --git a/migration/meson.build b/migration/meson.build
-index 37ddcb5d60..07f6057acc 100644
+index 95d1cf2250..800f12a60d 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
-@@ -26,6 +26,7 @@ system_ss.add(files(
+@@ -28,6 +28,7 @@ system_ss.add(files(
    'options.c',
    'postcopy-ram.c',
    'savevm.c',
@@ -139,10 +141,10 @@ index 37ddcb5d60..07f6057acc 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..e9fc18fb10
+index 0000000000..1af32604c7
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,531 @@
+@@ -0,0 +1,545 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -153,6 +155,7 @@ index 0000000000..e9fc18fb10
 +#include "migration/global_state.h"
 +#include "migration/ram.h"
 +#include "migration/qemu-file.h"
++#include "sysemu/cpu-throttle.h"
 +#include "sysemu/sysemu.h"
 +#include "sysemu/runstate.h"
 +#include "block/block.h"
@@ -300,7 +303,6 @@ index 0000000000..e9fc18fb10
 +static void process_savevm_finalize(void *opaque)
 +{
 +    int ret;
-+    AioContext *iohandler_ctx = iohandler_get_aio_context();
 +    MigrationState *ms = migrate_get_current();
 +
 +    bool aborted = savevm_aborted();
@@ -317,9 +319,7 @@ index 0000000000..e9fc18fb10
 +     * so move it back. It can stay in the main context and live out its live
 +     * there, since we're done with it after this method ends anyway.
 +     */
-+    aio_context_acquire(iohandler_ctx);
 +    blk_set_aio_context(snap_state.target, qemu_get_aio_context(), NULL);
-+    aio_context_release(iohandler_ctx);
 +
 +    ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
 +    if (ret < 0) {
@@ -343,6 +343,12 @@ index 0000000000..e9fc18fb10
 +    migrate_set_state(&ms->state, MIGRATION_STATUS_SETUP,
 +        ret || aborted ? MIGRATION_STATUS_FAILED : MIGRATION_STATUS_COMPLETED);
 +    ms->to_dst_file = NULL;
++
++    /*
++     * Same as in migration_iteration_finish(): saving RAM might've turned on CPU throttling for
++     * auto-converge, make sure to disable it.
++     */
++    cpu_throttle_stop();
 +
 +    qemu_savevm_state_cleanup();
 +
@@ -396,12 +402,12 @@ index 0000000000..e9fc18fb10
 +         * lock. Similar to what is done in migration.c, call the exact variant
 +         * only once pend_precopy in the estimate is below the threshold.
 +         */
-+        qemu_mutex_unlock_iothread();
++        bql_unlock();
 +        qemu_savevm_state_pending_estimate(&pend_precopy, &pend_postcopy);
 +        if (pend_precopy <= threshold) {
 +            qemu_savevm_state_pending_exact(&pend_precopy, &pend_postcopy);
 +        }
-+        qemu_mutex_lock_iothread();
++        bql_lock();
 +        pending_size = pend_precopy + pend_postcopy;
 +
 +        /*
@@ -441,21 +447,25 @@ index 0000000000..e9fc18fb10
 +     * so move there now and after every flush.
 +     */
 +    aio_co_reschedule_self(qemu_get_aio_context());
-+    for (bs = bdrv_first(&it); bs; bs = bdrv_next(&it)) {
++    bdrv_graph_co_rdlock();
++    bs = bdrv_first(&it);
++    bdrv_graph_co_rdunlock();
++    while (bs) {
 +        /* target has BDRV_O_NO_FLUSH, no sense calling bdrv_flush on it */
-+        if (bs == blk_bs(snap_state.target)) {
-+            continue;
++        if (bs != blk_bs(snap_state.target)) {
++            AioContext *bs_ctx = bdrv_get_aio_context(bs);
++            if (bs_ctx != qemu_get_aio_context()) {
++                DPRINTF("savevm: async flushing drive %s\n", bs->filename);
++                aio_co_reschedule_self(bs_ctx);
++                bdrv_graph_co_rdlock();
++                bdrv_flush(bs);
++                bdrv_graph_co_rdunlock();
++                aio_co_reschedule_self(qemu_get_aio_context());
++            }
 +        }
-+
-+        AioContext *bs_ctx = bdrv_get_aio_context(bs);
-+        if (bs_ctx != qemu_get_aio_context()) {
-+            DPRINTF("savevm: async flushing drive %s\n", bs->filename);
-+            aio_co_reschedule_self(bs_ctx);
-+            bdrv_graph_co_rdlock();
-+            bdrv_flush(bs);
-+            bdrv_graph_co_rdunlock();
-+            aio_co_reschedule_self(qemu_get_aio_context());
-+        }
++        bdrv_graph_co_rdlock();
++        bs = bdrv_next(&it);
++        bdrv_graph_co_rdunlock();
 +    }
 +
 +    DPRINTF("timing: async flushing took %ld ms\n",
@@ -478,7 +488,7 @@ index 0000000000..e9fc18fb10
 +        return;
 +    }
 +
-+    if (migration_is_running(ms->state)) {
++    if (migration_is_running()) {
 +        error_set(errp, ERROR_CLASS_GENERIC_ERROR, QERR_MIGRATION_ACTIVE);
 +        return;
 +    }
@@ -535,9 +545,10 @@ index 0000000000..e9fc18fb10
 +     * State is cleared in process_savevm_co, but has to be initialized
 +     * here (blocking main thread, from QMP) to avoid race conditions.
 +     */
-+    migrate_init(ms);
++    if (migrate_init(ms, errp)) {
++        return;
++    }
 +    memset(&mig_stats, 0, sizeof(mig_stats));
-+    memset(&compression_counters, 0, sizeof(compression_counters));
 +    ms->to_dst_file = snap_state.file;
 +
 +    error_setg(&snap_state.blocker, "block device is in use by savevm");
@@ -546,10 +557,8 @@ index 0000000000..e9fc18fb10
 +    snap_state.state = SAVE_STATE_ACTIVE;
 +    snap_state.finalize_bh = qemu_bh_new(process_savevm_finalize, &snap_state);
 +    snap_state.co = qemu_coroutine_create(&process_savevm_co, NULL);
-+    qemu_mutex_unlock_iothread();
 +    qemu_savevm_state_header(snap_state.file);
 +    qemu_savevm_state_setup(snap_state.file);
-+    qemu_mutex_lock_iothread();
 +
 +    /* Async processing from here on out happens in iohandler context, so let
 +     * the target bdrv have its home there.
@@ -570,29 +579,10 @@ index 0000000000..e9fc18fb10
 +    }
 +}
 +
-+void coroutine_fn qmp_savevm_end(Error **errp)
++static void coroutine_fn wait_for_close_co(void *opaque)
 +{
 +    int64_t timeout;
 +
-+    if (snap_state.state == SAVE_STATE_DONE) {
-+        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
-+                  "VM snapshot not started\n");
-+        return;
-+    }
-+
-+    if (snap_state.state == SAVE_STATE_ACTIVE) {
-+        snap_state.state = SAVE_STATE_CANCELLED;
-+        goto wait_for_close;
-+    }
-+
-+    if (snap_state.saved_vm_running) {
-+        vm_start();
-+        snap_state.saved_vm_running = false;
-+    }
-+
-+    snap_state.state = SAVE_STATE_DONE;
-+
-+wait_for_close:
 +    if (!snap_state.target) {
 +        DPRINTF("savevm-end: no target file open\n");
 +        return;
@@ -618,6 +608,32 @@ index 0000000000..e9fc18fb10
 +    }
 +
 +    DPRINTF("savevm-end: cleanup done\n");
++}
++
++void qmp_savevm_end(Error **errp)
++{
++    if (snap_state.state == SAVE_STATE_DONE) {
++        error_set(errp, ERROR_CLASS_GENERIC_ERROR,
++                  "VM snapshot not started\n");
++        return;
++    }
++
++    Coroutine *wait_for_close = qemu_coroutine_create(wait_for_close_co, NULL);
++
++    if (snap_state.state == SAVE_STATE_ACTIVE) {
++        snap_state.state = SAVE_STATE_CANCELLED;
++        qemu_coroutine_enter(wait_for_close);
++        return;
++    }
++
++    if (snap_state.saved_vm_running) {
++        vm_start();
++        snap_state.saved_vm_running = false;
++    }
++
++    snap_state.state = SAVE_STATE_DONE;
++
++    qemu_coroutine_enter(wait_for_close);
 +}
 +
 +int load_snapshot_from_blockdev(const char *filename, Error **errp)
@@ -675,7 +691,7 @@ index 0000000000..e9fc18fb10
 +    return ret;
 +}
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 6c559b48c8..91be698308 100644
+index 871898ac46..ef4634e5c1 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
 @@ -22,6 +22,7 @@
@@ -685,7 +701,7 @@ index 6c559b48c8..91be698308 100644
 +#include "qapi/qapi-commands-migration.h"
  #include "qapi/qapi-commands-misc.h"
  #include "qapi/qmp/qdict.h"
- #include "qapi/qmp/qerror.h"
+ #include "qemu/cutils.h"
 @@ -443,3 +444,40 @@ void hmp_info_mtree(Monitor *mon, const QDict *qdict)
  
      mtree_info(flatview, dispatch_tree, owner, disabled);
@@ -728,10 +744,10 @@ index 6c559b48c8..91be698308 100644
 +    }
 +}
 diff --git a/qapi/migration.json b/qapi/migration.json
-index 8843e74b59..aca0ca1ac1 100644
+index 8c65b90328..ed20d066cd 100644
 --- a/qapi/migration.json
 +++ b/qapi/migration.json
-@@ -291,6 +291,40 @@
+@@ -297,6 +297,40 @@
             '*dirty-limit-throttle-time-per-round': 'uint64',
             '*dirty-limit-ring-full-time': 'uint64'} }
  
@@ -773,10 +789,10 @@ index 8843e74b59..aca0ca1ac1 100644
  # @query-migrate:
  #
 diff --git a/qapi/misc.json b/qapi/misc.json
-index cda2effa81..94a58bb0bf 100644
+index ec30e5c570..3c68633f68 100644
 --- a/qapi/misc.json
 +++ b/qapi/misc.json
-@@ -456,6 +456,22 @@
+@@ -454,6 +454,24 @@
  ##
  { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
  
@@ -784,6 +800,8 @@ index cda2effa81..94a58bb0bf 100644
 +# @savevm-start:
 +#
 +# Prepare for snapshot and halt VM. Save VM state to statefile.
++#
++# @statefile: target file that state should be written to.
 +#
 +##
 +{ 'command': 'savevm-start', 'data': { '*statefile': 'str' } }
@@ -794,16 +812,16 @@ index cda2effa81..94a58bb0bf 100644
 +# Resume VM after a snapshot.
 +#
 +##
-+{ 'command': 'savevm-end', 'coroutine': true }
++{ 'command': 'savevm-end' }
 +
  ##
  # @CommandLineParameterType:
  #
 diff --git a/qemu-options.hx b/qemu-options.hx
-index 8073f5edf5..dc1ececc9c 100644
+index 8ce85d4559..511ab9415e 100644
 --- a/qemu-options.hx
 +++ b/qemu-options.hx
-@@ -4483,6 +4483,18 @@ SRST
+@@ -4610,6 +4610,18 @@ SRST
      Start right away with a saved state (``loadvm`` in monitor)
  ERST
  
@@ -822,11 +840,11 @@ index 8073f5edf5..dc1ececc9c 100644
  #ifndef _WIN32
  DEF("daemonize", 0, QEMU_OPTION_daemonize, \
      "-daemonize      daemonize QEMU after initializing\n", QEMU_ARCH_ALL)
-diff --git a/softmmu/vl.c b/softmmu/vl.c
-index ba6ad8a8df..ddeace306e 100644
---- a/softmmu/vl.c
-+++ b/softmmu/vl.c
-@@ -164,6 +164,7 @@ static const char *accelerators;
+diff --git a/system/vl.c b/system/vl.c
+index c644222982..2738ab7c91 100644
+--- a/system/vl.c
++++ b/system/vl.c
+@@ -163,6 +163,7 @@ static const char *accelerators;
  static bool have_custom_ram_size;
  static const char *ram_memdev_id;
  static QDict *machine_opts_dict;
@@ -834,10 +852,10 @@ index ba6ad8a8df..ddeace306e 100644
  static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
  static QTAILQ_HEAD(, DeviceOption) device_opts = QTAILQ_HEAD_INITIALIZER(device_opts);
  static int display_remote;
-@@ -2647,6 +2648,12 @@ void qmp_x_exit_preconfig(Error **errp)
- 
-     if (loadvm) {
+@@ -2712,6 +2713,12 @@ void qmp_x_exit_preconfig(Error **errp)
+         RunState state = autostart ? RUN_STATE_RUNNING : runstate_get();
          load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
+         load_snapshot_resume(state);
 +    } else if (loadstate) {
 +        Error *local_err = NULL;
 +        if (load_snapshot_from_blockdev(loadstate, &local_err) < 0) {
@@ -847,7 +865,7 @@ index ba6ad8a8df..ddeace306e 100644
      }
      if (replay_mode != REPLAY_MODE_NONE) {
          replay_vmstate_init();
-@@ -3196,6 +3203,9 @@ void qemu_init(int argc, char **argv)
+@@ -3259,6 +3266,9 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_loadvm:
                  loadvm = optarg;
                  break;

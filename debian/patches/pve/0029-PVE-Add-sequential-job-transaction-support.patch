@@ -11,10 +11,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  2 files changed, 46 insertions(+)
 
 diff --git a/include/qemu/job.h b/include/qemu/job.h
-index e502787dd8..963cf2bef5 100644
+index 2b873f2576..528cd6acb9 100644
 --- a/include/qemu/job.h
 +++ b/include/qemu/job.h
-@@ -381,6 +381,18 @@ void job_unlock(void);
+@@ -362,6 +362,18 @@ void job_unlock(void);
   */
  JobTxn *job_txn_new(void);
  
@@ -34,10 +34,10 @@ index e502787dd8..963cf2bef5 100644
   * Release a reference that was previously acquired with job_txn_add_job or
   * job_txn_new. If it's the last reference to the object, it will be freed.
 diff --git a/job.c b/job.c
-index 93e22d180b..2b31f1e14f 100644
+index baf54c8d60..3ac5e5cde2 100644
 --- a/job.c
 +++ b/job.c
-@@ -93,6 +93,8 @@ struct JobTxn {
+@@ -94,6 +94,8 @@ struct JobTxn {
  
      /* Reference count */
      int refcnt;
@@ -46,7 +46,7 @@ index 93e22d180b..2b31f1e14f 100644
  };
  
  void job_lock(void)
-@@ -118,6 +120,25 @@ JobTxn *job_txn_new(void)
+@@ -119,6 +121,25 @@ JobTxn *job_txn_new(void)
      return txn;
  }
  
@@ -72,7 +72,7 @@ index 93e22d180b..2b31f1e14f 100644
  /* Called with job_mutex held. */
  static void job_txn_ref_locked(JobTxn *txn)
  {
-@@ -1057,6 +1078,12 @@ static void job_completed_txn_success_locked(Job *job)
+@@ -1042,6 +1063,12 @@ static void job_completed_txn_success_locked(Job *job)
       */
      QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
          if (!job_is_completed_locked(other_job)) {
@@ -85,7 +85,7 @@ index 93e22d180b..2b31f1e14f 100644
              return;
          }
          assert(other_job->ret == 0);
-@@ -1268,6 +1295,13 @@ int job_finish_sync_locked(Job *job,
+@@ -1253,6 +1280,13 @@ int job_finish_sync_locked(Job *job,
          return -EBUSY;
      }
  

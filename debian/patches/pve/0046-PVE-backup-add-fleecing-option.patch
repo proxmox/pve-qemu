@@ -1,0 +1,337 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Thu, 11 Apr 2024 11:29:28 +0200
+Subject: [PATCH] PVE backup: add fleecing option
+
+When a fleecing option is given, it is expected that each device has
+a corresponding "-fleecing" block device already attached, except for
+EFI disk and TPM state, where fleecing is never used.
+
+The following graph was adapted from [0] which also contains more
+details about fleecing.
+
+[guest]
+   |
+   | root
+   v                 file
+[copy-before-write]<------[snapshot-access]
+   |           |
+   | file      | target
+   v           v
+[source] [fleecing]
+
+For fleecing, a copy-before-write filter is inserted on top of the
+source node, as well as a snapshot-access node pointing to the filter
+node which allows to read the consistent state of the image at the
+time it was inserted. New guest writes are passed through the
+copy-before-write filter which will first copy over old data to the
+fleecing image in case that old data is still needed by the
+snapshot-access node.
+
+The backup process will sequentially read from the snapshot access,
+which has a bitmap and knows whether to read from the original image
+or the fleecing image to get the "snapshot" state, i.e. data from the
+source image at the time when the copy-before-write filter was
+inserted. After reading, the copied sections are discarded from the
+fleecing image to reduce space usage.
+
+All of this can be restricted by an initial dirty bitmap to parts of
+the source image that are required for an incremental backup.
+
+For discard to work, it is necessary that the fleecing image does not
+have a larger cluster size than the backup job granularity. Since
+querying that size does not always work, e.g. for RBD with krbd, the
+cluster size will not be reported, a minimum of 4 MiB is used. A job
+with PBS target already has at least this granularity, so it's just
+relevant for other targets. I.e. edge cases where this minimum is not
+enough should be very rare in practice. If ever necessary in the
+future, can still add a passed-in value for the backup QMP command to
+override.
+
+Additionally, the cbw-timeout and on-cbw-error=break-snapshot options
+are set when installing the copy-before-write filter and
+snapshot-access. When an error or timeout occurs, the problematic (and
+each further) snapshot operation will fail and thus cancel the backup
+instead of breaking the guest write.
+
+Note that job_id cannot be inferred from the snapshot-access bs because
+it has no parent, so just pass the one from the original bs.
+
+[0]: https://www.mail-archive.com/qemu-devel@nongnu.org/msg876056.html
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+---
+ block/monitor/block-hmp-cmds.c |   1 +
+ pve-backup.c                   | 135 ++++++++++++++++++++++++++++++++-
+ qapi/block-core.json           |  10 ++-
+ 3 files changed, 142 insertions(+), 4 deletions(-)
+
+diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
+index 439a7a14c8..d0e7771dcc 100644
+--- a/block/monitor/block-hmp-cmds.c
++++ b/block/monitor/block-hmp-cmds.c
+@@ -1044,6 +1044,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+         NULL, NULL,
+         devlist, qdict_haskey(qdict, "speed"), speed,
+         false, 0, // BackupPerf max-workers
++        false, false, // fleecing
+         &error);
+ 
+     hmp_handle_error(mon, error);
+diff --git a/pve-backup.c b/pve-backup.c
+index 5ebb6a3947..a747d12d3d 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -7,9 +7,11 @@
+ #include "sysemu/blockdev.h"
+ #include "block/block_int-global-state.h"
+ #include "block/blockjob.h"
++#include "block/copy-before-write.h"
+ #include "block/dirty-bitmap.h"
+ #include "block/graph-lock.h"
+ #include "qapi/qapi-commands-block.h"
++#include "qapi/qmp/qdict.h"
+ #include "qapi/qmp/qerror.h"
+ #include "qemu/cutils.h"
+ 
+@@ -80,8 +82,15 @@ static void pvebackup_init(void)
+ // initialize PVEBackupState at startup
+ opts_init(pvebackup_init);
+ 
++typedef struct PVEBackupFleecingInfo {
++    BlockDriverState *bs;
++    BlockDriverState *cbw;
++    BlockDriverState *snapshot_access;
++} PVEBackupFleecingInfo;
++
+ typedef struct PVEBackupDevInfo {
+     BlockDriverState *bs;
++    PVEBackupFleecingInfo fleecing;
+     size_t size;
+     uint64_t block_size;
+     uint8_t dev_id;
+@@ -353,6 +362,22 @@ static void pvebackup_complete_cb(void *opaque, int ret)
+     PVEBackupDevInfo *di = opaque;
+     di->completed_ret = ret;
+ 
++    /*
++     * Handle block-graph specific cleanup (for fleecing) outside of the coroutine, because the work
++     * won't be done as a coroutine anyways:
++     * - For snapshot_access, allows doing bdrv_unref() directly. Doing it via bdrv_co_unref() would
++     *   just spawn a BH calling bdrv_unref().
++     * - For cbw, draining would need to spawn a BH.
++     */
++    if (di->fleecing.snapshot_access) {
++        bdrv_unref(di->fleecing.snapshot_access);
++        di->fleecing.snapshot_access = NULL;
++    }
++    if (di->fleecing.cbw) {
++        bdrv_cbw_drop(di->fleecing.cbw);
++        di->fleecing.cbw = NULL;
++    }
++
+     /*
+      * Needs to happen outside of coroutine, because it takes the graph write lock.
+      */
+@@ -519,9 +544,77 @@ static void create_backup_jobs_bh(void *opaque) {
+         }
+         bdrv_drained_begin(di->bs);
+ 
++        BackupPerf perf = (BackupPerf){ .max_workers = backup_state.perf.max_workers };
++
++        BlockDriverState *source_bs = di->bs;
++        bool discard_source = false;
++        bdrv_graph_co_rdlock();
++        const char *job_id = bdrv_get_device_name(di->bs);
++        bdrv_graph_co_rdunlock();
++        if (di->fleecing.bs) {
++            QDict *cbw_opts = qdict_new();
++            qdict_put_str(cbw_opts, "driver", "copy-before-write");
++            qdict_put_str(cbw_opts, "file", bdrv_get_node_name(di->bs));
++            qdict_put_str(cbw_opts, "target", bdrv_get_node_name(di->fleecing.bs));
++
++            if (di->bitmap) {
++                /*
++                 * Only guest writes to parts relevant for the backup need to be intercepted with
++                 * old data being copied to the fleecing image.
++                 */
++                qdict_put_str(cbw_opts, "bitmap.node", bdrv_get_node_name(di->bs));
++                qdict_put_str(cbw_opts, "bitmap.name", bdrv_dirty_bitmap_name(di->bitmap));
++            }
++            /*
++             * Fleecing storage is supposed to be fast and it's better to break backup than guest
++             * writes. Certain guest drivers like VirtIO-win have 60 seconds timeout by default, so
++             * abort a bit before that.
++             */
++            qdict_put_str(cbw_opts, "on-cbw-error", "break-snapshot");
++            qdict_put_int(cbw_opts, "cbw-timeout", 45);
++
++            di->fleecing.cbw = bdrv_insert_node(di->bs, cbw_opts, BDRV_O_RDWR, &local_err);
++
++            if (!di->fleecing.cbw) {
++                error_setg(errp, "appending cbw node for fleecing failed: %s",
++                           local_err ? error_get_pretty(local_err) : "unknown error");
++                break;
++            }
++
++            QDict *snapshot_access_opts = qdict_new();
++            qdict_put_str(snapshot_access_opts, "driver", "snapshot-access");
++            qdict_put_str(snapshot_access_opts, "file", bdrv_get_node_name(di->fleecing.cbw));
++
++            di->fleecing.snapshot_access =
++                bdrv_open(NULL, NULL, snapshot_access_opts, BDRV_O_RDWR | BDRV_O_UNMAP, &local_err);
++            if (!di->fleecing.snapshot_access) {
++                error_setg(errp, "setting up snapshot access for fleecing failed: %s",
++                           local_err ? error_get_pretty(local_err) : "unknown error");
++                break;
++            }
++            source_bs = di->fleecing.snapshot_access;
++            discard_source = true;
++
++            /*
++             * bdrv_get_info() just retuns 0 (= doesn't matter) for RBD when using krbd. But discard
++             * on the fleecing image won't work if the backup job's granularity is less than the RBD
++             * object size (default 4 MiB), so it does matter. Always use at least 4 MiB. With a PBS
++             * target, the backup job granularity would already be at least this much.
++             */
++            perf.min_cluster_size = 4 * 1024 * 1024;
++            /*
++             * For discard to work, cluster size for the backup job must be at least the same as for
++             * the fleecing image.
++             */
++            BlockDriverInfo bdi;
++            if (bdrv_get_info(di->fleecing.bs, &bdi) >= 0) {
++                perf.min_cluster_size = MAX(perf.min_cluster_size, bdi.cluster_size);
++            }
++        }
++
+         BlockJob *job = backup_job_create(
+-            NULL, di->bs, di->target, backup_state.speed, sync_mode, di->bitmap,
+-            bitmap_mode, false, NULL, &backup_state.perf, BLOCKDEV_ON_ERROR_REPORT,
++            job_id, source_bs, di->target, backup_state.speed, sync_mode, di->bitmap,
++            bitmap_mode, false, discard_source, NULL, &perf, BLOCKDEV_ON_ERROR_REPORT,
+             BLOCKDEV_ON_ERROR_REPORT, JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn,
+             &local_err);
+ 
+@@ -577,6 +670,14 @@ static void create_backup_jobs_bh(void *opaque) {
+     aio_co_enter(data->ctx, data->co);
+ }
+ 
++/*
++ * EFI disk and TPM state are small and it's just not worth setting up fleecing for them.
++ */
++static bool device_uses_fleecing(const char *device_id)
++{
++    return strncmp(device_id, "drive-efidisk", 13) && strncmp(device_id, "drive-tpmstate", 14);
++}
++
+ /*
+  * Returns a list of device infos, which needs to be freed by the caller. In
+  * case of an error, errp will be set, but the returned value might still be a
+@@ -584,6 +685,7 @@ static void create_backup_jobs_bh(void *opaque) {
+  */
+ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
+     const char *devlist,
++    bool fleecing,
+     Error **errp)
+ {
+     gchar **devs = NULL;
+@@ -607,6 +709,31 @@ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
+             }
+             PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
+             di->bs = bs;
++
++            if (fleecing && device_uses_fleecing(*d)) {
++                g_autofree gchar *fleecing_devid = g_strconcat(*d, "-fleecing", NULL);
++                BlockBackend *fleecing_blk = blk_by_name(fleecing_devid);
++                if (!fleecing_blk) {
++                    error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
++                              "Device '%s' not found", fleecing_devid);
++                    goto err;
++                }
++                BlockDriverState *fleecing_bs = blk_bs(fleecing_blk);
++                if (!bdrv_co_is_inserted(fleecing_bs)) {
++                    error_setg(errp, QERR_DEVICE_HAS_NO_MEDIUM, fleecing_devid);
++                    goto err;
++                }
++                /*
++                 * Fleecing image needs to be the same size to act as a cbw target.
++                 */
++                if (bs->total_sectors != fleecing_bs->total_sectors) {
++                    error_setg(errp, "Size mismatch for '%s' - sector count %ld != %ld",
++                               fleecing_devid, fleecing_bs->total_sectors, bs->total_sectors);
++                    goto err;
++                }
++                di->fleecing.bs = fleecing_bs;
++            }
++
+             di_list = g_list_append(di_list, di);
+             d++;
+         }
+@@ -656,6 +783,7 @@ UuidInfo coroutine_fn *qmp_backup(
+     const char *devlist,
+     bool has_speed, int64_t speed,
+     bool has_max_workers, int64_t max_workers,
++    bool has_fleecing, bool fleecing,
+     Error **errp)
+ {
+     assert(qemu_in_coroutine());
+@@ -684,7 +812,7 @@ UuidInfo coroutine_fn *qmp_backup(
+     format = has_format ? format : BACKUP_FORMAT_VMA;
+ 
+     bdrv_graph_co_rdlock();
+-    di_list = get_device_info(devlist, &local_err);
++    di_list = get_device_info(devlist, has_fleecing && fleecing, &local_err);
+     bdrv_graph_co_rdunlock();
+     if (local_err) {
+         error_propagate(errp, local_err);
+@@ -1089,5 +1217,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+     ret->query_bitmap_info = true;
+     ret->pbs_masterkey = true;
+     ret->backup_max_workers = true;
++    ret->backup_fleecing = true;
+     return ret;
+ }
+diff --git a/qapi/block-core.json b/qapi/block-core.json
+index df934647ed..ff441d4258 100644
+--- a/qapi/block-core.json
++++ b/qapi/block-core.json
+@@ -948,6 +948,10 @@
+ #
+ # @max-workers: see @BackupPerf for details. Default 16.
+ #
++# @fleecing: perform a backup with fleecing. For each device in @devlist, a
++#            corresponing '-fleecing' device with the same size already needs to
++#            be present.
++#
+ # Returns: the uuid of the backup job
+ #
+ ##
+@@ -968,7 +972,8 @@
+                                     '*firewall-file': 'str',
+                                     '*devlist': 'str',
+                                     '*speed': 'int',
+-                                    '*max-workers': 'int' },
++                                    '*max-workers': 'int',
++                                    '*fleecing': 'bool' },
+   'returns': 'UuidInfo', 'coroutine': true }
+ 
+ ##
+@@ -1014,6 +1019,8 @@
+ #
+ # @pbs-library-version: Running version of libproxmox-backup-qemu0 library.
+ #
++# @backup-fleecing: Whether backup fleecing is supported or not.
++#
+ # @backup-max-workers: Whether the 'max-workers' @BackupPerf setting is
+ #     supported or not.
+ #
+@@ -1025,6 +1032,7 @@
+             'pbs-dirty-bitmap-migration': 'bool',
+             'pbs-masterkey': 'bool',
+             'pbs-library-version': 'str',
++            'backup-fleecing': 'bool',
+             'backup-max-workers': 'bool' } }
+ 
+ ##

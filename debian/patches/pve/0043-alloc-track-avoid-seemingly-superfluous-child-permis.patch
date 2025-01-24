@@ -1,0 +1,84 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Wed, 27 Mar 2024 11:15:39 +0100
+Subject: [PATCH] alloc-track: avoid seemingly superfluous child permission
+ update
+
+Doesn't seem necessary nowadays (maybe after commit "alloc-track: fix
+deadlock during drop" where the dropping is not rescheduled and delayed
+anymore or some upstream change). Should there really be some issue,
+instead of having a drop state, this could also be just based off the
+fact whether there is still a backing child.
+
+Dumping the cumulative (shared) permissions for the BDS with a debug
+print yields the same values after this patch and with QEMU 8.1,
+namely 3 and 5.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ block/alloc-track.c | 26 --------------------------
+ 1 file changed, 26 deletions(-)
+
+diff --git a/block/alloc-track.c b/block/alloc-track.c
+index f3ed2935c4..29138dcc49 100644
+--- a/block/alloc-track.c
++++ b/block/alloc-track.c
+@@ -25,15 +25,9 @@
+ 
+ #define TRACK_OPT_AUTO_REMOVE "auto-remove"
+ 
+-typedef enum DropState {
+-    DropNone,
+-    DropInProgress,
+-} DropState;
+-
+ typedef struct {
+     BdrvDirtyBitmap *bitmap;
+     uint64_t granularity;
+-    DropState drop_state;
+ } BDRVAllocTrackState;
+ 
+ static QemuOptsList runtime_opts = {
+@@ -137,8 +131,6 @@ static int track_open(BlockDriverState *bs, QDict *options, int flags,
+         goto fail;
+     }
+ 
+-    s->drop_state = DropNone;
+-
+ fail:
+     if (ret < 0) {
+         bdrv_graph_wrlock();
+@@ -289,18 +281,8 @@ track_child_perm(BlockDriverState *bs, BdrvChild *c, BdrvChildRole role,
+                  BlockReopenQueue *reopen_queue, uint64_t perm, uint64_t shared,
+                  uint64_t *nperm, uint64_t *nshared)
+ {
+-    BDRVAllocTrackState *s = bs->opaque;
+-
+     *nshared = BLK_PERM_ALL;
+ 
+-    /* in case we're currently dropping ourselves, claim to not use any
+-     * permissions at all - which is fine, since from this point on we will
+-     * never issue a read or write anymore */
+-    if (s->drop_state == DropInProgress) {
+-        *nperm = 0;
+-        return;
+-    }
+-
+     if (role & BDRV_CHILD_DATA) {
+         *nperm = perm & DEFAULT_PERM_PASSTHROUGH;
+     } else {
+@@ -326,14 +308,6 @@ track_co_change_backing_file(BlockDriverState *bs, const char *backing_file,
+      * kinda fits better, but in the long-term, a special parameter would be
+      * nice (or done via qemu-server via upcoming blockdev-replace QMP command).
+      */
+-    if (backing_file == NULL) {
+-        BDRVAllocTrackState *s = bs->opaque;
+-        bdrv_drained_begin(bs);
+-        s->drop_state = DropInProgress;
+-        bdrv_child_refresh_perms(bs, bs->file, &error_abort);
+-        bdrv_drained_end(bs);
+-    }
+-
+     return 0;
+ }
+ 

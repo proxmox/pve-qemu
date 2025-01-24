@@ -10,14 +10,14 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  qemu-options.hx | 3 +++
- softmmu/vl.c    | 8 ++++++++
+ system/vl.c     | 8 ++++++++
  2 files changed, 11 insertions(+)
 
 diff --git a/qemu-options.hx b/qemu-options.hx
-index dc1ececc9c..848d2dfdd1 100644
+index 511ab9415e..92e301d545 100644
 --- a/qemu-options.hx
 +++ b/qemu-options.hx
-@@ -1197,6 +1197,9 @@ legacy PC, they are not recommended for modern configurations.
+@@ -1237,6 +1237,9 @@ legacy PC, they are not recommended for modern configurations.
  
  ERST
  
@@ -27,11 +27,11 @@ index dc1ececc9c..848d2dfdd1 100644
  DEF("fda", HAS_ARG, QEMU_OPTION_fda,
      "-fda/-fdb file  use 'file' as floppy disk 0/1 image\n", QEMU_ARCH_ALL)
  DEF("fdb", HAS_ARG, QEMU_OPTION_fdb, "", QEMU_ARCH_ALL)
-diff --git a/softmmu/vl.c b/softmmu/vl.c
-index ddeace306e..3ee90b3b94 100644
---- a/softmmu/vl.c
-+++ b/softmmu/vl.c
-@@ -2683,6 +2683,7 @@ void qemu_init(int argc, char **argv)
+diff --git a/system/vl.c b/system/vl.c
+index 2738ab7c91..20ebf2c920 100644
+--- a/system/vl.c
++++ b/system/vl.c
+@@ -2748,6 +2748,7 @@ void qemu_init(int argc, char **argv)
      MachineClass *machine_class;
      bool userconfig = true;
      FILE *vmstate_dump_file = NULL;
@@ -39,7 +39,7 @@ index ddeace306e..3ee90b3b94 100644
  
      qemu_add_opts(&qemu_drive_opts);
      qemu_add_drive_opts(&qemu_legacy_drive_opts);
-@@ -3308,6 +3309,13 @@ void qemu_init(int argc, char **argv)
+@@ -3371,6 +3372,13 @@ void qemu_init(int argc, char **argv)
                  machine_parse_property_opt(qemu_find_opts("smp-opts"),
                                             "smp", optarg);
                  break;
@@ -50,6 +50,6 @@ index ddeace306e..3ee90b3b94 100644
 +                    exit(1);
 +                }
 +                break;
+ #ifdef CONFIG_VNC
              case QEMU_OPTION_vnc:
                  vnc_parse(optarg);
-                 break;

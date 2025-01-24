@@ -13,10 +13,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 26 insertions(+), 12 deletions(-)
 
 diff --git a/docs/tools/qemu-img.rst b/docs/tools/qemu-img.rst
-index 15aeddc6d8..5e713e231d 100644
+index 3653adb963..d83e8fb3c0 100644
 --- a/docs/tools/qemu-img.rst
 +++ b/docs/tools/qemu-img.rst
-@@ -208,6 +208,10 @@ Parameters to convert subcommand:
+@@ -212,6 +212,10 @@ Parameters to convert subcommand:
  
  Parameters to dd subcommand:
  
@@ -27,7 +27,7 @@ index 15aeddc6d8..5e713e231d 100644
  .. program:: qemu-img-dd
  
  .. option:: bs=BLOCK_SIZE
-@@ -488,7 +492,7 @@ Command description:
+@@ -492,7 +496,7 @@ Command description:
    it doesn't need to be specified separately in this case.
  
  
@@ -36,7 +36,7 @@ index 15aeddc6d8..5e713e231d 100644
  
    dd copies from *INPUT* file to *OUTPUT* file converting it from
    *FMT* format to *OUTPUT_FMT* format.
-@@ -499,6 +503,11 @@ Command description:
+@@ -503,6 +507,11 @@ Command description:
  
    The size syntax is similar to :manpage:`dd(1)`'s size syntax.
  
@@ -49,10 +49,10 @@ index 15aeddc6d8..5e713e231d 100644
  
    Give information about the disk image *FILENAME*. Use it in
 diff --git a/qemu-img-cmds.hx b/qemu-img-cmds.hx
-index d1616c045a..b5b0bb4467 100644
+index 048788b23d..0b29a67a06 100644
 --- a/qemu-img-cmds.hx
 +++ b/qemu-img-cmds.hx
-@@ -58,9 +58,9 @@ SRST
+@@ -60,9 +60,9 @@ SRST
  ERST
  
  DEF("dd", img_dd,
@@ -65,10 +65,10 @@ index d1616c045a..b5b0bb4467 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index 58bf9b43d1..9d414d639b 100644
+index b98184bba1..6fc8384f64 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -5024,7 +5024,7 @@ static int img_dd(int argc, char **argv)
+@@ -5118,7 +5118,7 @@ static int img_dd(int argc, char **argv)
      const char *fmt = NULL;
      int64_t size = 0, readsize = 0;
      int64_t out_pos, in_pos;
@@ -77,7 +77,7 @@ index 58bf9b43d1..9d414d639b 100644
      struct DdInfo dd = {
          .flags = 0,
          .count = 0,
-@@ -5062,7 +5062,7 @@ static int img_dd(int argc, char **argv)
+@@ -5156,7 +5156,7 @@ static int img_dd(int argc, char **argv)
          { 0, 0, 0, 0 }
      };
  
@@ -86,7 +86,7 @@ index 58bf9b43d1..9d414d639b 100644
          if (c == EOF) {
              break;
          }
-@@ -5082,6 +5082,9 @@ static int img_dd(int argc, char **argv)
+@@ -5176,6 +5176,9 @@ static int img_dd(int argc, char **argv)
          case 'h':
              help();
              break;
@@ -96,7 +96,7 @@ index 58bf9b43d1..9d414d639b 100644
          case 'U':
              force_share = true;
              break;
-@@ -5212,13 +5215,15 @@ static int img_dd(int argc, char **argv)
+@@ -5306,13 +5309,15 @@ static int img_dd(int argc, char **argv)
                                  size - in.bsz * in.offset, &error_abort);
          }
  

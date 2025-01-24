@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Alexander Ivanov <alexander.ivanov@virtuozzo.com>
+Date: Fri, 9 Aug 2024 14:13:40 +0200
+Subject: [PATCH] module: Prevent crash by resetting local_err in
+ module_load_qom_all()
+
+Set local_err to NULL after it has been freed in error_report_err(). This
+avoids triggering assert(*errp == NULL) failure in error_setv() when
+local_err is reused in the loop.
+
+Signed-off-by: Alexander Ivanov <alexander.ivanov@virtuozzo.com>
+Reviewed-by: Claudio Fontana <cfontana@suse.de>
+Reviewed-by: Denis V. Lunev <den@openvz.org>
+Link: https://lore.kernel.org/r/20240809121340.992049-2-alexander.ivanov@virtuozzo.com
+[Do the same by moving the declaration instead. - Paolo]
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 940d802b24e63650e0eacad3714e2ce171cba17c)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ util/module.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/util/module.c b/util/module.c
+index 32e263163c..3eb0f06df1 100644
+--- a/util/module.c
++++ b/util/module.c
+@@ -354,13 +354,13 @@ int module_load_qom(const char *type, Error **errp)
+ void module_load_qom_all(void)
+ {
+     const QemuModinfo *modinfo;
+-    Error *local_err = NULL;
+ 
+     if (module_loaded_qom_all) {
+         return;
+     }
+ 
+     for (modinfo = module_info; modinfo->name != NULL; modinfo++) {
++        Error *local_err = NULL;
+         if (!modinfo->objs) {
+             continue;
+         }

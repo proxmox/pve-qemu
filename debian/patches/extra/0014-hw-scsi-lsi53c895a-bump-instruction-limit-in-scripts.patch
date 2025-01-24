@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Mon, 15 Jul 2024 15:14:03 +0200
+Subject: [PATCH] hw/scsi/lsi53c895a: bump instruction limit in scripts
+ processing to fix regression
+
+Commit 9876359990 ("hw/scsi/lsi53c895a: add timer to scripts
+processing") reduced the maximum allowed instruction count by
+a factor of 100 all the way down to 100.
+
+This causes the "Check Point R81.20 Gaia" appliance [0] to fail to
+boot after fully finishing the installation via the appliance's web
+interface (there is already one reboot before that).
+
+With a limit of 150, the appliance still fails to boot, while with a
+limit of 200, it works. Bump to 500 to fix the regression and be on
+the safe side.
+
+Originally reported in the Proxmox community forum[1].
+
+[0]: https://support.checkpoint.com/results/download/124397
+[1]: https://forum.proxmox.com/threads/149772/post-683459
+
+Cc: qemu-stable@nongnu.org
+Fixes: 9876359990 ("hw/scsi/lsi53c895a: add timer to scripts processing")
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Acked-by: Sven Schnelle <svens@stackframe.org>
+Link: https://lore.kernel.org/r/20240715131403.223239-1-f.ebner@proxmox.com
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit a4975023fb13cf229bd59c9ceec1b8cbdc5b9a20)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/scsi/lsi53c895a.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/scsi/lsi53c895a.c b/hw/scsi/lsi53c895a.c
+index eb9828dd5e..f1935e5328 100644
+--- a/hw/scsi/lsi53c895a.c
++++ b/hw/scsi/lsi53c895a.c
+@@ -188,7 +188,7 @@ static const char *names[] = {
+ #define LSI_TAG_VALID     (1 << 16)
+ 
+ /* Maximum instructions to process. */
+-#define LSI_MAX_INSN    100
++#define LSI_MAX_INSN    500
+ 
+ typedef struct lsi_request {
+     SCSIRequest *req;

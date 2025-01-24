@@ -16,10 +16,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 3 insertions(+)
 
 diff --git a/blockdev.c b/blockdev.c
-index a402fa4bf7..01b0ab0549 100644
+index f3e508a6a7..37b8437f3e 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -2946,6 +2946,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2873,6 +2873,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
          if (bdrv_dirty_bitmap_check(bitmap, BDRV_BITMAP_ALLOW_RO, errp)) {
              return;
          }

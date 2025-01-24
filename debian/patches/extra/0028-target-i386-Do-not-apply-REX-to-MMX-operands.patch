@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Richard Henderson <richard.henderson@linaro.org>
+Date: Mon, 12 Aug 2024 12:58:42 +1000
+Subject: [PATCH] target/i386: Do not apply REX to MMX operands
+
+Cc: qemu-stable@nongnu.org
+Fixes: b3e22b2318a ("target/i386: add core of new i386 decoder")
+Resolves: https://gitlab.com/qemu-project/qemu/-/issues/2495
+Signed-off-by: Richard Henderson <richard.henderson@linaro.org>
+Link: https://lore.kernel.org/r/20240812025844.58956-2-richard.henderson@linaro.org
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 416f2b16c02c618c0f233372ebfe343f9ee667d4)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/i386/tcg/decode-new.c.inc | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/target/i386/tcg/decode-new.c.inc b/target/i386/tcg/decode-new.c.inc
+index 4209d59ca8..09b8d2314a 100644
+--- a/target/i386/tcg/decode-new.c.inc
++++ b/target/i386/tcg/decode-new.c.inc
+@@ -1271,7 +1271,10 @@ static bool decode_op(DisasContext *s, CPUX86State *env, X86DecodedInsn *decode,
+             op->unit = X86_OP_SSE;
+         }
+     get_reg:
+-        op->n = ((get_modrm(s, env) >> 3) & 7) | REX_R(s);
++        op->n = ((get_modrm(s, env) >> 3) & 7);
++        if (op->unit != X86_OP_MMX) {
++            op->n |= REX_R(s);
++        }
+         break;
+ 
+     case X86_TYPE_E:  /* ALU modrm operand */

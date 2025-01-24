@@ -9,14 +9,14 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  block/file-posix.c   | 59 ++++++++++++++++++++++++++++++--------------
- qapi/block-core.json |  3 ++-
- 2 files changed, 42 insertions(+), 20 deletions(-)
+ qapi/block-core.json |  7 +++++-
+ 2 files changed, 46 insertions(+), 20 deletions(-)
 
 diff --git a/block/file-posix.c b/block/file-posix.c
-index ca551baa42..8b3b83e9d4 100644
+index 43bc0bd520..60e98c87f1 100644
 --- a/block/file-posix.c
 +++ b/block/file-posix.c
-@@ -2873,6 +2873,7 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
+@@ -2876,6 +2876,7 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
      int fd;
      uint64_t perm, shared;
      int result = 0;
@@ -24,7 +24,7 @@ index ca551baa42..8b3b83e9d4 100644
  
      /* Validate options and set default values */
      assert(options->driver == BLOCKDEV_DRIVER_FILE);
-@@ -2913,19 +2914,22 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
+@@ -2916,19 +2917,22 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
      perm = BLK_PERM_WRITE | BLK_PERM_RESIZE;
      shared = BLK_PERM_ALL & ~BLK_PERM_RESIZE;
  
@@ -59,7 +59,7 @@ index ca551baa42..8b3b83e9d4 100644
      }
  
      /* Clear the file by truncating it to 0 */
-@@ -2979,13 +2983,15 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
+@@ -2982,13 +2986,15 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
      }
  
  out_unlock:
@@ -82,7 +82,7 @@ index ca551baa42..8b3b83e9d4 100644
      }
  
  out_close:
-@@ -3009,6 +3015,7 @@ raw_co_create_opts(BlockDriver *drv, const char *filename,
+@@ -3012,6 +3018,7 @@ raw_co_create_opts(BlockDriver *drv, const char *filename,
      PreallocMode prealloc;
      char *buf = NULL;
      Error *local_err = NULL;
@@ -90,7 +90,7 @@ index ca551baa42..8b3b83e9d4 100644
  
      /* Skip file: protocol prefix */
      strstart(filename, "file:", &filename);
-@@ -3031,6 +3038,18 @@ raw_co_create_opts(BlockDriver *drv, const char *filename,
+@@ -3034,6 +3041,18 @@ raw_co_create_opts(BlockDriver *drv, const char *filename,
          return -EINVAL;
      }
  
@@ -109,7 +109,7 @@ index ca551baa42..8b3b83e9d4 100644
      options = (BlockdevCreateOptions) {
          .driver     = BLOCKDEV_DRIVER_FILE,
          .u.file     = {
-@@ -3042,6 +3061,8 @@ raw_co_create_opts(BlockDriver *drv, const char *filename,
+@@ -3045,6 +3064,8 @@ raw_co_create_opts(BlockDriver *drv, const char *filename,
              .nocow              = nocow,
              .has_extent_size_hint = has_extent_size_hint,
              .extent_size_hint   = extent_size_hint,
@@ -119,10 +119,21 @@ index ca551baa42..8b3b83e9d4 100644
      };
      return raw_co_create(&options, errp);
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index a5cea82139..bb471c078d 100644
+index 905da8be72..3db587a6e4 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -4880,7 +4880,8 @@
+@@ -4956,6 +4956,10 @@
+ # @extent-size-hint: Extent size hint to add to the image file; 0 for
+ #     not adding an extent size hint (default: 1 MB, since 5.1)
+ #
++# @locking: whether to enable file locking.  If set to 'auto', only
++#     enable when Open File Descriptor (OFD) locking API is available
++#     (default: auto).
++#
+ # Since: 2.12
+ ##
+ { 'struct': 'BlockdevCreateOptionsFile',
+@@ -4963,7 +4967,8 @@
              'size':                 'size',
              '*preallocation':       'PreallocMode',
              '*nocow':               'bool',

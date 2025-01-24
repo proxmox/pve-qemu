@@ -1,8 +1,119 @@
+pve-qemu-kvm (9.0.2-4) bookworm; urgency=medium
+
+  * async snapshot: ensure any dynamic vCPU-throttling applied for
+    auto-converge gets always disabled again after finishing the snapshot.
+
+ -- Proxmox Support Team <support@proxmox.com>  Sun, 10 Nov 2024 11:23:09 +0100
+
+pve-qemu-kvm (9.0.2-3) bookworm; urgency=medium
+
+  * pick up fix for VirtIO PCI regressions
+
+  * pick up stable fixes for 9.0, including fixes for VirtIO-net, ARM and
+    x86(_64) emulation, CVEs to harden NBD server against malicious clients,
+    as well as a few others (VNC, physmem, Intel IOMMU, ...).
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 06 Sep 2024 16:21:42 +0200
+
+pve-qemu-kvm (9.0.2-2) bookworm; urgency=medium
+
+  * actually update submodule to QEMU 9.0.2. The previous release was still
+    based on 9.0.0 by mistake.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 07 Aug 2024 10:16:01 +0200
+
+pve-qemu-kvm (9.0.2-1) bookworm; urgency=medium
+
+  * update submodule and patches to QEMU 9.0.2. While our version had most
+    stable fixes included already, there are new fixes for VirtIO and VGA
+    display screen blanking (#4786)
+
+  * backport fix for a regression with the LSI-53c895a controller and one for
+    the boot order getting ignored for USB storage
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 29 Jul 2024 18:59:40 +0200
+
+pve-qemu-kvm (9.0.0-6) bookworm; urgency=medium
+
+  * fix a regression in the zeroinit block driver that prevented importing and
+    cloning disks to RBD storages which are not using the krbd setting
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 08 Jul 2024 16:11:15 +0200
+
+pve-qemu-kvm (9.0.0-5) bookworm; urgency=medium
+
+  * backport fix for CVE-2024-4467 to prevent malicious qcow2 image files from
+    already causing bad effects if being queried via 'qemu-img info'. For
+    Proxmox VE, this is an additional safe guard, as currently it directly
+    creates and manages the qcow2 images used by VMs and does not allow
+    unprivileged users to import them
+
+  * fix #4726: code cleanup: avoid superfluous check in vma backup code
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 03 Jul 2024 13:13:35 +0200
+
+pve-qemu-kvm (9.0.0-4) bookworm; urgency=medium
+
+  * fix crash after saving a snapshot without including VM state when a VirtIO
+    block device with iothread is configured.
+
+  * fix edge case in error handling when opening a block device from PBS fails
+
+  * minor code cleanup in backup code
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 01 Jul 2024 11:26:11 +0200
+
+pve-qemu-kvm (9.0.0-3) bookworm; urgency=medium
+
+  * fix crash when doing resize after hotplugging a disk using io_uring
+
+  * fix some minor issues in software CPU emulation (i.e. non-KVM) for ARM and
+    x86(_64)
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 29 May 2024 15:55:44 +0200
+
+pve-qemu-kvm (9.0.0-2) bookworm; urgency=medium
+
+  * fix #5409: backup: fix copy-before-write timeout
+
+  * backup: improve error when copy-before-write fails for fleecing
+
+  * fix forwards and backwards migration with VirtIO-GPU display
+
+  * fix a regression in pflash device introduced in 8.2
+
+  * revert a commit for VirtIO PCI devices that turned out to cause more
+    potential security issues than what it fixed
+
+  * move compatibility flags for a new VirtIO-net feature to the correct
+    machine type. The feature was introduced in QEMU 8.2, but the
+    compatibility flags got added to machine version 8.0 instead of 8.1. This
+    breaks backwards migration with machine version 8.1 from a 8.2/9.0 binary
+    to an 8.1 binary, in cases where the guest kernel enables the feature
+    (e.g. Ubuntu 23.10).
+    While that breaks migration with machine version 8.1 from an unpatched to
+    a patched binary, Proxmox VE only ever had 8.2 on the test repository and
+    9.0 not yet in any public repository.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 17 May 2024 17:04:52 +0200
+
 pve-qemu-kvm (8.1.5-6) bookworm; urgency=medium
 
   * fix #5409: backup: fix copy-before-write timeout
 
  -- Proxmox Support Team <support@proxmox.com>  Mon, 29 Apr 2024 16:39:38 +0200
+
+pve-qemu-kvm (9.0.0-1) bookworm; urgency=medium
+
+  * update submodule and patches to QEMU 9.0.0
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 29 Apr 2024 10:51:37 +0200
+
+pve-qemu-kvm (8.2.2-1) bookworm; urgency=medium
+
+  * update submodule and patches to QEMU 8.2.2
+
+ -- Proxmox Support Team <support@proxmox.com>  Sat, 27 Apr 2024 12:44:30 +0200
 
 pve-qemu-kvm (8.1.5-5) bookworm; urgency=medium
 

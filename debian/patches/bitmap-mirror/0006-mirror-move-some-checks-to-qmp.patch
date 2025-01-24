@@ -12,7 +12,7 @@ uniform w.r.t. backup block jobs.
 
 Signed-off-by: Fabian Grünbichler <f.gruenbichler@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[FE: rebase for 8.0]
+[FE: rebase for 8.2.2]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/mirror.c             | 28 +++------------
@@ -21,12 +21,12 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 70 insertions(+), 59 deletions(-)
 
 diff --git a/block/mirror.c b/block/mirror.c
-index 00f2665ca4..60cf574de5 100644
+index 6b3cce1007..2f1223852b 100644
 --- a/block/mirror.c
 +++ b/block/mirror.c
-@@ -1699,31 +1699,13 @@ static BlockJob *mirror_start_job(
-     uint64_t target_perms, target_shared_perms;
-     int ret;
+@@ -1757,31 +1757,13 @@ static BlockJob *mirror_start_job(
+ 
+     GLOBAL_STATE_CODE();
  
 -    if (sync_mode == MIRROR_SYNC_MODE_INCREMENTAL) {
 -        error_setg(errp, "Sync mode '%s' not supported",
@@ -62,10 +62,10 @@ index 00f2665ca4..60cf574de5 100644
  
          if (bitmap_mode != BITMAP_SYNC_MODE_NEVER) {
 diff --git a/blockdev.c b/blockdev.c
-index 01b0ab0549..cd5f205ad1 100644
+index 37b8437f3e..ed8198f351 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -2925,7 +2925,36 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2852,7 +2852,36 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
          sync = MIRROR_SYNC_MODE_FULL;
      }
  
