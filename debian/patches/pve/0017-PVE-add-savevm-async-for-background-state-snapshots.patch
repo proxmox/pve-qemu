@@ -29,7 +29,8 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
      improve condition for entering final stage
      adapt to QAPI and other changes for 8.2
      make sure to not call vm_start() from coroutine
-     stop CPU throttling after finishing]
+     stop CPU throttling after finishing
+     force raw format when loading state as suggested by Friedrich Weber]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hmp-commands-info.hx         |  13 +
@@ -37,13 +38,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 549 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 553 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  38 +++
  qapi/migration.json          |  34 +++
  qapi/misc.json               |  18 ++
  qemu-options.hx              |  12 +
  system/vl.c                  |  10 +
- 11 files changed, 697 insertions(+)
+ 11 files changed, 701 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -141,10 +142,10 @@ index 020127d901..4b0c4f0f51 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..4c90209188
+index 0000000000..276f8bfcbb
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,549 @@
+@@ -0,0 +1,553 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -645,12 +646,16 @@ index 0000000000..4c90209188
 +    BlockBackend *be;
 +    Error *local_err = NULL;
 +    Error *blocker = NULL;
++    QDict *options;
 +
 +    QEMUFile *f;
 +    size_t bs_pos = 0;
 +    int ret = -EINVAL;
 +
-+    be = blk_new_open(filename, NULL, NULL, 0, &local_err);
++    options = qdict_new();
++    qdict_put_str(options, "driver", "raw");
++
++    be = blk_new_open(filename, NULL, options, 0, &local_err);
 +
 +    if (!be) {
 +        error_setg(errp, "Could not open VM state file");
