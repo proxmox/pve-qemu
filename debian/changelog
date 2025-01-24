@@ -1,3 +1,13 @@
+pve-qemu-kvm (9.0.2-5) bookworm; urgency=medium
+
+  * async snapshot: explicitly specify raw format when loading the VM state
+    file
+
+  * vma create: rework CLI parameters for passing disk to a more structured
+    style and use that to allow explicitly specifying the format
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 24 Jan 2025 14:59:17 +0100
+
 pve-qemu-kvm (9.0.2-4) bookworm; urgency=medium
 
   * async snapshot: ensure any dynamic vCPU-throttling applied for
