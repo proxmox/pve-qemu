@@ -10,16 +10,17 @@ skip reads.
 
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: improvements during create
-     allow partial restore]
+     allow partial restore
+     allow specifying disk formats for create operation]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build |   2 +
  meson.build       |   5 +
- vma-reader.c      | 868 ++++++++++++++++++++++++++++++++++++++++++++
- vma-writer.c      | 817 +++++++++++++++++++++++++++++++++++++++++
- vma.c             | 901 ++++++++++++++++++++++++++++++++++++++++++++++
+ vma-reader.c      | 868 ++++++++++++++++++++++++++++++++++++++++++
+ vma-writer.c      | 817 ++++++++++++++++++++++++++++++++++++++++
+ vma.c             | 941 ++++++++++++++++++++++++++++++++++++++++++++++
  vma.h             | 150 ++++++++
- 6 files changed, 2743 insertions(+)
+ 6 files changed, 2783 insertions(+)
  create mode 100644 vma-reader.c
  create mode 100644 vma-writer.c
  create mode 100644 vma.c
@@ -1760,10 +1761,10 @@ index 0000000000..a466652a5d
 +}
 diff --git a/vma.c b/vma.c
 new file mode 100644
-index 0000000000..bb715e9061
+index 0000000000..8d4b4be414
 --- /dev/null
 +++ b/vma.c
-@@ -0,0 +1,901 @@
+@@ -0,0 +1,941 @@
 +/*
 + * VMA: Virtual Machine Archive
 + *
@@ -1795,8 +1796,8 @@ index 0000000000..bb715e9061
 +        "usage: vma command [command options]\n"
 +        "\n"
 +        "vma list <filename>\n"
-+        "vma config <filename> [-c config]\n"
-+        "vma create <filename> [-c config] pathname ...\n"
++        "vma config <filename> [-c <config>]\n"
++        "vma create <filename> [-c <config>] [-d format=<format>:<device name>=<path> [-d ...]]\n"
 +        "vma extract <filename> [-d <drive-list>] [-r <fifo>] <targetdir>\n"
 +        "vma verify <filename> [-v]\n"
 +        ;
@@ -2387,12 +2388,14 @@ index 0000000000..bb715e9061
 +{
 +    int c;
 +    int verbose = 0;
++    bool expect_format = true;
 +    const char *archivename;
 +    GList *backup_coroutines = NULL;
 +    GList *config_files = NULL;
++    GList *disk_infos = NULL;
 +
 +    for (;;) {
-+        c = getopt(argc, argv, "hvc:");
++        c = getopt(argc, argv, "hvc:d:");
 +        if (c == -1) {
 +            break;
 +        }
@@ -2403,6 +2406,9 @@ index 0000000000..bb715e9061
 +            break;
 +        case 'c':
 +            config_files = g_list_append(config_files, optarg);
++            break;
++        case 'd':
++            disk_infos = g_list_append(disk_infos, optarg);
 +            break;
 +        case 'v':
 +            verbose = 1;
@@ -2449,16 +2455,48 @@ index 0000000000..bb715e9061
 +        l = g_list_next(l);
 +    }
 +
-+    int devcount = 0;
++    /*
++     * Don't allow mixing new and old way to specifiy disks.
++     * TODO PVE 9 drop old way and always require format.
++     */
++    if (optind < argc && g_list_first(disk_infos)) {
++        unlink(archivename);
++        g_error("Unexpected extra argument - specify all devices via '-d'");
++    }
++
 +    while (optind < argc) {
-+        const char *path = argv[optind++];
++        expect_format = false;
++        disk_infos = g_list_append(disk_infos, argv[optind++]);
++    }
++
++    int devcount = 0;
++    GList *disk_l = disk_infos;
++    while (disk_l && disk_l->data) {
++        char *disk_info = disk_l->data;
++        const char *path = NULL;
 +        char *devname = NULL;
-+        path = extract_devname(path, &devname, devcount++);
++        char *format = NULL;
++        QDict *options = qdict_new();
++
++        if (try_parse_option(&disk_info, "format", &format, disk_info)) {
++            qdict_put_str(options, "driver", format);
++        } else {
++            if (expect_format) {
++                unlink(archivename);
++                g_error("No format specified for device: '%s'", disk_info);
++            } else {
++                g_warning("Specifying a device without a format is deprecated"
++                          " - use '-d format=<format>:%s'",
++                          disk_info);
++            }
++        }
++
++        path = extract_devname(disk_info, &devname, devcount++);
 +
 +        Error *errp = NULL;
 +        BlockBackend *target;
 +
-+        target = blk_new_open(path, NULL, NULL, 0, &errp);
++        target = blk_new_open(path, NULL, options, 0, &errp);
 +        if (!target) {
 +            unlink(archivename);
 +            g_error("bdrv_open '%s' failed - %s", path, error_get_pretty(errp));
@@ -2480,6 +2518,8 @@ index 0000000000..bb715e9061
 +        // Don't enter coroutine yet, because it might write the header before
 +        // all streams can be registered.
 +        backup_coroutines = g_list_append(backup_coroutines, co);
++
++        disk_l = g_list_next(disk_l);
 +    }
 +
 +    VmaStatus vmastat;
@@ -2561,6 +2601,7 @@ index 0000000000..bb715e9061
 +
 +    g_list_free(backup_coroutines);
 +    g_list_free(config_files);
++    g_list_free(disk_infos);
 +    vma_writer_destroy(vmaw);
 +    return 0;
 +}
