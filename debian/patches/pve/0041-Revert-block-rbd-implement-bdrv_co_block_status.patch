@@ -24,7 +24,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 112 deletions(-)
 
 diff --git a/block/rbd.c b/block/rbd.c
-index e341745255..436d3d7811 100644
+index 6f5fe90f3a..24e820d056 100644
 --- a/block/rbd.c
 +++ b/block/rbd.c
 @@ -108,12 +108,6 @@ typedef struct RBDTask {

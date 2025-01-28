@@ -425,7 +425,7 @@ index e178047ec9..7ef7250d31 100644
    'backup.c',
    'backup-dump.c',
 diff --git a/block/stream.c b/block/stream.c
-index d2da83ae7c..f941cba14e 100644
+index 1d1c65f061..d499c8883f 100644
 --- a/block/stream.c
 +++ b/block/stream.c
 @@ -120,6 +120,40 @@ static int stream_prepare(Job *job)

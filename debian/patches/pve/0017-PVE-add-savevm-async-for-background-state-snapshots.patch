@@ -38,13 +38,13 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 553 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 571 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  38 +++
  qapi/migration.json          |  34 +++
  qapi/misc.json               |  18 ++
  qemu-options.hx              |  12 +
  system/vl.c                  |  10 +
- 11 files changed, 701 insertions(+)
+ 11 files changed, 719 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -129,10 +129,10 @@ index ae116d9804..2596cc2426 100644
  void coroutine_fn hmp_screendump(Monitor *mon, const QDict *qdict);
  void hmp_chardev_add(Monitor *mon, const QDict *qdict);
 diff --git a/migration/meson.build b/migration/meson.build
-index 020127d901..4b0c4f0f51 100644
+index b00d58064d..075b013971 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
-@@ -27,6 +27,7 @@ system_ss.add(files(
+@@ -29,6 +29,7 @@ system_ss.add(files(
    'options.c',
    'postcopy-ram.c',
    'savevm.c',
@@ -142,10 +142,10 @@ index 020127d901..4b0c4f0f51 100644
    'threadinfo.c',
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..276f8bfcbb
+index 0000000000..ee8ef316d0
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,553 @@
+@@ -0,0 +1,571 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -262,6 +262,7 @@ index 0000000000..276f8bfcbb
 +    }
 +
 +    if (snap_state.target) {
++        BlockDriverState *target_bs = blk_bs(snap_state.target);
 +        if (!savevm_aborted()) {
 +            /* try to truncate, but ignore errors (will fail on block devices).
 +            * note1: bdrv_read() need whole blocks, so we need to round up
@@ -270,7 +271,9 @@ index 0000000000..276f8bfcbb
 +            size_t size = QEMU_ALIGN_UP(snap_state.bs_pos, BDRV_SECTOR_SIZE*2);
 +            blk_truncate(snap_state.target, size, false, PREALLOC_MODE_OFF, 0, NULL);
 +        }
-+        blk_op_unblock_all(snap_state.target, snap_state.blocker);
++        if (target_bs) {
++            bdrv_op_unblock_all(target_bs, snap_state.blocker);
++        }
 +        error_free(snap_state.blocker);
 +        snap_state.blocker = NULL;
 +        blk_unref(snap_state.target);
@@ -481,6 +484,7 @@ index 0000000000..276f8bfcbb
 +    Error *local_err = NULL;
 +    MigrationState *ms = migrate_get_current();
 +    AioContext *iohandler_ctx = iohandler_get_aio_context();
++    BlockDriverState *target_bs = NULL;
 +    int ret = 0;
 +
 +    int bdrv_oflags = BDRV_O_RDWR | BDRV_O_RESIZE | BDRV_O_NO_FLUSH;
@@ -526,6 +530,11 @@ index 0000000000..276f8bfcbb
 +        error_setg(errp, "failed to open '%s'", statefile);
 +        goto restart;
 +    }
++    target_bs = blk_bs(snap_state.target);
++    if (!target_bs) {
++        error_setg(errp, "failed to open '%s' - no block driver state", statefile);
++        goto restart;
++    }
 +
 +    QIOChannel *ioc = QIO_CHANNEL(qio_channel_savevm_async_new(snap_state.target,
 +                                                               &snap_state.bs_pos));
@@ -548,7 +557,7 @@ index 0000000000..276f8bfcbb
 +    ms->to_dst_file = snap_state.file;
 +
 +    error_setg(&snap_state.blocker, "block device is in use by savevm");
-+    blk_op_block_all(snap_state.target, snap_state.blocker);
++    bdrv_op_block_all(target_bs, snap_state.blocker);
 +
 +    snap_state.state = SAVE_STATE_ACTIVE;
 +    snap_state.finalize_bh = qemu_bh_new(process_savevm_finalize, &snap_state);
@@ -644,6 +653,7 @@ index 0000000000..276f8bfcbb
 +int load_snapshot_from_blockdev(const char *filename, Error **errp)
 +{
 +    BlockBackend *be;
++    BlockDriverState *bs = NULL;
 +    Error *local_err = NULL;
 +    Error *blocker = NULL;
 +    QDict *options;
@@ -662,8 +672,14 @@ index 0000000000..276f8bfcbb
 +        goto the_end;
 +    }
 +
++    bs = blk_bs(be);
++    if (!bs) {
++        error_setg(errp, "Could not open VM state file - missing block driver state");
++        goto the_end;
++    }
++
 +    error_setg(&blocker, "block device is in use by load state");
-+    blk_op_block_all(be, blocker);
++    bdrv_op_block_all(bs, blocker);
 +
 +    /* restore the VM state */
 +    f = qemu_file_new_input(QIO_CHANNEL(qio_channel_savevm_async_new(be, &bs_pos)));
@@ -693,7 +709,9 @@ index 0000000000..276f8bfcbb
 +
 + the_end:
 +    if (be) {
-+        blk_op_unblock_all(be, blocker);
++        if (bs) {
++            bdrv_op_unblock_all(bs, blocker);
++        }
 +        error_free(blocker);
 +        blk_unref(be);
 +    }
@@ -753,7 +771,7 @@ index f601d06ab8..874084565f 100644
 +    }
 +}
 diff --git a/qapi/migration.json b/qapi/migration.json
-index 7324571e92..d6e94a7c41 100644
+index a605dc26db..927b1e1c7d 100644
 --- a/qapi/migration.json
 +++ b/qapi/migration.json
 @@ -276,6 +276,40 @@
@@ -827,10 +845,10 @@ index 559b66f201..7959e89c1e 100644
  # @CommandLineParameterType:
  #
 diff --git a/qemu-options.hx b/qemu-options.hx
-index d94e2cbbae..07730f9e65 100644
+index dacc9790a4..c05f411599 100644
 --- a/qemu-options.hx
 +++ b/qemu-options.hx
-@@ -4805,6 +4805,18 @@ SRST
+@@ -4764,6 +4764,18 @@ SRST
      Start right away with a saved state (``loadvm`` in monitor)
  ERST
  
@@ -850,7 +868,7 @@ index d94e2cbbae..07730f9e65 100644
  DEF("daemonize", 0, QEMU_OPTION_daemonize, \
      "-daemonize      daemonize QEMU after initializing\n", QEMU_ARCH_ALL)
 diff --git a/system/vl.c b/system/vl.c
-index 01b8b8e77a..d6bbdc906e 100644
+index 2f855d83fb..39d451bb41 100644
 --- a/system/vl.c
 +++ b/system/vl.c
 @@ -164,6 +164,7 @@ static const char *accelerators;
@@ -861,7 +879,7 @@ index 01b8b8e77a..d6bbdc906e 100644
  static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
  static QTAILQ_HEAD(, DeviceOption) device_opts = QTAILQ_HEAD_INITIALIZER(device_opts);
  static int display_remote;
-@@ -2727,6 +2728,12 @@ void qmp_x_exit_preconfig(Error **errp)
+@@ -2725,6 +2726,12 @@ void qmp_x_exit_preconfig(Error **errp)
          RunState state = autostart ? RUN_STATE_RUNNING : runstate_get();
          load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
          load_snapshot_resume(state);
@@ -874,7 +892,7 @@ index 01b8b8e77a..d6bbdc906e 100644
      }
      if (replay_mode != REPLAY_MODE_NONE) {
          replay_vmstate_init();
-@@ -3275,6 +3282,9 @@ void qemu_init(int argc, char **argv)
+@@ -3262,6 +3269,9 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_loadvm:
                  loadvm = optarg;
                  break;

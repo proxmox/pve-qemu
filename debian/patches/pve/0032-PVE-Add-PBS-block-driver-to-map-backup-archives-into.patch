@@ -348,23 +348,23 @@ index 0000000000..2d5e28ce8f
 +
 +block_init(bdrv_pbs_init);
 diff --git a/meson.build b/meson.build
-index 426f382178..7e6130cfdf 100644
+index f666d0f028..4c85736ec3 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -4559,7 +4559,7 @@ summary_info += {'zstd support':      zstd}
- summary_info += {'Query Processing Library support': qpl}
+@@ -4815,7 +4815,7 @@ summary_info += {'Query Processing Library support': qpl}
  summary_info += {'UADK Library support': uadk}
+ summary_info += {'qatzip support':    qatzip}
  summary_info += {'NUMA host support': numa}
 -summary_info += {'capstone':          capstone}
 +summary_info += {'PBS bdrv support':  config_host.has_key('CONFIG_PBS_BDRV')}
  summary_info += {'libpmem support':   libpmem}
  summary_info += {'libdaxctl support': libdaxctl}
- summary_info += {'libudev':           libudev}
+ summary_info += {'libcbor support':   libcbor}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index ac83c3495d..fe0eefcea6 100644
+index 68caf30084..d45e8975a7 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3457,6 +3457,7 @@
+@@ -3466,6 +3466,7 @@
              'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
              'raw', 'rbd',
              { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
@@ -372,7 +372,7 @@ index ac83c3495d..fe0eefcea6 100644
              'ssh', 'throttle', 'vdi', 'vhdx',
              { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
              { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
-@@ -3543,6 +3544,33 @@
+@@ -3552,6 +3553,33 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -406,7 +406,7 @@ index ac83c3495d..fe0eefcea6 100644
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -4978,6 +5006,7 @@
+@@ -4993,6 +5021,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',
@@ -415,10 +415,10 @@ index ac83c3495d..fe0eefcea6 100644
        'nvme-io_uring': { 'type': 'BlockdevOptionsNvmeIoUring',
                           'if': 'CONFIG_BLKIO' },
 diff --git a/qapi/pragma.json b/qapi/pragma.json
-index be8fa304c5..7ff46bd128 100644
+index 6aaa9cb975..e9c595c4ba 100644
 --- a/qapi/pragma.json
 +++ b/qapi/pragma.json
-@@ -100,6 +100,7 @@
+@@ -91,6 +91,7 @@
          'BlockInfo',                # query-block
          'BlockdevAioOptions',       # blockdev-add, -blockdev
          'BlockdevDriver',           # blockdev-add, query-blockstats, ...

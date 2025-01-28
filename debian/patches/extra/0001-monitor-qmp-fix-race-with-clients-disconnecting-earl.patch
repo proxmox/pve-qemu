@@ -78,7 +78,7 @@ index cb628f681d..93dbd62fc2 100644
  
  /**
 diff --git a/monitor/monitor.c b/monitor/monitor.c
-index db52a9c7ef..2d63959351 100644
+index 56786c0ccc..30071d0c8a 100644
 --- a/monitor/monitor.c
 +++ b/monitor/monitor.c
 @@ -116,6 +116,21 @@ bool monitor_cur_is_qmp(void)

@@ -13,7 +13,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  2 files changed, 46 insertions(+), 20 deletions(-)
 
 diff --git a/block/file-posix.c b/block/file-posix.c
-index 99e5bea1cc..6a4f6a25e6 100644
+index e2ea071315..4c3dc56c8e 100644
 --- a/block/file-posix.c
 +++ b/block/file-posix.c
 @@ -2884,6 +2884,7 @@ raw_co_create(BlockdevCreateOptions *options, Error **errp)
@@ -119,10 +119,10 @@ index 99e5bea1cc..6a4f6a25e6 100644
      };
      return raw_co_create(&options, errp);
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index c2a337cc04..1cb6f04db3 100644
+index 48ba32049f..321d1fd0e1 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -4959,6 +4959,10 @@
+@@ -4974,6 +4974,10 @@
  # @extent-size-hint: Extent size hint to add to the image file; 0 for
  #     not adding an extent size hint (default: 1 MB, since 5.1)
  #
@@ -133,7 +133,7 @@ index c2a337cc04..1cb6f04db3 100644
  # Since: 2.12
  ##
  { 'struct': 'BlockdevCreateOptionsFile',
-@@ -4966,7 +4970,8 @@
+@@ -4981,7 +4985,8 @@
              'size':                 'size',
              '*preallocation':       'PreallocMode',
              '*nocow':               'bool',

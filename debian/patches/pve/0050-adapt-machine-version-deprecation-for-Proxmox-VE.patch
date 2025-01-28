@@ -22,10 +22,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 51 insertions(+), 27 deletions(-)
 
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index 5cddeb7fcb..b1e7787499 100644
+index d1741ea121..3f9befda14 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
-@@ -607,42 +607,66 @@ struct MachineState {
+@@ -631,42 +631,66 @@ struct MachineState {
  
  
  /*
@@ -117,7 +117,7 @@ index 5cddeb7fcb..b1e7787499 100644
  
  /*
   * Evaluates true when a machine type with (major, minor)
-@@ -651,7 +675,7 @@ struct MachineState {
+@@ -675,7 +699,7 @@ struct MachineState {
   * lifecycle rules
   */
  #define MACHINE_VER_IS_DEPRECATED(...) \
@@ -126,7 +126,7 @@ index 5cddeb7fcb..b1e7787499 100644
  
  /*
   * Evaluates true when a machine type with (major, minor)
-@@ -660,7 +684,7 @@ struct MachineState {
+@@ -684,7 +708,7 @@ struct MachineState {
   * lifecycle rules
   */
  #define MACHINE_VER_SHOULD_DELETE(...) \

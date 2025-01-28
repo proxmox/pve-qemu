@@ -271,7 +271,7 @@ index 0000000000..17ae2cb261
 +
 +#endif /* QIO_CHANNEL_SAVEVM_ASYNC_H */
 diff --git a/migration/meson.build b/migration/meson.build
-index 5ce2acb41e..020127d901 100644
+index d53cf3417a..b00d58064d 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
 @@ -13,6 +13,7 @@ system_ss.add(files(
@@ -279,6 +279,6 @@ index 5ce2acb41e..020127d901 100644
    'channel.c',
    'channel-block.c',
 +  'channel-savevm-async.c',
+   'cpu-throttle.c',
    'dirtyrate.c',
    'exec.c',
-   'fd.c',

@@ -37,23 +37,23 @@ index 52a6d74820..362128842d 100644
  
          if (mc->default_cpu_type) {
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index 48ff6d8b93..5cddeb7fcb 100644
+index 36fbb9b59d..d1741ea121 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
-@@ -252,6 +252,8 @@ struct MachineClass {
+@@ -268,6 +268,8 @@ struct MachineClass {
      const char *desc;
      const char *deprecation_reason;
  
 +    const char *pve_version;
 +
      void (*init)(MachineState *state);
-     void (*reset)(MachineState *state, ShutdownCause reason);
+     void (*reset)(MachineState *state, ResetType type);
      void (*wakeup)(MachineState *state);
 diff --git a/qapi/machine.json b/qapi/machine.json
-index 0c703316f5..dc46a3e93f 100644
+index 16366b774a..12cfd3f260 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
-@@ -190,6 +190,8 @@
+@@ -189,6 +189,8 @@
  #
  # @acpi: machine type supports ACPI (since 8.0)
  #
@@ -62,7 +62,7 @@ index 0c703316f5..dc46a3e93f 100644
  # @compat-props: The machine type's compatibility properties.  Only
  #     present when query-machines argument @compat-props is true.
  #     (since 9.1)
-@@ -206,6 +208,7 @@
+@@ -205,6 +207,7 @@
              'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
              'deprecated': 'bool', '*default-cpu-type': 'str',
              '*default-ram-id': 'str', 'acpi': 'bool',
@@ -71,7 +71,7 @@ index 0c703316f5..dc46a3e93f 100644
                                 'features': ['unstable'] } } }
  
 diff --git a/system/vl.c b/system/vl.c
-index 200468a753..0dbdba6421 100644
+index e7cae51f13..3f4916ac5a 100644
 --- a/system/vl.c
 +++ b/system/vl.c
 @@ -1675,6 +1675,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
@@ -94,7 +94,7 @@ index 200468a753..0dbdba6421 100644
      return machine_class;
  }
  
-@@ -3329,12 +3334,31 @@ void qemu_init(int argc, char **argv)
+@@ -3316,12 +3321,31 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_machine:
                  {
                      bool help;

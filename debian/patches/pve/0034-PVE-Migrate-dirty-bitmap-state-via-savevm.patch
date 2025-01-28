@@ -26,19 +26,19 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 migration/pbs-state.c
 
 diff --git a/include/migration/misc.h b/include/migration/misc.h
-index bfadc5613b..e2e51fcf6b 100644
+index 804eb23c06..c75b146ae6 100644
 --- a/include/migration/misc.h
 +++ b/include/migration/misc.h
-@@ -111,4 +111,7 @@ bool migration_in_bg_snapshot(void);
- /* migration/block-dirty-bitmap.c */
- void dirty_bitmap_mig_init(void);
+@@ -106,4 +106,7 @@ bool migration_incoming_postcopy_advised(void);
+ /* True if background snapshot is active */
+ bool migration_in_bg_snapshot(void);
  
 +/* migration/pbs-state.c */
 +void pbs_state_mig_init(void);
 +
  #endif
 diff --git a/migration/meson.build b/migration/meson.build
-index 4b0c4f0f51..d039797132 100644
+index 075b013971..eca57cb2a3 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
 @@ -8,6 +8,7 @@ migration_files = files(
@@ -49,7 +49,7 @@ index 4b0c4f0f51..d039797132 100644
  
  system_ss.add(files(
    'block-dirty-bitmap.c',
-@@ -25,6 +26,7 @@ system_ss.add(files(
+@@ -27,6 +28,7 @@ system_ss.add(files(
    'multifd-zlib.c',
    'multifd-zero-page.c',
    'options.c',
@@ -58,13 +58,13 @@ index 4b0c4f0f51..d039797132 100644
    'savevm.c',
    'savevm-async.c',
 diff --git a/migration/migration.c b/migration/migration.c
-index ae2be31557..fab4c20ee4 100644
+index 8c5bd0a75c..491d9aa017 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
-@@ -263,6 +263,7 @@ void migration_object_init(void)
+@@ -266,6 +266,7 @@ void migration_object_init(void)
  
-     ram_mig_init();
-     dirty_bitmap_mig_init();
+     /* Initialize cpu throttle timers */
+     cpu_throttle_init();
 +    pbs_state_mig_init();
  }
  
@@ -192,7 +192,7 @@ index 9f83ecb310..57477f7f2a 100644
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index fe0eefcea6..521a1914e8 100644
+index d45e8975a7..9795247c1f 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -1004,6 +1004,11 @@

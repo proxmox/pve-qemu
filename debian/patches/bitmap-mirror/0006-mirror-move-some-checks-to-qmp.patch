@@ -21,7 +21,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 70 insertions(+), 59 deletions(-)
 
 diff --git a/block/mirror.c b/block/mirror.c
-index cde5d710fd..e20f50e5fb 100644
+index 2b1c07095d..f5787b380c 100644
 --- a/block/mirror.c
 +++ b/block/mirror.c
 @@ -1763,31 +1763,13 @@ static BlockJob *mirror_start_job(
@@ -62,10 +62,10 @@ index cde5d710fd..e20f50e5fb 100644
  
          if (bitmap_mode != BITMAP_SYNC_MODE_NEVER) {
 diff --git a/blockdev.c b/blockdev.c
-index c3fa897289..9cbd166674 100644
+index 204cf6fad1..79d47b1920 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -2854,7 +2854,36 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2857,7 +2857,36 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
          sync = MIRROR_SYNC_MODE_FULL;
      }
  

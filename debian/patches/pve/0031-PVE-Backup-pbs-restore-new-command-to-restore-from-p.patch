@@ -14,10 +14,10 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  create mode 100644 pbs-restore.c
 
 diff --git a/meson.build b/meson.build
-index 979c452f74..426f382178 100644
+index f6fb9b4fd8..f666d0f028 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -4103,6 +4103,10 @@ if have_tools
+@@ -4350,6 +4350,10 @@ if have_tools
    vma = executable('vma', files('vma.c', 'vma-reader.c') + genh,
                     dependencies: [authz, block, crypto, io, qemuutil, qom], install: true)
  

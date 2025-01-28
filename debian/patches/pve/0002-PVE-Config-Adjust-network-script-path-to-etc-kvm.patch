@@ -9,12 +9,12 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/include/net/net.h b/include/net/net.h
-index c8f679761b..35a1338e40 100644
+index cdd5b109b0..653a37e9d1 100644
 --- a/include/net/net.h
 +++ b/include/net/net.h
-@@ -309,8 +309,8 @@ void netdev_add(QemuOpts *opts, Error **errp);
+@@ -305,8 +305,8 @@ void netdev_add(QemuOpts *opts, Error **errp);
+ 
  int net_hub_id_for_client(NetClientState *nc, int *id);
- NetClientState *net_hub_port_find(int hub_id);
  
 -#define DEFAULT_NETWORK_SCRIPT CONFIG_SYSCONFDIR "/qemu-ifup"
 -#define DEFAULT_NETWORK_DOWN_SCRIPT CONFIG_SYSCONFDIR "/qemu-ifdown"

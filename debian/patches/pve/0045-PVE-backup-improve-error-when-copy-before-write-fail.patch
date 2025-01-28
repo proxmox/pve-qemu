@@ -21,7 +21,7 @@ Tested-by: Friedrich Weber <f.weber@proxmox.com>
  3 files changed, 22 insertions(+), 6 deletions(-)
 
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index adb27649a8..a5bb4d14f6 100644
+index 81afeff1c7..fdf9cdc0cd 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -27,6 +27,7 @@
@@ -71,7 +71,7 @@ index adb27649a8..a5bb4d14f6 100644
          g_free(req);
          return NULL;
      }
-@@ -586,6 +586,12 @@ void bdrv_cbw_drop(BlockDriverState *bs)
+@@ -595,6 +595,12 @@ void bdrv_cbw_drop(BlockDriverState *bs)
      bdrv_unref(bs);
  }
  
@@ -85,7 +85,7 @@ index adb27649a8..a5bb4d14f6 100644
  {
      bdrv_register(&bdrv_cbw_filter);
 diff --git a/block/copy-before-write.h b/block/copy-before-write.h
-index dc6cafe7fa..a27d2d7d9f 100644
+index 2a5d4ba693..969da3620f 100644
 --- a/block/copy-before-write.h
 +++ b/block/copy-before-write.h
 @@ -44,5 +44,6 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
