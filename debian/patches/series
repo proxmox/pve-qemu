@@ -1,6 +1,14 @@
 extra/0001-monitor-qmp-fix-race-with-clients-disconnecting-earl.patch
 extra/0002-ide-avoid-potential-deadlock-when-draining-during-tr.patch
-extra/0003-Revert-x86-acpi-workaround-Windows-not-handling-name.patch
+extra/0003-tcg-Reset-free_temps-before-tcg_optimize.patch
+extra/0004-target-i386-Reset-TSCs-of-parked-vCPUs-too-on-VM-res.patch
+extra/0005-i386-cpu-Mark-avx10_version-filtered-when-prefix-is-.patch
+extra/0006-net-Fix-announce_self.patch
+extra/0007-net-dump-Correctly-compute-Ethernet-packet-offset.patch
+extra/0008-pci-acpi-Windows-PCI-Label-Id-bug-workaround.patch
+extra/0009-hw-usb-hcd-xhci-pci-Use-modulo-to-select-MSI-vector-.patch
+extra/0010-pci-ensure-valid-link-status-bits-for-downstream-por.patch
+extra/0011-pci-msix-Fix-msix-pba-read-vector-poll-end-calculati.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch

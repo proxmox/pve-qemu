@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Sebastian Ott <sebott@redhat.com>
+Date: Tue, 3 Dec 2024 13:19:28 +0100
+Subject: [PATCH] pci: ensure valid link status bits for downstream ports
+
+PCI hotplug for downstream endpoints on arm fails because Linux'
+PCIe hotplug driver doesn't like the QEMU provided LNKSTA:
+
+  pcieport 0000:08:01.0: pciehp: Slot(2): Card present
+  pcieport 0000:08:01.0: pciehp: Slot(2): Link Up
+  pcieport 0000:08:01.0: pciehp: Slot(2): Cannot train link: status 0x2000
+
+There's 2 cases where LNKSTA isn't setup properly:
+* the downstream device has no express capability
+* max link width of the bridge is 0
+
+Move the sanity checks added via 88c869198aa63
+("pci: Sanity test minimum downstream LNKSTA") outside of the
+branch to make sure downstream ports always have a valid LNKSTA.
+
+Signed-off-by: Sebastian Ott <sebott@redhat.com>
+Tested-by: Zhenyu Zhang <zhenyzha@redhat.com>
+Message-Id: <20241203121928.14861-1-sebott@redhat.com>
+Reviewed-by: Alex Williamson <alex.williamson@redhat.com>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+(cherry picked from commit 694632fd44987cc4618612a38ad151047524a590)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/pci/pcie.c | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/hw/pci/pcie.c b/hw/pci/pcie.c
+index 0b455c8654..1b12db6fa2 100644
+--- a/hw/pci/pcie.c
++++ b/hw/pci/pcie.c
+@@ -1113,18 +1113,22 @@ void pcie_sync_bridge_lnk(PCIDevice *bridge_dev)
+         if ((lnksta & PCI_EXP_LNKSTA_NLW) > (lnkcap & PCI_EXP_LNKCAP_MLW)) {
+             lnksta &= ~PCI_EXP_LNKSTA_NLW;
+             lnksta |= lnkcap & PCI_EXP_LNKCAP_MLW;
+-        } else if (!(lnksta & PCI_EXP_LNKSTA_NLW)) {
+-            lnksta |= QEMU_PCI_EXP_LNKSTA_NLW(QEMU_PCI_EXP_LNK_X1);
+         }
+ 
+         if ((lnksta & PCI_EXP_LNKSTA_CLS) > (lnkcap & PCI_EXP_LNKCAP_SLS)) {
+             lnksta &= ~PCI_EXP_LNKSTA_CLS;
+             lnksta |= lnkcap & PCI_EXP_LNKCAP_SLS;
+-        } else if (!(lnksta & PCI_EXP_LNKSTA_CLS)) {
+-            lnksta |= QEMU_PCI_EXP_LNKSTA_CLS(QEMU_PCI_EXP_LNK_2_5GT);
+         }
+     }
+ 
++    if (!(lnksta & PCI_EXP_LNKSTA_NLW)) {
++        lnksta |= QEMU_PCI_EXP_LNKSTA_NLW(QEMU_PCI_EXP_LNK_X1);
++    }
++
++    if (!(lnksta & PCI_EXP_LNKSTA_CLS)) {
++        lnksta |= QEMU_PCI_EXP_LNKSTA_CLS(QEMU_PCI_EXP_LNK_2_5GT);
++    }
++
+     pci_word_test_and_clear_mask(exp_cap + PCI_EXP_LNKSTA,
+                                  PCI_EXP_LNKSTA_CLS | PCI_EXP_LNKSTA_NLW);
+     pci_word_test_and_set_mask(exp_cap + PCI_EXP_LNKSTA, lnksta &

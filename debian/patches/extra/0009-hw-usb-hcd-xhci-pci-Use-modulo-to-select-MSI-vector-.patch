@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Phil Dennis-Jordan <phil@philjordan.eu>
+Date: Fri, 13 Dec 2024 17:06:14 +0100
+Subject: [PATCH] hw/usb/hcd-xhci-pci: Use modulo to select MSI vector as per
+ spec
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+QEMU would crash with a failed assertion if the XHCI controller
+attempted to raise the interrupt on an interrupter corresponding
+to a MSI vector with a higher index than the highest configured
+for the device by the guest driver.
+
+This behaviour is correct on the MSI/PCI side: per PCI 3.0 spec,
+devices must ensure they do not send MSI notifications for
+vectors beyond the range of those allocated by the system/driver
+software. Unlike MSI-X, there is no generic way for handling
+aliasing in the case of fewer allocated vectors than requested,
+so the specifics are up to device implementors. (Section
+6.8.3.4. "Sending Messages")
+
+It turns out the XHCI spec (Implementation Note in section 4.17,
+"Interrupters") requires that the host controller signal the MSI
+vector with the number computed by taking the interrupter number
+modulo the number of enabled MSI vectors.
+
+This change introduces that modulo calculation, fixing the
+failed assertion. This makes the device work correctly in MSI mode
+with macOS's XHCI driver, which only allocates a single vector.
+
+Signed-off-by: Phil Dennis-Jordan <phil@philjordan.eu>
+Reviewed-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+Message-ID: <20250112210056.16658-2-phil@philjordan.eu>
+Signed-off-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+(cherry picked from commit bb5b7fced6b5d3334ab20702fc846e47bb1fb731)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/usb/hcd-xhci-pci.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/hw/usb/hcd-xhci-pci.c b/hw/usb/hcd-xhci-pci.c
+index a039f5778a..516e6909d2 100644
+--- a/hw/usb/hcd-xhci-pci.c
++++ b/hw/usb/hcd-xhci-pci.c
+@@ -74,6 +74,7 @@ static bool xhci_pci_intr_raise(XHCIState *xhci, int n, bool level)
+     }
+ 
+     if (msi_enabled(pci_dev) && level) {
++        n %= msi_nr_vectors_allocated(pci_dev);
+         msi_notify(pci_dev, n);
+         return true;
+     }
