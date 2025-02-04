@@ -1,3 +1,9 @@
+pve-qemu-kvm (9.2.0-1) bookworm; urgency=medium
+
+  * update submodule and patches to QEMU 9.2.0
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 04 Feb 2025 08:49:20 +0100
+
 pve-qemu-kvm (9.1.2-3) bookworm; urgency=medium
 
   * async snapshot: explicitly specify raw format when loading the VM state
