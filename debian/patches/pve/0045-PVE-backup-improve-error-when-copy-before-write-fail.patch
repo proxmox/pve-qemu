@@ -96,7 +96,7 @@ index 2a5d4ba693..969da3620f 100644
  
  #endif /* COPY_BEFORE_WRITE_H */
 diff --git a/pve-backup.c b/pve-backup.c
-index 0f098000dd..75da1dc051 100644
+index 4b0820c8a7..81697d9bf9 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -374,6 +374,15 @@ static void pvebackup_complete_cb(void *opaque, int ret)

@@ -17,7 +17,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 15 insertions(+), 14 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index f136d004c4..8ccb281c8c 100644
+index d8d0c04b0f..e2110ce0db 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -94,6 +94,7 @@ typedef struct PVEBackupDevInfo {
@@ -111,7 +111,7 @@ index f136d004c4..8ccb281c8c 100644
              info->action = action;
              info->size = di->size;
              info->dirty = dirty;
-@@ -1034,10 +1035,7 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -1032,10 +1033,7 @@ UuidInfo coroutine_fn *qmp_backup(
                  goto err_mutex;
              }
  
@@ -123,7 +123,7 @@ index f136d004c4..8ccb281c8c 100644
              if (di->dev_id <= 0) {
                  error_set(errp, ERROR_CLASS_GENERIC_ERROR,
                            "register_stream failed");
-@@ -1148,6 +1146,9 @@ err:
+@@ -1146,6 +1144,9 @@ err:
              bdrv_co_unref(di->target);
          }
  

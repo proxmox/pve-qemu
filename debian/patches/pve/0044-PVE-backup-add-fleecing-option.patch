@@ -80,7 +80,7 @@ index 439a7a14c8..d0e7771dcc 100644
  
      hmp_handle_error(mon, error);
 diff --git a/pve-backup.c b/pve-backup.c
-index 57477f7f2a..0f098000dd 100644
+index faa6a9b93c..4b0820c8a7 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -7,9 +7,11 @@
@@ -286,7 +286,7 @@ index 57477f7f2a..0f098000dd 100644
      bdrv_graph_co_rdunlock();
      if (local_err) {
          error_propagate(errp, local_err);
-@@ -1089,5 +1217,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1087,5 +1215,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->query_bitmap_info = true;
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
