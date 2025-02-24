@@ -1,3 +1,10 @@
+pve-qemu-kvm (9.2.0-2) bookworm; urgency=medium
+
+  * fix assertion failure when migrating a VM with multiple disks on a
+    replicated ZFS.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 24 Feb 2025 17:33:34 +0100
+
 pve-qemu-kvm (9.2.0-1) bookworm; urgency=medium
 
   * update submodule and patches to QEMU 9.2.0
