@@ -1,0 +1,64 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Wed, 19 Mar 2025 17:31:10 +0100
+Subject: [PATCH] Revert "hpet: place read-only bits directly in "new_val""
+
+This reverts commit ba88935b0fac2588b0a739f810b58dfabf7f92c8.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/timer/hpet.c | 15 ++++++++-------
+ 1 file changed, 8 insertions(+), 7 deletions(-)
+
+diff --git a/hw/timer/hpet.c b/hw/timer/hpet.c
+index e1ac877759..b12bbaf10d 100644
+--- a/hw/timer/hpet.c
++++ b/hw/timer/hpet.c
+@@ -510,7 +510,7 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+ {
+     int i;
+     HPETState *s = opaque;
+-    uint64_t old_val, new_val, cleared;
++    uint64_t old_val, new_val, val;
+ 
+     trace_hpet_ram_write(addr, value);
+     old_val = hpet_ram_read(opaque, addr, 4);
+@@ -536,12 +536,13 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+                  */
+                 update_irq(timer, 0);
+             }
+-            new_val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
+-            timer->config = (timer->config & 0xffffffff00000000ULL) | new_val;
++            val = hpet_fixup_reg(new_val, old_val, HPET_TN_CFG_WRITE_MASK);
++            timer->config = (timer->config & 0xffffffff00000000ULL) | val;
+             if (activating_bit(old_val, new_val, HPET_TN_ENABLE)
+                 && (s->isr & (1 << timer_id))) {
+                 update_irq(timer, 1);
+             }
++
+             if (new_val & HPET_TN_32BIT) {
+                 timer->cmp = (uint32_t)timer->cmp;
+                 timer->period = (uint32_t)timer->period;
+@@ -622,8 +623,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+         case HPET_ID:
+             return;
+         case HPET_CFG:
+-            new_val = hpet_fixup_reg(new_val, old_val, HPET_CFG_WRITE_MASK);
+-            s->config = (s->config & 0xffffffff00000000ULL) | new_val;
++            val = hpet_fixup_reg(new_val, old_val, HPET_CFG_WRITE_MASK);
++            s->config = (s->config & 0xffffffff00000000ULL) | val;
+             if (activating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
+                 /* Enable main counter and interrupt generation. */
+                 s->hpet_offset =
+@@ -657,9 +658,9 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+             trace_hpet_invalid_hpet_cfg(4);
+             break;
+         case HPET_STATUS:
+-            cleared = new_val & s->isr;
++            val = new_val & s->isr;
+             for (i = 0; i < s->num_timers; i++) {
+-                if (cleared & (1 << i)) {
++                if (val & (1 << i)) {
+                     update_irq(&s->timer[i], 0);
+                 }
+             }

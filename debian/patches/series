@@ -65,3 +65,10 @@ pve/0047-PVE-backup-factor-out-setting-up-snapshot-access-for.patch
 pve/0048-PVE-backup-save-device-name-in-device-info-structure.patch
 pve/0049-PVE-backup-include-device-name-in-error-when-setting.patch
 pve/0050-adapt-machine-version-deprecation-for-Proxmox-VE.patch
+pve/0051-Revert-hpet-avoid-timer-storms-on-periodic-timers.patch
+pve/0052-Revert-hpet-store-full-64-bit-target-value-of-the-co.patch
+pve/0053-Revert-hpet-accept-64-bit-reads-and-writes.patch
+pve/0054-Revert-hpet-place-read-only-bits-directly-in-new_val.patch
+pve/0055-Revert-hpet-remove-unnecessary-variable-index.patch
+pve/0056-Revert-hpet-ignore-high-bits-of-comparator-in-32-bit.patch
+pve/0057-Revert-hpet-fix-and-cleanup-persistence-of-interrupt.patch
