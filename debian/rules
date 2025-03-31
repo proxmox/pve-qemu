@@ -131,8 +131,7 @@ binary-indep: build install
 binary-arch: build install
 	dh_testdir
 	dh_testroot
-	# exclude historic Changelog file, which stops at release 0.14
-	dh_installchangelogs --exclude=Changelog
+	dh_installchangelogs
 	dh_installdocs
 	dh_installexamples
 	dh_install
