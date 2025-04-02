@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Mon, 31 Mar 2025 16:55:03 +0200
+Subject: [PATCH] savevm-async: rename saved_vm_running to vm_needs_start
+
+This is what the variable actually expresses. Otherwise, setting it
+to false after starting the VM doesn't make sense.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ migration/savevm-async.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/migration/savevm-async.c b/migration/savevm-async.c
+index e63dc6d8a3..1e34c31e8b 100644
+--- a/migration/savevm-async.c
++++ b/migration/savevm-async.c
+@@ -51,7 +51,7 @@ static struct SnapshotState {
+     int state;
+     Error *error;
+     Error *blocker;
+-    int saved_vm_running;
++    int vm_needs_start;
+     QEMUFile *file;
+     int64_t total_time;
+     QEMUBH *finalize_bh;
+@@ -224,9 +224,9 @@ static void process_savevm_finalize(void *opaque)
+         save_snapshot_error("process_savevm_cleanup: invalid state: %d",
+                             snap_state.state);
+     }
+-    if (snap_state.saved_vm_running) {
++    if (snap_state.vm_needs_start) {
+         vm_start();
+-        snap_state.saved_vm_running = false;
++        snap_state.vm_needs_start = false;
+     }
+ 
+     DPRINTF("timing: process_savevm_finalize (full) took %ld ms\n",
+@@ -352,7 +352,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+     }
+ 
+     /* initialize snapshot info */
+-    snap_state.saved_vm_running = runstate_is_running();
++    snap_state.vm_needs_start = runstate_is_running();
+     snap_state.bs_pos = 0;
+     snap_state.total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+     snap_state.blocker = NULL;
+@@ -440,9 +440,9 @@ restart:
+ 
+     save_snapshot_error("setup failed");
+ 
+-    if (snap_state.saved_vm_running) {
++    if (snap_state.vm_needs_start) {
+         vm_start();
+-        snap_state.saved_vm_running = false;
++        snap_state.vm_needs_start = false;
+     }
+ }
+ 
+@@ -491,9 +491,9 @@ void qmp_savevm_end(Error **errp)
+         return;
+     }
+ 
+-    if (snap_state.saved_vm_running) {
++    if (snap_state.vm_needs_start) {
+         vm_start();
+-        snap_state.saved_vm_running = false;
++        snap_state.vm_needs_start = false;
+     }
+ 
+     qemu_coroutine_enter(wait_for_close);

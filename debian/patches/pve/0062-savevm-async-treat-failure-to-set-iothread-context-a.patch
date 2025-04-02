@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Mon, 31 Mar 2025 16:55:07 +0200
+Subject: [PATCH] savevm-async: treat failure to set iothread context as a hard
+ failure
+
+This is not expected to ever fail and there might be assumptions about
+having the expected context down the line.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+[WB: update to changed error handling]
+Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ migration/savevm-async.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/migration/savevm-async.c b/migration/savevm-async.c
+index 11ea4c601d..f2b10b5519 100644
+--- a/migration/savevm-async.c
++++ b/migration/savevm-async.c
+@@ -442,9 +442,9 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+ 
+     ret = blk_set_aio_context(snap_state.target, snap_state.iothread->ctx, &local_err);
+     if (ret != 0) {
+-        warn_report("failed to set iothread context for VM state target: %s %s",
+-                    local_err ? error_get_pretty(local_err) : "unknown error",
+-                    strerror(-ret));
++        error_setg_errno(errp, -ret, "failed to set iothread context for VM state target: %s",
++                         local_err ? error_get_pretty(local_err) : "unknown error");
++        goto fail;
+     }
+ 
+     snap_state.co = qemu_coroutine_create(&process_savevm_co, NULL);

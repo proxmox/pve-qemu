@@ -1,0 +1,81 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Mon, 31 Mar 2025 16:55:02 +0200
+Subject: [PATCH] savevm-async: improve setting state of snapshot operation in
+ savevm-end handler
+
+One of the callers of wait_for_close_co() already sets the state to
+SAVE_STATE_DONE before, but that is not fully correct, because at that
+moment, the operation is not fully done. In particular, if closing the
+target later fails, the state would even be set to SAVE_STATE_ERROR
+afterwards. DONE -> ERROR is not a valid state transition. Although,
+it should not matter in practice as long as the relevant QMP commands
+are sequential.
+
+The other caller does not set the state and so there seems to be a
+race that could lead to the state not getting set at all. This is
+because before this commit, the wait_for_close_co() function could
+return early when there is no target file anymore. This can only
+happen when canceling and needs to happen right around the time when
+the snapshot is already finishing and closing the target.
+
+Simply avoid the early return and always set the state within the
+wait_for_close_co() function rather than at the call site.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ migration/savevm-async.c | 33 +++++++++++++++------------------
+ 1 file changed, 15 insertions(+), 18 deletions(-)
+
+diff --git a/migration/savevm-async.c b/migration/savevm-async.c
+index 1e79fce9ba..e63dc6d8a3 100644
+--- a/migration/savevm-async.c
++++ b/migration/savevm-async.c
+@@ -450,23 +450,22 @@ static void coroutine_fn wait_for_close_co(void *opaque)
+ {
+     int64_t timeout;
+ 
+-    if (!snap_state.target) {
+-        DPRINTF("savevm-end: no target file open\n");
+-        return;
+-    }
+-
+-    /* wait until cleanup is done before returning, this ensures that after this
+-     * call exits the statefile will be closed and can be removed immediately */
+-    DPRINTF("savevm-end: waiting for cleanup\n");
+-    timeout = 30L * 1000 * 1000 * 1000;
+-    qemu_co_sleep_ns_wakeable(&snap_state.target_close_wait,
+-                              QEMU_CLOCK_REALTIME, timeout);
+     if (snap_state.target) {
+-        save_snapshot_error("timeout waiting for target file close in "
+-                            "qmp_savevm_end");
+-        /* we cannot assume the snapshot finished in this case, so leave the
+-         * state alone - caller has to figure something out */
+-        return;
++        /* wait until cleanup is done before returning, this ensures that after this
++         * call exits the statefile will be closed and can be removed immediately */
++        DPRINTF("savevm-end: waiting for cleanup\n");
++        timeout = 30L * 1000 * 1000 * 1000;
++        qemu_co_sleep_ns_wakeable(&snap_state.target_close_wait,
++                                  QEMU_CLOCK_REALTIME, timeout);
++        if (snap_state.target) {
++            save_snapshot_error("timeout waiting for target file close in "
++                                "qmp_savevm_end");
++            /* we cannot assume the snapshot finished in this case, so leave the
++             * state alone - caller has to figure something out */
++            return;
++        }
++    } else {
++        DPRINTF("savevm-end: no target file open\n");
+     }
+ 
+     // File closed and no other error, so ensure next snapshot can be started.
+@@ -497,8 +496,6 @@ void qmp_savevm_end(Error **errp)
+         snap_state.saved_vm_running = false;
+     }
+ 
+-    snap_state.state = SAVE_STATE_DONE;
+-
+     qemu_coroutine_enter(wait_for_close);
+ }
+ 

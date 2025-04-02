@@ -1,0 +1,120 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Mon, 31 Mar 2025 16:55:04 +0200
+Subject: [PATCH] savevm-async: improve runstate preservation, cleanup error
+ handling
+
+Determine if VM needs to be started after finishing right before
+actually stopping the VM instead of at the beginning.
+
+In qmp_savevm_start(), the only path stopping the VM returns right
+aftwards, so there is no need for the vm_start() handling after
+errors.
+
+Lastly, improve the code style for checking whether migrate_init()
+failed by explicitly comparing against 0.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+[WB: squashed error handling commits, rename goto branch instead of
+     inlining it]
+Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ migration/savevm-async.c | 25 ++++++++++---------------
+ 1 file changed, 10 insertions(+), 15 deletions(-)
+
+diff --git a/migration/savevm-async.c b/migration/savevm-async.c
+index 1e34c31e8b..d8d2c80475 100644
+--- a/migration/savevm-async.c
++++ b/migration/savevm-async.c
+@@ -178,6 +178,7 @@ static void process_savevm_finalize(void *opaque)
+      */
+     blk_set_aio_context(snap_state.target, qemu_get_aio_context(), NULL);
+ 
++    snap_state.vm_needs_start = runstate_is_running();
+     ret = vm_stop_force_state(RUN_STATE_FINISH_MIGRATE);
+     if (ret < 0) {
+         save_snapshot_error("vm_stop_force_state error %d", ret);
+@@ -352,7 +353,6 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+     }
+ 
+     /* initialize snapshot info */
+-    snap_state.vm_needs_start = runstate_is_running();
+     snap_state.bs_pos = 0;
+     snap_state.total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
+     snap_state.blocker = NULL;
+@@ -364,13 +364,14 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+     }
+ 
+     if (!statefile) {
++        snap_state.vm_needs_start = runstate_is_running();
+         vm_stop(RUN_STATE_SAVE_VM);
+         snap_state.state = SAVE_STATE_COMPLETED;
+         return;
+     }
+ 
+     if (qemu_savevm_state_blocked(errp)) {
+-        return;
++        goto fail;
+     }
+ 
+     /* Open the image */
+@@ -380,12 +381,12 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+     snap_state.target = blk_new_open(statefile, NULL, options, bdrv_oflags, &local_err);
+     if (!snap_state.target) {
+         error_setg(errp, "failed to open '%s'", statefile);
+-        goto restart;
++        goto fail;
+     }
+     target_bs = blk_bs(snap_state.target);
+     if (!target_bs) {
+         error_setg(errp, "failed to open '%s' - no block driver state", statefile);
+-        goto restart;
++        goto fail;
+     }
+ 
+     QIOChannel *ioc = QIO_CHANNEL(qio_channel_savevm_async_new(snap_state.target,
+@@ -394,7 +395,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+ 
+     if (!snap_state.file) {
+         error_setg(errp, "failed to open '%s'", statefile);
+-        goto restart;
++        goto fail;
+     }
+ 
+     /*
+@@ -402,8 +403,8 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+      * State is cleared in process_savevm_co, but has to be initialized
+      * here (blocking main thread, from QMP) to avoid race conditions.
+      */
+-    if (migrate_init(ms, errp)) {
+-        return;
++    if (migrate_init(ms, errp) != 0) {
++        goto fail;
+     }
+     memset(&mig_stats, 0, sizeof(mig_stats));
+     ms->to_dst_file = snap_state.file;
+@@ -418,7 +419,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+     if (ret != 0) {
+         error_setg_errno(errp, -ret, "savevm state setup failed: %s",
+                          local_err ? error_get_pretty(local_err) : "unknown error");
+-        return;
++        goto fail;
+     }
+ 
+     /* Async processing from here on out happens in iohandler context, so let
+@@ -436,14 +437,8 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+ 
+     return;
+ 
+-restart:
+-
++fail:
+     save_snapshot_error("setup failed");
+-
+-    if (snap_state.vm_needs_start) {
+-        vm_start();
+-        snap_state.vm_needs_start = false;
+-    }
+ }
+ 
+ static void coroutine_fn wait_for_close_co(void *opaque)

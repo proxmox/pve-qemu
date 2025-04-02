@@ -72,3 +72,8 @@ pve/0054-Revert-hpet-place-read-only-bits-directly-in-new_val.patch
 pve/0055-Revert-hpet-remove-unnecessary-variable-index.patch
 pve/0056-Revert-hpet-ignore-high-bits-of-comparator-in-32-bit.patch
 pve/0057-Revert-hpet-fix-and-cleanup-persistence-of-interrupt.patch
+pve/0058-savevm-async-improve-setting-state-of-snapshot-opera.patch
+pve/0059-savevm-async-rename-saved_vm_running-to-vm_needs_sta.patch
+pve/0060-savevm-async-improve-runstate-preservation-cleanup-e.patch
+pve/0061-savevm-async-use-dedicated-iothread-for-state-file.patch
+pve/0062-savevm-async-treat-failure-to-set-iothread-context-a.patch
