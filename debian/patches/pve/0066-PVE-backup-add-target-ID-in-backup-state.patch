@@ -1,0 +1,63 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Thu, 3 Apr 2025 14:30:44 +0200
+Subject: [PATCH] PVE backup: add target ID in backup state
+
+In preparation for allowing multiple backup providers and potentially
+multiple targets for a given provider. Each backup target can then
+have its own dirty bitmap and there can be additional checks that the
+current backup state is actually associated to the expected target.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ pve-backup.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index 88a981f81c..8789a0667a 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -70,6 +70,7 @@ static struct PVEBackupState {
+     JobTxn *txn;
+     CoMutex backup_mutex;
+     CoMutex dump_callback_mutex;
++    char *target_id;
+ } backup_state;
+ 
+ static void pvebackup_init(void)
+@@ -865,6 +866,16 @@ static void initialize_backup_state_stat(
+     backup_state.stat.starting = true;
+ }
+ 
++/*
++ * To be called with the backup_state mutex held.
++ */
++static void backup_state_set_target_id(const char *target_id) {
++    if (backup_state.target_id) {
++        g_free(backup_state.target_id);
++    }
++    backup_state.target_id = g_strdup(target_id);
++}
++
+ UuidInfo coroutine_fn *qmp_backup(
+     const char *backup_file,
+     const char *password,
+@@ -904,7 +915,7 @@ UuidInfo coroutine_fn *qmp_backup(
+ 
+     if (backup_state.di_list) {
+         error_set(errp, ERROR_CLASS_GENERIC_ERROR,
+-                  "previous backup not finished");
++                  "previous backup for target '%s' not finished", backup_state.target_id);
+         qemu_co_mutex_unlock(&backup_state.backup_mutex);
+         return NULL;
+     }
+@@ -1122,6 +1133,8 @@ UuidInfo coroutine_fn *qmp_backup(
+     backup_state.vmaw = vmaw;
+     backup_state.pbs = pbs;
+ 
++    backup_state_set_target_id("Proxmox");
++
+     backup_state.di_list = di_list;
+ 
+     uuid_info = g_malloc0(sizeof(*uuid_info));

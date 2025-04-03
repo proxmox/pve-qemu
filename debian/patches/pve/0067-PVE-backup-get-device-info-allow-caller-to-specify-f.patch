@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Thu, 3 Apr 2025 14:30:45 +0200
+Subject: [PATCH] PVE backup: get device info: allow caller to specify filter
+ for which devices use fleecing
+
+For providing snapshot-access to external backup providers, EFI and
+TPM also need an associated fleecing image. The new caller will thus
+need a different filter.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ pve-backup.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index 8789a0667a..755f1abcf1 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -719,7 +719,7 @@ static void create_backup_jobs_bh(void *opaque) {
+ /*
+  * EFI disk and TPM state are small and it's just not worth setting up fleecing for them.
+  */
+-static bool device_uses_fleecing(const char *device_id)
++static bool fleecing_no_efi_tpm(const char *device_id)
+ {
+     return strncmp(device_id, "drive-efidisk", 13) && strncmp(device_id, "drive-tpmstate", 14);
+ }
+@@ -731,7 +731,7 @@ static bool device_uses_fleecing(const char *device_id)
+  */
+ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
+     const char *devlist,
+-    bool fleecing,
++    bool (*device_uses_fleecing)(const char*),
+     Error **errp)
+ {
+     gchar **devs = NULL;
+@@ -757,7 +757,7 @@ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
+             di->bs = bs;
+             di->device_name = g_strdup(bdrv_get_device_name(bs));
+ 
+-            if (fleecing && device_uses_fleecing(*d)) {
++            if (device_uses_fleecing && device_uses_fleecing(*d)) {
+                 g_autofree gchar *fleecing_devid = g_strconcat(*d, "-fleecing", NULL);
+                 BlockBackend *fleecing_blk = blk_by_name(fleecing_devid);
+                 if (!fleecing_blk) {
+@@ -924,7 +924,8 @@ UuidInfo coroutine_fn *qmp_backup(
+     format = has_format ? format : BACKUP_FORMAT_VMA;
+ 
+     bdrv_graph_co_rdlock();
+-    di_list = get_device_info(devlist, has_fleecing && fleecing, &local_err);
++    di_list = get_device_info(devlist, (has_fleecing && fleecing) ? fleecing_no_efi_tpm : NULL,
++                              &local_err);
+     bdrv_graph_co_rdunlock();
+     if (local_err) {
+         error_propagate(errp, local_err);

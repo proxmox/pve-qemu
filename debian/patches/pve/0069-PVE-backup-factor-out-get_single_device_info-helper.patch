@@ -1,0 +1,122 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Thu, 3 Apr 2025 14:30:47 +0200
+Subject: [PATCH] PVE backup: factor out get_single_device_info() helper
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+[WB: free di and di->device_name on error]
+Sigend-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ pve-backup.c | 90 +++++++++++++++++++++++++++++++---------------------
+ 1 file changed, 53 insertions(+), 37 deletions(-)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index 091b5bd231..8b7414f057 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -760,6 +760,57 @@ static bool fleecing_all(const char *device_id)
+     return true;
+ }
+ 
++static PVEBackupDevInfo coroutine_fn GRAPH_RDLOCK *get_single_device_info(
++    const char *device,
++    bool (*device_uses_fleecing)(const char*),
++    Error **errp)
++{
++    BlockBackend *blk = blk_by_name(device);
++    if (!blk) {
++        error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
++                  "Device '%s' not found", device);
++        return NULL;
++    }
++    BlockDriverState *bs = blk_bs(blk);
++    if (!bdrv_co_is_inserted(bs)) {
++        error_setg(errp, "Device '%s' has no medium", device);
++        return NULL;
++    }
++    PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
++    di->bs = bs;
++    di->device_name = g_strdup(bdrv_get_device_name(bs));
++
++    if (device_uses_fleecing && device_uses_fleecing(device)) {
++        g_autofree gchar *fleecing_devid = g_strconcat(device, "-fleecing", NULL);
++        BlockBackend *fleecing_blk = blk_by_name(fleecing_devid);
++        if (!fleecing_blk) {
++            error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
++                      "Device '%s' not found", fleecing_devid);
++            goto fail;
++        }
++        BlockDriverState *fleecing_bs = blk_bs(fleecing_blk);
++        if (!bdrv_co_is_inserted(fleecing_bs)) {
++            error_setg(errp, "Device '%s' has no medium", fleecing_devid);
++            goto fail;
++        }
++        /*
++         * Fleecing image needs to be the same size to act as a cbw target.
++         */
++        if (bs->total_sectors != fleecing_bs->total_sectors) {
++            error_setg(errp, "Size mismatch for '%s' - sector count %ld != %ld",
++                       fleecing_devid, fleecing_bs->total_sectors, bs->total_sectors);
++            goto fail;
++        }
++        di->fleecing.bs = fleecing_bs;
++    }
++
++    return di;
++fail:
++    g_free(di->device_name);
++    g_free(di);
++    return NULL;
++}
++
+ /*
+  * Returns a list of device infos, which needs to be freed by the caller. In
+  * case of an error, errp will be set, but the returned value might still be a
+@@ -778,45 +829,10 @@ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
+ 
+         gchar **d = devs;
+         while (d && *d) {
+-            BlockBackend *blk = blk_by_name(*d);
+-            if (!blk) {
+-                error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+-                          "Device '%s' not found", *d);
++            PVEBackupDevInfo *di = get_single_device_info(*d, device_uses_fleecing, errp);
++            if (!di) {
+                 goto err;
+             }
+-            BlockDriverState *bs = blk_bs(blk);
+-            if (!bdrv_co_is_inserted(bs)) {
+-                error_setg(errp, "Device '%s' has no medium", *d);
+-                goto err;
+-            }
+-            PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
+-            di->bs = bs;
+-            di->device_name = g_strdup(bdrv_get_device_name(bs));
+-
+-            if (device_uses_fleecing && device_uses_fleecing(*d)) {
+-                g_autofree gchar *fleecing_devid = g_strconcat(*d, "-fleecing", NULL);
+-                BlockBackend *fleecing_blk = blk_by_name(fleecing_devid);
+-                if (!fleecing_blk) {
+-                    error_set(errp, ERROR_CLASS_DEVICE_NOT_FOUND,
+-                              "Device '%s' not found", fleecing_devid);
+-                    goto err;
+-                }
+-                BlockDriverState *fleecing_bs = blk_bs(fleecing_blk);
+-                if (!bdrv_co_is_inserted(fleecing_bs)) {
+-                    error_setg(errp, "Device '%s' has no medium", fleecing_devid);
+-                    goto err;
+-                }
+-                /*
+-                 * Fleecing image needs to be the same size to act as a cbw target.
+-                 */
+-                if (bs->total_sectors != fleecing_bs->total_sectors) {
+-                    error_setg(errp, "Size mismatch for '%s' - sector count %ld != %ld",
+-                               fleecing_devid, fleecing_bs->total_sectors, bs->total_sectors);
+-                    goto err;
+-                }
+-                di->fleecing.bs = fleecing_bs;
+-            }
+-
+             di_list = g_list_append(di_list, di);
+             d++;
+         }

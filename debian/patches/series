@@ -77,3 +77,13 @@ pve/0059-savevm-async-rename-saved_vm_running-to-vm_needs_sta.patch
 pve/0060-savevm-async-improve-runstate-preservation-cleanup-e.patch
 pve/0061-savevm-async-use-dedicated-iothread-for-state-file.patch
 pve/0062-savevm-async-treat-failure-to-set-iothread-context-a.patch
+pve/0063-PVE-backup-clean-up-directly-in-setup_snapshot_acces.patch
+pve/0064-PVE-backup-factor-out-helper-to-clear-backup-state-s.patch
+pve/0065-PVE-backup-factor-out-helper-to-initialize-backup-st.patch
+pve/0066-PVE-backup-add-target-ID-in-backup-state.patch
+pve/0067-PVE-backup-get-device-info-allow-caller-to-specify-f.patch
+pve/0068-PVE-backup-implement-backup-access-setup-and-teardow.patch
+pve/0069-PVE-backup-factor-out-get_single_device_info-helper.patch
+pve/0070-PVE-backup-implement-bitmap-support-for-external-bac.patch
+pve/0071-PVE-backup-backup-access-api-indicate-situation-wher.patch
+pve/0072-PVE-backup-backup-access-api-explicit-bitmap-mode-pa.patch

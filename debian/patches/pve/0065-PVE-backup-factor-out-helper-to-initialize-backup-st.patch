@@ -1,0 +1,95 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Thu, 3 Apr 2025 14:30:43 +0200
+Subject: [PATCH] PVE backup: factor out helper to initialize backup state stat
+ struct
+
+Suggested-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ pve-backup.c | 62 ++++++++++++++++++++++++++++++++--------------------
+ 1 file changed, 38 insertions(+), 24 deletions(-)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index 915649b5f9..88a981f81c 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -828,6 +828,43 @@ static void clear_backup_state_bitmap_list(void) {
+     }
+ }
+ 
++/*
++ * Initializes most of the backup state 'stat' struct. Note that 'reused' and
++ * 'bitmap_list' are not changed by this function and need to be handled by
++ * the caller. In particular, 'reused' needs to be set before calling this
++ * function.
++ *
++ * To be called with the backup_state.stat mutex held.
++ */
++static void initialize_backup_state_stat(
++    const char *backup_file,
++    uuid_t uuid,
++    size_t total)
++{
++    if (backup_state.stat.error) {
++        error_free(backup_state.stat.error);
++        backup_state.stat.error = NULL;
++    }
++
++    backup_state.stat.start_time = time(NULL);
++    backup_state.stat.end_time = 0;
++
++    if (backup_state.stat.backup_file) {
++        g_free(backup_state.stat.backup_file);
++    }
++    backup_state.stat.backup_file = g_strdup(backup_file);
++
++    uuid_copy(backup_state.stat.uuid, uuid);
++    uuid_unparse_lower(uuid, backup_state.stat.uuid_str);
++
++    backup_state.stat.total = total;
++    backup_state.stat.dirty = total - backup_state.stat.reused;
++    backup_state.stat.transferred = 0;
++    backup_state.stat.zero_bytes = 0;
++    backup_state.stat.finishing = false;
++    backup_state.stat.starting = true;
++}
++
+ UuidInfo coroutine_fn *qmp_backup(
+     const char *backup_file,
+     const char *password,
+@@ -1070,32 +1107,9 @@ UuidInfo coroutine_fn *qmp_backup(
+         }
+     }
+     /* initialize global backup_state now */
+-    /* note: 'reused' and 'bitmap_list' are initialized earlier */
+-
+-    if (backup_state.stat.error) {
+-        error_free(backup_state.stat.error);
+-        backup_state.stat.error = NULL;
+-    }
+-
+-    backup_state.stat.start_time = time(NULL);
+-    backup_state.stat.end_time = 0;
+-
+-    if (backup_state.stat.backup_file) {
+-        g_free(backup_state.stat.backup_file);
+-    }
+-    backup_state.stat.backup_file = g_strdup(backup_file);
+-
+-    uuid_copy(backup_state.stat.uuid, uuid);
+-    uuid_unparse_lower(uuid, backup_state.stat.uuid_str);
++    initialize_backup_state_stat(backup_file, uuid, total);
+     char *uuid_str = g_strdup(backup_state.stat.uuid_str);
+ 
+-    backup_state.stat.total = total;
+-    backup_state.stat.dirty = total - backup_state.stat.reused;
+-    backup_state.stat.transferred = 0;
+-    backup_state.stat.zero_bytes = 0;
+-    backup_state.stat.finishing = false;
+-    backup_state.stat.starting = true;
+-
+     qemu_mutex_unlock(&backup_state.stat.lock);
+ 
+     backup_state.speed = (has_speed && speed > 0) ? speed : 0;

@@ -1,0 +1,59 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Thu, 3 Apr 2025 14:30:42 +0200
+Subject: [PATCH] PVE backup: factor out helper to clear backup state's bitmap
+ list
+
+Suggested-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ pve-backup.c | 28 ++++++++++++++++++----------
+ 1 file changed, 18 insertions(+), 10 deletions(-)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index 2408f182bc..915649b5f9 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -811,6 +811,23 @@ err:
+     return di_list;
+ }
+ 
++/*
++ * To be called with the backup_state.stat mutex held.
++ */
++static void clear_backup_state_bitmap_list(void) {
++
++    if (backup_state.stat.bitmap_list) {
++        GList *bl = backup_state.stat.bitmap_list;
++        while (bl) {
++            g_free(((PBSBitmapInfo *)bl->data)->drive);
++            g_free(bl->data);
++            bl = g_list_next(bl);
++        }
++        g_list_free(backup_state.stat.bitmap_list);
++        backup_state.stat.bitmap_list = NULL;
++    }
++}
++
+ UuidInfo coroutine_fn *qmp_backup(
+     const char *backup_file,
+     const char *password,
+@@ -898,16 +915,7 @@ UuidInfo coroutine_fn *qmp_backup(
+     backup_state.stat.reused = 0;
+ 
+     /* clear previous backup's bitmap_list */
+-    if (backup_state.stat.bitmap_list) {
+-        GList *bl = backup_state.stat.bitmap_list;
+-        while (bl) {
+-            g_free(((PBSBitmapInfo *)bl->data)->drive);
+-            g_free(bl->data);
+-            bl = g_list_next(bl);
+-        }
+-        g_list_free(backup_state.stat.bitmap_list);
+-        backup_state.stat.bitmap_list = NULL;
+-    }
++    clear_backup_state_bitmap_list();
+ 
+     if (format == BACKUP_FORMAT_PBS) {
+         if (!password) {
