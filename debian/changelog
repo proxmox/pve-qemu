@@ -1,3 +1,17 @@
+pve-qemu-kvm (9.2.0-4) bookworm; urgency=medium
+
+  * various async snapshot improvements, inclduing using a dedicated IO thread
+    for the state file when doing a live snapshot. That should reduce load on
+    the main thread and for it to get stuck on IO, i.e. same benefits as using
+    a dedicated IO thread for regular drives. This is particularly interesting
+    when the VM state storage is a network storage like NFS. It should also
+    address #6262.
+
+  * pve backup: implement basic features and API in preperation for external
+    backup provider storage plugins.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 03 Apr 2025 17:00:34 +0200
+
 pve-qemu-kvm (9.2.0-3) bookworm; urgency=medium
 
   * revert changes to the High Precision Event Timer (HPET) to fix performance
