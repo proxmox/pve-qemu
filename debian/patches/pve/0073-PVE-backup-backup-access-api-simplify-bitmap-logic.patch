@@ -1,0 +1,206 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Fri, 4 Apr 2025 15:31:36 +0200
+Subject: [PATCH] PVE backup: backup-access api: simplify bitmap logic
+
+Currently, only one bitmap name per target is planned to be used.
+Simply use the target ID itself as the bitmap name. This allows to
+simplify the logic quite a bit and there also is no need for the
+backup_access_bitmaps hash table anymore.
+
+For the return value, the bitmap names are still passed along for
+convenience in the caller.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Tested-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ pve-backup.c         | 72 ++++++++++++--------------------------------
+ qapi/block-core.json | 15 ++++-----
+ 2 files changed, 26 insertions(+), 61 deletions(-)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index 18bcf29533..0ea0343b22 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -74,7 +74,6 @@ static struct PVEBackupState {
+     CoMutex backup_mutex;
+     CoMutex dump_callback_mutex;
+     char *target_id;
+-    GHashTable *backup_access_bitmaps; // key=target_id, value=bitmap_name
+ } backup_state;
+ 
+ static void pvebackup_init(void)
+@@ -106,7 +105,7 @@ typedef struct PVEBackupDevInfo {
+     PBSBitmapAction bitmap_action;
+     BlockDriverState *target;
+     BlockJob *job;
+-    char *requested_bitmap_name; // used by external backup access during initialization
++    BackupAccessSetupBitmapMode requested_bitmap_mode;
+ } PVEBackupDevInfo;
+ 
+ static void pvebackup_propagate_error(Error *err)
+@@ -1043,16 +1042,7 @@ BackupAccessInfoList *coroutine_fn qmp_backup_access_setup(
+             error_propagate(errp, local_err);
+             goto err;
+         }
+-        if (it->value->bitmap_mode == BACKUP_ACCESS_SETUP_BITMAP_MODE_NONE) {
+-            di->bitmap_action = PBS_BITMAP_ACTION_NOT_USED;
+-        } else {
+-            di->requested_bitmap_name = g_strdup(it->value->bitmap_name);
+-            if (it->value->bitmap_mode == BACKUP_ACCESS_SETUP_BITMAP_MODE_NEW) {
+-                di->bitmap_action = PBS_BITMAP_ACTION_NEW;
+-            } else if (it->value->bitmap_mode == BACKUP_ACCESS_SETUP_BITMAP_MODE_USE) {
+-                di->bitmap_action = PBS_BITMAP_ACTION_USED;
+-            }
+-        }
++        di->requested_bitmap_mode = it->value->bitmap_mode;
+         di_list = g_list_append(di_list, di);
+     }
+     bdrv_graph_co_rdunlock();
+@@ -1082,10 +1072,7 @@ BackupAccessInfoList *coroutine_fn qmp_backup_access_setup(
+     /* clear previous backup's bitmap_list */
+     clear_backup_state_bitmap_list();
+ 
+-    if (!backup_state.backup_access_bitmaps) {
+-        backup_state.backup_access_bitmaps =
+-            g_hash_table_new_full(g_str_hash, g_str_equal, free, free);
+-    }
++    const char *bitmap_name = target_id;
+ 
+     /* create bitmaps if requested */
+     l = di_list;
+@@ -1098,59 +1085,43 @@ BackupAccessInfoList *coroutine_fn qmp_backup_access_setup(
+         PBSBitmapAction action = PBS_BITMAP_ACTION_NOT_USED;
+         size_t dirty = di->size;
+ 
+-        const char *old_bitmap_name =
+-            (const char*)g_hash_table_lookup(backup_state.backup_access_bitmaps, target_id);
+-
+-        bool same_bitmap_name = old_bitmap_name
+-            && di->requested_bitmap_name
+-            && strcmp(di->requested_bitmap_name, old_bitmap_name) == 0;
+-
+-        /* special case: if we explicitly requested a *new* bitmap, treat an
+-         * existing bitmap as having a different name */
+-        if (di->bitmap_action == PBS_BITMAP_ACTION_NEW) {
+-            same_bitmap_name = false;
+-        }
+-
+-        if (old_bitmap_name && !same_bitmap_name) {
+-            BdrvDirtyBitmap *old_bitmap = bdrv_find_dirty_bitmap(di->bs, old_bitmap_name);
+-            if (!old_bitmap) {
+-                warn_report("setup backup access: expected old bitmap '%s' not found for drive "
+-                            "'%s'", old_bitmap_name, di->device_name);
+-            } else {
+-                g_hash_table_remove(backup_state.backup_access_bitmaps, target_id);
++        if (di->requested_bitmap_mode == BACKUP_ACCESS_SETUP_BITMAP_MODE_NONE ||
++            di->requested_bitmap_mode == BACKUP_ACCESS_SETUP_BITMAP_MODE_NEW) {
++            BdrvDirtyBitmap *old_bitmap = bdrv_find_dirty_bitmap(di->bs, bitmap_name);
++            if (old_bitmap) {
+                 bdrv_release_dirty_bitmap(old_bitmap);
+-                action = PBS_BITMAP_ACTION_NOT_USED_REMOVED;
++                action = PBS_BITMAP_ACTION_NOT_USED_REMOVED; // set below for new
+             }
+         }
+ 
+         BdrvDirtyBitmap *bitmap = NULL;
+-        if (di->requested_bitmap_name) {
+-            bitmap = bdrv_find_dirty_bitmap(di->bs, di->requested_bitmap_name);
++        if (di->requested_bitmap_mode == BACKUP_ACCESS_SETUP_BITMAP_MODE_NEW ||
++            di->requested_bitmap_mode == BACKUP_ACCESS_SETUP_BITMAP_MODE_USE) {
++            bitmap = bdrv_find_dirty_bitmap(di->bs, bitmap_name);
+             if (!bitmap) {
+                 bitmap = bdrv_create_dirty_bitmap(di->bs, PROXMOX_BACKUP_DEFAULT_CHUNK_SIZE,
+-                                                  di->requested_bitmap_name, errp);
++                                                  bitmap_name, errp);
+                 if (!bitmap) {
+                     qemu_mutex_unlock(&backup_state.stat.lock);
+                     goto err;
+                 }
+                 bdrv_set_dirty_bitmap(bitmap, 0, di->size);
+-                if (same_bitmap_name) {
++                if (di->requested_bitmap_mode == BACKUP_ACCESS_SETUP_BITMAP_MODE_USE) {
+                     action = PBS_BITMAP_ACTION_MISSING_RECREATED;
+                 } else {
+                     action = PBS_BITMAP_ACTION_NEW;
+                 }
+             } else {
++                if (di->requested_bitmap_mode == BACKUP_ACCESS_SETUP_BITMAP_MODE_NEW) {
++                    qemu_mutex_unlock(&backup_state.stat.lock);
++                    error_setg(errp, "internal error - removed old bitmap still present");
++                    goto err;
++                }
+                 /* track clean chunks as reused */
+                 dirty = MIN(bdrv_get_dirty_count(bitmap), di->size);
+                 backup_state.stat.reused += di->size - dirty;
+                 action = PBS_BITMAP_ACTION_USED;
+             }
+-
+-            if (!same_bitmap_name) {
+-                g_hash_table_insert(backup_state.backup_access_bitmaps,
+-                                    strdup(target_id), strdup(di->requested_bitmap_name));
+-            }
+-
+         }
+ 
+         PBSBitmapInfo *info = g_malloc(sizeof(*info));
+@@ -1207,9 +1178,9 @@ BackupAccessInfoList *coroutine_fn qmp_backup_access_setup(
+         info->value->node_name = g_strdup(bdrv_get_node_name(di->fleecing.snapshot_access));
+         info->value->device = g_strdup(di->device_name);
+         info->value->size = di->size;
+-        if (di->requested_bitmap_name) {
++        if (di->bitmap) {
+             info->value->bitmap_node_name = g_strdup(bdrv_get_node_name(di->bs));
+-            info->value->bitmap_name = g_strdup(di->requested_bitmap_name);
++            info->value->bitmap_name = g_strdup(bitmap_name);
+             info->value->bitmap_action = di->bitmap_action;
+             info->value->has_bitmap_action = true;
+         }
+@@ -1274,9 +1245,6 @@ void backup_access_teardown(bool success)
+         g_free(di->device_name);
+         di->device_name = NULL;
+ 
+-        g_free(di->requested_bitmap_name);
+-        di->requested_bitmap_name = NULL;
+-
+         g_free(di);
+     }
+     g_list_free(backup_state.di_list);
+diff --git a/qapi/block-core.json b/qapi/block-core.json
+index 09beb3217c..02c043f0f7 100644
+--- a/qapi/block-core.json
++++ b/qapi/block-core.json
+@@ -1140,18 +1140,12 @@
+ #
+ # @device: the block device name.
+ #
+-# @bitmap-name: use/create a bitmap with this name for the device. Re-using the
+-#     same name allows for making incremental backups. Check the @bitmap-action
+-#     in the result to see if you can actually re-use the bitmap or if it had to
+-#     be newly created.
+-#
+ # @bitmap-mode: used to control whether the bitmap should be reused or
+-#     recreated.
++#     recreated or not used. Default is not using a bitmap.
+ #
+ ##
+ { 'struct': 'BackupAccessSourceDevice',
+-  'data': { 'device': 'str', '*bitmap-name': 'str',
+-            '*bitmap-mode': 'BackupAccessSetupBitmapMode' } }
++  'data': { 'device': 'str', '*bitmap-mode': 'BackupAccessSetupBitmapMode' } }
+ 
+ ##
+ # @BackupAccessSetupBitmapMode:
+@@ -1175,7 +1169,10 @@
+ #
+ # @target-id: the unique ID of the backup target.
+ #
+-# @devices: list of devices for which to create the backup access.
++# @devices: list of devices for which to create the backup access.  Also
++#     controls whether to use/create a bitmap for the device.  Check the
++#     @bitmap-action in the result to see what action was actually taken for the
++#     bitmap.  Each target controls its own bitmaps.
+ #
+ # Returns: a list of @BackupAccessInfo, one for each device.
+ #
