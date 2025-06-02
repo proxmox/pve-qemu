@@ -25,7 +25,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 4 insertions(+), 4 deletions(-)
 
 diff --git a/block/backup.c b/block/backup.c
-index a1292c01ec..2e38b30d67 100644
+index 79652bf57b..cc747e9163 100644
 --- a/block/backup.c
 +++ b/block/backup.c
 @@ -237,8 +237,8 @@ static void backup_init_bcs_bitmap(BackupBlockJob *job)

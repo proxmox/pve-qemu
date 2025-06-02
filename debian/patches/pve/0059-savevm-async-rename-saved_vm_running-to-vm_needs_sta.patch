@@ -12,10 +12,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 8 insertions(+), 8 deletions(-)
 
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index e63dc6d8a3..1e34c31e8b 100644
+index 2163bf50b1..657a4ec9f6 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
-@@ -51,7 +51,7 @@ static struct SnapshotState {
+@@ -52,7 +52,7 @@ static struct SnapshotState {
      int state;
      Error *error;
      Error *blocker;
@@ -24,7 +24,7 @@ index e63dc6d8a3..1e34c31e8b 100644
      QEMUFile *file;
      int64_t total_time;
      QEMUBH *finalize_bh;
-@@ -224,9 +224,9 @@ static void process_savevm_finalize(void *opaque)
+@@ -225,9 +225,9 @@ static void process_savevm_finalize(void *opaque)
          save_snapshot_error("process_savevm_cleanup: invalid state: %d",
                              snap_state.state);
      }
@@ -36,7 +36,7 @@ index e63dc6d8a3..1e34c31e8b 100644
      }
  
      DPRINTF("timing: process_savevm_finalize (full) took %ld ms\n",
-@@ -352,7 +352,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+@@ -353,7 +353,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
      }
  
      /* initialize snapshot info */
@@ -45,7 +45,7 @@ index e63dc6d8a3..1e34c31e8b 100644
      snap_state.bs_pos = 0;
      snap_state.total_time = qemu_clock_get_ms(QEMU_CLOCK_REALTIME);
      snap_state.blocker = NULL;
-@@ -440,9 +440,9 @@ restart:
+@@ -441,9 +441,9 @@ restart:
  
      save_snapshot_error("setup failed");
  
@@ -57,7 +57,7 @@ index e63dc6d8a3..1e34c31e8b 100644
      }
  }
  
-@@ -491,9 +491,9 @@ void qmp_savevm_end(Error **errp)
+@@ -492,9 +492,9 @@ void qmp_savevm_end(Error **errp)
          return;
      }
  

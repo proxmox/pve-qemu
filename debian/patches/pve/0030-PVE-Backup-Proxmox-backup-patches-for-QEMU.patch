@@ -94,17 +94,17 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1090 ++++++++++++++++++++++++++++++++
+ pve-backup.c                   | 1091 ++++++++++++++++++++++++++++++++
  qapi/block-core.json           |  233 +++++++
  qapi/common.json               |   14 +
  qapi/machine.json              |   16 +-
- 14 files changed, 1709 insertions(+), 14 deletions(-)
+ 14 files changed, 1710 insertions(+), 14 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
 
 diff --git a/block/meson.build b/block/meson.build
-index e1cf5a2e65..2367e1ac1b 100644
+index 6278c4af0f..d1b16e40e9 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -44,6 +44,11 @@ block_ss.add(files(
@@ -120,10 +120,10 @@ index e1cf5a2e65..2367e1ac1b 100644
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  system_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index bdf2eb50b6..439a7a14c8 100644
+index 6919a49bf5..4f30f99644 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1009,3 +1009,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+@@ -1010,3 +1010,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
      qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
                                 !!read_only, read_only_mode, errp);
  }
@@ -167,7 +167,7 @@ index bdf2eb50b6..439a7a14c8 100644
 +    hmp_handle_error(mon, error);
 +}
 diff --git a/blockdev.c b/blockdev.c
-index 79d47b1920..3f67eb413d 100644
+index 158ac9314b..17de5d2ae4 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -37,6 +37,7 @@
@@ -265,10 +265,10 @@ index 2596cc2426..9dda91d65a 100644
  void hmp_device_add(Monitor *mon, const QDict *qdict);
  void hmp_device_del(Monitor *mon, const QDict *qdict);
 diff --git a/meson.build b/meson.build
-index b9b673c271..f6fb9b4fd8 100644
+index 680ab48b9b..1f74de1d93 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -2130,6 +2130,7 @@ endif
+@@ -2162,6 +2162,7 @@ endif
  has_gettid = cc.has_function('gettid')
  
  libuuid = cc.find_library('uuid', required: true)
@@ -277,7 +277,7 @@ index b9b673c271..f6fb9b4fd8 100644
  # libselinux
  selinux = dependency('libselinux',
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 874084565f..bedeb81f8c 100644
+index bade2a4b92..77a2fa409a 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
 @@ -22,6 +22,7 @@
@@ -586,22 +586,23 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..fea0152de0
+index 0000000000..36e5042860
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1090 @@
+@@ -0,0 +1,1091 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
 +#include "qemu/osdep.h"
 +#include "qemu/module.h"
-+#include "sysemu/block-backend.h"
-+#include "sysemu/blockdev.h"
++#include "system/block-backend.h"
++#include "system/blockdev.h"
 +#include "block/block_int-global-state.h"
 +#include "block/blockjob.h"
 +#include "block/dirty-bitmap.h"
 +#include "block/graph-lock.h"
 +#include "qapi/qapi-commands-block.h"
++#include "qobject/qdict.h"
 +#include "qapi/qmp/qerror.h"
 +#include "qemu/cutils.h"
 +
@@ -1681,10 +1682,10 @@ index 0000000000..fea0152de0
 +    return ret;
 +}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 321d1fd0e1..68caf30084 100644
+index 1c05413916..dd98e03bf1 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -851,6 +851,239 @@
+@@ -855,6 +855,239 @@
  { 'command': 'query-block', 'returns': ['BlockInfo'],
    'allow-preconfig': true }
  
@@ -1925,13 +1926,13 @@ index 321d1fd0e1..68caf30084 100644
  # @BlockDeviceTimedStats:
  #
 diff --git a/qapi/common.json b/qapi/common.json
-index 6ffc7a3789..9c6c671ece 100644
+index 0e3a0bbbfb..554680c716 100644
 --- a/qapi/common.json
 +++ b/qapi/common.json
-@@ -212,3 +212,17 @@
+@@ -226,3 +226,17 @@
  ##
- { 'struct': 'HumanReadableText',
-   'data': { 'human-readable-text': 'str' } }
+ { 'enum': 'EndianMode',
+   'data': [ 'unspecified', 'little', 'big' ] }
 +
 +##
 +# @UuidInfo:

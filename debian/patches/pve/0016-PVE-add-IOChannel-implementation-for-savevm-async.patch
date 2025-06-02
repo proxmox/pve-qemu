@@ -25,7 +25,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 
 diff --git a/migration/channel-savevm-async.c b/migration/channel-savevm-async.c
 new file mode 100644
-index 0000000000..081a192f49
+index 0000000000..e57ab2ae40
 --- /dev/null
 +++ b/migration/channel-savevm-async.c
 @@ -0,0 +1,184 @@
@@ -35,7 +35,7 @@ index 0000000000..081a192f49
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "qapi/error.h"
-+#include "sysemu/block-backend.h"
++#include "system/block-backend.h"
 +#include "trace.h"
 +
 +QIOChannelSavevmAsync *
@@ -271,14 +271,14 @@ index 0000000000..17ae2cb261
 +
 +#endif /* QIO_CHANNEL_SAVEVM_ASYNC_H */
 diff --git a/migration/meson.build b/migration/meson.build
-index d53cf3417a..b00d58064d 100644
+index 9aa48b290e..cf66c78681 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
-@@ -13,6 +13,7 @@ system_ss.add(files(
-   'block-dirty-bitmap.c',
+@@ -14,6 +14,7 @@ system_ss.add(files(
+   'block-active.c',
    'channel.c',
    'channel-block.c',
 +  'channel-savevm-async.c',
+   'cpr.c',
+   'cpr-transfer.c',
    'cpu-throttle.c',
-   'dirtyrate.c',
-   'exec.c',

@@ -63,15 +63,15 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 ---
  block/monitor/block-hmp-cmds.c |   1 +
- pve-backup.c                   | 135 ++++++++++++++++++++++++++++++++-
+ pve-backup.c                   | 134 ++++++++++++++++++++++++++++++++-
  qapi/block-core.json           |  10 ++-
- 3 files changed, 142 insertions(+), 4 deletions(-)
+ 3 files changed, 141 insertions(+), 4 deletions(-)
 
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 439a7a14c8..d0e7771dcc 100644
+index 4f30f99644..66d16d342f 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1044,6 +1044,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1045,6 +1045,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
          NULL, NULL,
          devlist, qdict_haskey(qdict, "speed"), speed,
          false, 0, // BackupPerf max-workers
@@ -80,22 +80,18 @@ index 439a7a14c8..d0e7771dcc 100644
  
      hmp_handle_error(mon, error);
 diff --git a/pve-backup.c b/pve-backup.c
-index faa6a9b93c..4b0820c8a7 100644
+index 11ea4b5c56..257cd0b0e1 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -7,9 +7,11 @@
- #include "sysemu/blockdev.h"
+@@ -7,6 +7,7 @@
+ #include "system/blockdev.h"
  #include "block/block_int-global-state.h"
  #include "block/blockjob.h"
 +#include "block/copy-before-write.h"
  #include "block/dirty-bitmap.h"
  #include "block/graph-lock.h"
  #include "qapi/qapi-commands-block.h"
-+#include "qapi/qmp/qdict.h"
- #include "qapi/qmp/qerror.h"
- #include "qemu/cutils.h"
- 
-@@ -80,8 +82,15 @@ static void pvebackup_init(void)
+@@ -81,8 +82,15 @@ static void pvebackup_init(void)
  // initialize PVEBackupState at startup
  opts_init(pvebackup_init);
  
@@ -111,7 +107,7 @@ index faa6a9b93c..4b0820c8a7 100644
      size_t size;
      uint64_t block_size;
      uint8_t dev_id;
-@@ -353,6 +362,22 @@ static void pvebackup_complete_cb(void *opaque, int ret)
+@@ -354,6 +362,22 @@ static void pvebackup_complete_cb(void *opaque, int ret)
      PVEBackupDevInfo *di = opaque;
      di->completed_ret = ret;
  
@@ -134,7 +130,7 @@ index faa6a9b93c..4b0820c8a7 100644
      /*
       * Needs to happen outside of coroutine, because it takes the graph write lock.
       */
-@@ -519,9 +544,77 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -520,9 +544,77 @@ static void create_backup_jobs_bh(void *opaque) {
          }
          bdrv_drained_begin(di->bs);
  
@@ -214,7 +210,7 @@ index faa6a9b93c..4b0820c8a7 100644
              BLOCKDEV_ON_ERROR_REPORT, JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn,
              &local_err);
  
-@@ -577,6 +670,14 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -578,6 +670,14 @@ static void create_backup_jobs_bh(void *opaque) {
      aio_co_enter(data->ctx, data->co);
  }
  
@@ -229,7 +225,7 @@ index faa6a9b93c..4b0820c8a7 100644
  /*
   * Returns a list of device infos, which needs to be freed by the caller. In
   * case of an error, errp will be set, but the returned value might still be a
-@@ -584,6 +685,7 @@ static void create_backup_jobs_bh(void *opaque) {
+@@ -585,6 +685,7 @@ static void create_backup_jobs_bh(void *opaque) {
   */
  static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
      const char *devlist,
@@ -237,7 +233,7 @@ index faa6a9b93c..4b0820c8a7 100644
      Error **errp)
  {
      gchar **devs = NULL;
-@@ -607,6 +709,31 @@ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
+@@ -608,6 +709,31 @@ static GList coroutine_fn GRAPH_RDLOCK *get_device_info(
              }
              PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
              di->bs = bs;
@@ -269,7 +265,7 @@ index faa6a9b93c..4b0820c8a7 100644
              di_list = g_list_append(di_list, di);
              d++;
          }
-@@ -656,6 +783,7 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -657,6 +783,7 @@ UuidInfo coroutine_fn *qmp_backup(
      const char *devlist,
      bool has_speed, int64_t speed,
      bool has_max_workers, int64_t max_workers,
@@ -277,7 +273,7 @@ index faa6a9b93c..4b0820c8a7 100644
      Error **errp)
  {
      assert(qemu_in_coroutine());
-@@ -684,7 +812,7 @@ UuidInfo coroutine_fn *qmp_backup(
+@@ -685,7 +812,7 @@ UuidInfo coroutine_fn *qmp_backup(
      format = has_format ? format : BACKUP_FORMAT_VMA;
  
      bdrv_graph_co_rdlock();
@@ -286,7 +282,7 @@ index faa6a9b93c..4b0820c8a7 100644
      bdrv_graph_co_rdunlock();
      if (local_err) {
          error_propagate(errp, local_err);
-@@ -1087,5 +1215,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1088,5 +1215,6 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->query_bitmap_info = true;
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
@@ -294,10 +290,10 @@ index faa6a9b93c..4b0820c8a7 100644
      return ret;
  }
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 9795247c1f..c581f1f238 100644
+index 6838187607..9bdcfa31ea 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -948,6 +948,10 @@
+@@ -952,6 +952,10 @@
  #
  # @max-workers: see @BackupPerf for details. Default 16.
  #
@@ -308,7 +304,7 @@ index 9795247c1f..c581f1f238 100644
  # Returns: the uuid of the backup job
  #
  ##
-@@ -968,7 +972,8 @@
+@@ -972,7 +976,8 @@
                                      '*firewall-file': 'str',
                                      '*devlist': 'str',
                                      '*speed': 'int',
@@ -318,7 +314,7 @@ index 9795247c1f..c581f1f238 100644
    'returns': 'UuidInfo', 'coroutine': true }
  
  ##
-@@ -1014,6 +1019,8 @@
+@@ -1018,6 +1023,8 @@
  #
  # @pbs-library-version: Running version of libproxmox-backup-qemu0 library.
  #
@@ -327,7 +323,7 @@ index 9795247c1f..c581f1f238 100644
  # @backup-max-workers: Whether the 'max-workers' @BackupPerf setting is
  #     supported or not.
  #
-@@ -1025,6 +1032,7 @@
+@@ -1029,6 +1036,7 @@
              'pbs-dirty-bitmap-migration': 'bool',
              'pbs-masterkey': 'bool',
              'pbs-library-version': 'str',

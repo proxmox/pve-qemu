@@ -12,10 +12,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  2 files changed, 5 deletions(-)
 
 diff --git a/hw/timer/hpet.c b/hw/timer/hpet.c
-index 6f83d88516..509986c0a9 100644
+index daef12c8cf..927263e2ff 100644
 --- a/hw/timer/hpet.c
 +++ b/hw/timer/hpet.c
-@@ -585,10 +585,6 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -569,10 +569,6 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
              }
              break;
          case HPET_TN_CMP + 4: // comparator register high order
@@ -27,7 +27,7 @@ index 6f83d88516..509986c0a9 100644
              if (!timer_is_periodic(timer)
                  || (timer->config & HPET_TN_SETVAL)) {
 diff --git a/hw/timer/trace-events b/hw/timer/trace-events
-index 219747df2f..b86870fb22 100644
+index dd8a53c690..2b81ee0812 100644
 --- a/hw/timer/trace-events
 +++ b/hw/timer/trace-events
 @@ -117,7 +117,6 @@ hpet_ram_write_timer_id(uint64_t timer_id) "hpet_ram_writel timer_id = 0x%" PRIx

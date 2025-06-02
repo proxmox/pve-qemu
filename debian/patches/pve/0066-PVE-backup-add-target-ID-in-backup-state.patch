@@ -15,7 +15,7 @@ Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  1 file changed, 14 insertions(+), 1 deletion(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 88a981f81c..8789a0667a 100644
+index 3be9930ad3..87778f7e76 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -70,6 +70,7 @@ static struct PVEBackupState {

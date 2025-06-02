@@ -16,7 +16,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/block/gluster.c b/block/gluster.c
-index c8457a5014..c3a9555591 100644
+index ccca125c3a..301a653ea7 100644
 --- a/block/gluster.c
 +++ b/block/gluster.c
 @@ -57,6 +57,7 @@ typedef struct GlusterAIOCB {

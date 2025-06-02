@@ -14,10 +14,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  2 files changed, 7 insertions(+), 3 deletions(-)
 
 diff --git a/meson.build b/meson.build
-index 4c85736ec3..57f666d722 100644
+index 9c39f54f86..60af7fa723 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -2130,6 +2130,7 @@ endif
+@@ -2162,6 +2162,7 @@ endif
  has_gettid = cc.has_function('gettid')
  
  libuuid = cc.find_library('uuid', required: true)
@@ -25,7 +25,7 @@ index 4c85736ec3..57f666d722 100644
  libproxmox_backup_qemu = cc.find_library('proxmox_backup_qemu', required: true)
  
  # libselinux
-@@ -3744,7 +3745,7 @@ if have_block
+@@ -3766,7 +3767,7 @@ if have_block
    if host_os == 'windows'
      system_ss.add(files('os-win32.c'))
    else
@@ -35,7 +35,7 @@ index 4c85736ec3..57f666d722 100644
  endif
  
 diff --git a/os-posix.c b/os-posix.c
-index 43f9a43f3f..a47e46d1c2 100644
+index 52925c23d3..84b96d3da9 100644
 --- a/os-posix.c
 +++ b/os-posix.c
 @@ -29,6 +29,8 @@

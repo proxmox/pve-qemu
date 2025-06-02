@@ -12,7 +12,7 @@ Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  1 file changed, 38 insertions(+), 24 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 915649b5f9..88a981f81c 100644
+index 588ee98ffc..3be9930ad3 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -828,6 +828,43 @@ static void clear_backup_state_bitmap_list(void) {

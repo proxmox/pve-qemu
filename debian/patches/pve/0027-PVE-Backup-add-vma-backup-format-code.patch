@@ -27,7 +27,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 vma.h
 
 diff --git a/block/meson.build b/block/meson.build
-index 6a60b5d6b9..652c8cbdb7 100644
+index a21d9a5411..1373612c10 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -42,6 +42,8 @@ block_ss.add(files(
@@ -40,10 +40,10 @@ index 6a60b5d6b9..652c8cbdb7 100644
  system_ss.add(files('block-ram-registrar.c'))
  
 diff --git a/meson.build b/meson.build
-index 147097c652..b9b673c271 100644
+index 8ec796d835..680ab48b9b 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -2129,6 +2129,8 @@ endif
+@@ -2161,6 +2161,8 @@ endif
  
  has_gettid = cc.has_function('gettid')
  
@@ -52,7 +52,7 @@ index 147097c652..b9b673c271 100644
  # libselinux
  selinux = dependency('libselinux',
                       required: get_option('selinux'),
-@@ -4344,6 +4346,9 @@ if have_tools
+@@ -4367,6 +4369,9 @@ if have_tools
                 dependencies: [blockdev, qemuutil, selinux],
                 install: true)
  
@@ -64,7 +64,7 @@ index 147097c652..b9b673c271 100644
    foreach exe: [ 'qemu-img', 'qemu-io', 'qemu-nbd', 'qemu-storage-daemon']
 diff --git a/vma-reader.c b/vma-reader.c
 new file mode 100644
-index 0000000000..bb65ad313c
+index 0000000000..1888b21851
 --- /dev/null
 +++ b/vma-reader.c
 @@ -0,0 +1,867 @@
@@ -90,7 +90,7 @@ index 0000000000..bb65ad313c
 +#include "vma.h"
 +#include "block/block.h"
 +#include "block/graph-lock.h"
-+#include "sysemu/block-backend.h"
++#include "system/block-backend.h"
 +
 +static unsigned char zero_vma_block[VMA_BLOCK_SIZE];
 +
@@ -1759,7 +1759,7 @@ index 0000000000..3f489092df
 +}
 diff --git a/vma.c b/vma.c
 new file mode 100644
-index 0000000000..8d4b4be414
+index 0000000000..0e990b5e30
 --- /dev/null
 +++ b/vma.c
 @@ -0,0 +1,941 @@
@@ -1785,8 +1785,8 @@ index 0000000000..8d4b4be414
 +#include "qemu/main-loop.h"
 +#include "qemu/cutils.h"
 +#include "qemu/memalign.h"
-+#include "qapi/qmp/qdict.h"
-+#include "sysemu/block-backend.h"
++#include "qobject/qdict.h"
++#include "system/block-backend.h"
 +
 +static void help(void)
 +{

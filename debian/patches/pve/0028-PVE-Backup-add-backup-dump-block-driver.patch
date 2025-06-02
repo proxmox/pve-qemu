@@ -22,7 +22,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 
 diff --git a/block/backup-dump.c b/block/backup-dump.c
 new file mode 100644
-index 0000000000..e46abf1070
+index 0000000000..354593bc10
 --- /dev/null
 +++ b/block/backup-dump.c
 @@ -0,0 +1,172 @@
@@ -38,7 +38,7 @@ index 0000000000..e46abf1070
 +
 +#include "qemu/osdep.h"
 +
-+#include "qapi/qmp/qdict.h"
++#include "qobject/qdict.h"
 +#include "qom/object_interfaces.h"
 +#include "block/block_int.h"
 +
@@ -199,7 +199,7 @@ index 0000000000..e46abf1070
 +    return bs;
 +}
 diff --git a/block/backup.c b/block/backup.c
-index 2e38b30d67..fe69723ada 100644
+index cc747e9163..6f7c45f922 100644
 --- a/block/backup.c
 +++ b/block/backup.c
 @@ -29,28 +29,6 @@
@@ -247,7 +247,7 @@ index 2e38b30d67..fe69723ada 100644
      if (perf->max_chunk && perf->max_chunk < cluster_size) {
          error_setg(errp, "Required max-chunk (%" PRIi64 ") is less than backup "
 diff --git a/block/meson.build b/block/meson.build
-index 652c8cbdb7..e1cf5a2e65 100644
+index 1373612c10..6278c4af0f 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -4,6 +4,7 @@ block_ss.add(files(
@@ -312,10 +312,10 @@ index ebb4e56a50..e717a74e5f 100644
      BDRV_TRACKED_READ,
      BDRV_TRACKED_WRITE,
 diff --git a/job.c b/job.c
-index 660ce22c56..baf54c8d60 100644
+index 0653bc2ba6..b981070ee8 100644
 --- a/job.c
 +++ b/job.c
-@@ -331,7 +331,8 @@ static bool job_started_locked(Job *job)
+@@ -337,7 +337,8 @@ static bool job_started_locked(Job *job)
  }
  
  /* Called with job_mutex held. */

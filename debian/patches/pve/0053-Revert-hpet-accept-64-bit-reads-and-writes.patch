@@ -12,10 +12,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  2 files changed, 96 insertions(+), 44 deletions(-)
 
 diff --git a/hw/timer/hpet.c b/hw/timer/hpet.c
-index 415a9433f1..e1ac877759 100644
+index 635a060d38..5f4bb5667d 100644
 --- a/hw/timer/hpet.c
 +++ b/hw/timer/hpet.c
-@@ -437,7 +437,6 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
+@@ -421,7 +421,6 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
                                unsigned size)
  {
      HPETState *s = opaque;
@@ -23,7 +23,7 @@ index 415a9433f1..e1ac877759 100644
      uint64_t cur_tick;
  
      trace_hpet_ram_read(addr);
-@@ -452,33 +451,52 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
+@@ -436,33 +435,52 @@ static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
              return 0;
          }
  
@@ -88,7 +88,7 @@ index 415a9433f1..e1ac877759 100644
          default:
              trace_hpet_ram_read_invalid();
              break;
-@@ -492,11 +510,11 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -476,11 +494,11 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
  {
      int i;
      HPETState *s = opaque;
@@ -102,7 +102,7 @@ index 415a9433f1..e1ac877759 100644
  
      /*address range of all TN regs*/
      if (addr >= 0x100 && addr <= 0x3ff) {
-@@ -508,12 +526,9 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -492,12 +510,9 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
              trace_hpet_timer_id_out_of_range(timer_id);
              return;
          }
@@ -117,7 +117,7 @@ index 415a9433f1..e1ac877759 100644
              if (deactivating_bit(old_val, new_val, HPET_TN_TYPE_LEVEL)) {
                  /*
                   * Do this before changing timer->config; otherwise, if
-@@ -521,7 +536,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -505,7 +520,8 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                   */
                  update_irq(timer, 0);
              }
@@ -127,7 +127,7 @@ index 415a9433f1..e1ac877759 100644
              if (activating_bit(old_val, new_val, HPET_TN_ENABLE)
                  && (s->isr & (1 << timer_id))) {
                  update_irq(timer, 1);
-@@ -534,28 +550,56 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -518,28 +534,56 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                  hpet_set_timer(timer);
              }
              break;
@@ -194,7 +194,7 @@ index 415a9433f1..e1ac877759 100644
              }
              timer->config &= ~HPET_TN_SETVAL;
              if (hpet_enabled(s)) {
-@@ -563,7 +607,10 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -547,7 +591,10 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
              }
              break;
          case HPET_TN_ROUTE:
@@ -206,7 +206,7 @@ index 415a9433f1..e1ac877759 100644
              break;
          default:
              trace_hpet_ram_write_invalid();
-@@ -571,14 +618,12 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -555,14 +602,12 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
          }
          return;
      } else {
@@ -223,7 +223,7 @@ index 415a9433f1..e1ac877759 100644
              if (activating_bit(old_val, new_val, HPET_CFG_ENABLE)) {
                  /* Enable main counter and interrupt generation. */
                  s->hpet_offset =
-@@ -608,8 +653,10 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -592,8 +637,10 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                  qemu_set_irq(s->irqs[RTC_ISA_IRQ], s->rtc_irq_level);
              }
              break;
@@ -235,7 +235,7 @@ index 415a9433f1..e1ac877759 100644
              cleared = new_val & s->isr;
              for (i = 0; i < s->num_timers; i++) {
                  if (cleared & (1 << i)) {
-@@ -621,7 +668,15 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -605,7 +652,15 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
              if (hpet_enabled(s)) {
                  trace_hpet_ram_write_counter_write_while_enabled();
              }
@@ -252,7 +252,7 @@ index 415a9433f1..e1ac877759 100644
              break;
          default:
              trace_hpet_ram_write_invalid();
-@@ -635,11 +690,7 @@ static const MemoryRegionOps hpet_ram_ops = {
+@@ -619,11 +674,7 @@ static const MemoryRegionOps hpet_ram_ops = {
      .write = hpet_ram_write,
      .valid = {
          .min_access_size = 4,
@@ -266,7 +266,7 @@ index 415a9433f1..e1ac877759 100644
      .endianness = DEVICE_NATIVE_ENDIAN,
  };
 diff --git a/hw/timer/trace-events b/hw/timer/trace-events
-index 5cfc369fba..219747df2f 100644
+index c5b6db49f5..dd8a53c690 100644
 --- a/hw/timer/trace-events
 +++ b/hw/timer/trace-events
 @@ -114,7 +114,8 @@ hpet_ram_read_reading_counter(uint8_t reg_off, uint64_t cur_tick) "reading count

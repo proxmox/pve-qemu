@@ -7,14 +7,14 @@ This reverts commit 242d665396407f83a6acbffc804882eeb21cfdad.
 
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- hw/timer/hpet.c | 111 +++++++++++++++++++++++++++---------------------
- 1 file changed, 62 insertions(+), 49 deletions(-)
+ hw/timer/hpet.c | 109 +++++++++++++++++++++++++++---------------------
+ 1 file changed, 61 insertions(+), 48 deletions(-)
 
 diff --git a/hw/timer/hpet.c b/hw/timer/hpet.c
-index 8ccc421cbb..415a9433f1 100644
+index 0f45af8bbe..635a060d38 100644
 --- a/hw/timer/hpet.c
 +++ b/hw/timer/hpet.c
-@@ -54,7 +54,6 @@ typedef struct HPETTimer {  /* timers */
+@@ -56,7 +56,6 @@ typedef struct HPETTimer {  /* timers */
      uint64_t cmp;           /* comparator */
      uint64_t fsb;           /* FSB route */
      /* Hidden register state */
@@ -22,7 +22,7 @@ index 8ccc421cbb..415a9433f1 100644
      uint64_t period;        /* Last value written to comparator */
      uint8_t wrap_flag;      /* timer pop will indicate wrap for one-shot 32-bit
                               * mode. Next pop will be actual timer expiration.
-@@ -116,6 +115,11 @@ static uint32_t timer_enabled(HPETTimer *t)
+@@ -119,6 +118,11 @@ static uint32_t timer_enabled(HPETTimer *t)
  }
  
  static uint32_t hpet_time_after(uint64_t a, uint64_t b)
@@ -34,7 +34,7 @@ index 8ccc421cbb..415a9433f1 100644
  {
      return ((int64_t)(b - a) < 0);
  }
-@@ -152,32 +156,27 @@ static uint64_t hpet_get_ticks(HPETState *s)
+@@ -155,32 +159,27 @@ static uint64_t hpet_get_ticks(HPETState *s)
      return ns_to_ticks(qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) + s->hpet_offset);
  }
  
@@ -82,7 +82,7 @@ index 8ccc421cbb..415a9433f1 100644
  }
  
  static void update_irq(struct HPETTimer *timer, int set)
-@@ -261,12 +260,7 @@ static bool hpet_validate_num_timers(void *opaque, int version_id)
+@@ -256,12 +255,7 @@ static bool hpet_validate_num_timers(void *opaque, int version_id)
  static int hpet_post_load(void *opaque, int version_id)
  {
      HPETState *s = opaque;
@@ -95,7 +95,7 @@ index 8ccc421cbb..415a9433f1 100644
      /* Recalculate the offset between the main counter and guest time */
      if (!s->hpet_offset_saved) {
          s->hpet_offset = ticks_to_ns(s->hpet_counter)
-@@ -362,10 +356,14 @@ static const VMStateDescription vmstate_hpet = {
+@@ -346,10 +340,14 @@ static const VMStateDescription vmstate_hpet = {
      }
  };
  
@@ -113,7 +113,7 @@ index 8ccc421cbb..415a9433f1 100644
  }
  
  /*
-@@ -374,44 +372,54 @@ static void hpet_arm(HPETTimer *t, uint64_t tick)
+@@ -358,44 +356,54 @@ static void hpet_arm(HPETTimer *t, uint64_t tick)
  static void hpet_timer(void *opaque)
  {
      HPETTimer *t = opaque;
@@ -163,13 +163,12 @@ index 8ccc421cbb..415a9433f1 100644
      t->wrap_flag = 0;
 -    t->cmp64 = hpet_calculate_cmp64(t, cur_tick, t->cmp);
 -    if (t->config & HPET_TN_32BIT) {
--
++    diff = hpet_calculate_diff(t, cur_tick);
+ 
 -        /* hpet spec says in one-shot 32-bit mode, generate an interrupt when
 -         * counter wraps in addition to an interrupt with comparator match.
 -         */
 -        if (!timer_is_periodic(t) && t->cmp64 > hpet_next_wrap(cur_tick)) {
-+    diff = hpet_calculate_diff(t, cur_tick);
-+
 +    /* hpet spec says in one-shot 32-bit mode, generate an interrupt when
 +     * counter wraps in addition to an interrupt with comparator match.
 +     */
@@ -187,7 +186,7 @@ index 8ccc421cbb..415a9433f1 100644
  }
  
  static void hpet_del_timer(HPETTimer *t)
-@@ -542,7 +550,12 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -526,7 +534,12 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                  timer->cmp = deposit64(timer->cmp, shift, len, value);
              }
              if (timer_is_periodic(timer)) {

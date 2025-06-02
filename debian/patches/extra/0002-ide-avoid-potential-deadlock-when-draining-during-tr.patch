@@ -55,7 +55,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 6 insertions(+), 6 deletions(-)
 
 diff --git a/hw/ide/core.c b/hw/ide/core.c
-index 08d9218455..20d8c0cf66 100644
+index b14983ec54..41c543e627 100644
 --- a/hw/ide/core.c
 +++ b/hw/ide/core.c
 @@ -456,7 +456,7 @@ static void ide_trim_bh_cb(void *opaque)

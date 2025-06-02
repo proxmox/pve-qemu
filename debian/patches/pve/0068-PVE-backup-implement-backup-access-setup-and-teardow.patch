@@ -47,7 +47,7 @@ Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  create mode 100644 pve-backup.h
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 755f1abcf1..091b5bd231 100644
+index bd81621d51..78ed6c980c 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -1,4 +1,5 @@
@@ -396,10 +396,10 @@ index 0000000000..4033bc848f
 +
 +#endif /* PVE_BACKUP_H */
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index c581f1f238..3f092221ce 100644
+index 9bdcfa31ea..8d499650a8 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1019,6 +1019,9 @@
+@@ -1023,6 +1023,9 @@
  #
  # @pbs-library-version: Running version of libproxmox-backup-qemu0 library.
  #
@@ -409,7 +409,7 @@ index c581f1f238..3f092221ce 100644
  # @backup-fleecing: Whether backup fleecing is supported or not.
  #
  # @backup-max-workers: Whether the 'max-workers' @BackupPerf setting is
-@@ -1032,6 +1035,7 @@
+@@ -1036,6 +1039,7 @@
              'pbs-dirty-bitmap-migration': 'bool',
              'pbs-masterkey': 'bool',
              'pbs-library-version': 'str',
@@ -417,7 +417,7 @@ index c581f1f238..3f092221ce 100644
              'backup-fleecing': 'bool',
              'backup-max-workers': 'bool' } }
  
-@@ -1098,6 +1102,51 @@
+@@ -1102,6 +1106,51 @@
  ##
  { 'command': 'query-pbs-bitmap-info', 'returns': ['PBSBitmapInfo'] }
  
@@ -470,18 +470,18 @@ index c581f1f238..3f092221ce 100644
  # @BlockDeviceTimedStats:
  #
 diff --git a/system/runstate.c b/system/runstate.c
-index c2c9afa905..6f93d7c2fb 100644
+index 272801d307..73026a3884 100644
 --- a/system/runstate.c
 +++ b/system/runstate.c
 @@ -60,6 +60,7 @@
- #include "sysemu/sysemu.h"
- #include "sysemu/tpm.h"
+ #include "system/system.h"
+ #include "system/tpm.h"
  #include "trace.h"
 +#include "pve-backup.h"
  
  static NotifierList exit_notifiers =
      NOTIFIER_LIST_INITIALIZER(exit_notifiers);
-@@ -920,6 +921,11 @@ void qemu_cleanup(int status)
+@@ -921,6 +922,11 @@ void qemu_cleanup(int status)
       * requests happening from here on anyway.
       */
      bdrv_drain_all_begin();

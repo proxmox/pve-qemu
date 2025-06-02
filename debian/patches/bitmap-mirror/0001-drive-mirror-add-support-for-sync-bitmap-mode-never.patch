@@ -38,7 +38,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  5 files changed, 142 insertions(+), 28 deletions(-)
 
 diff --git a/block/mirror.c b/block/mirror.c
-index 2afe700b4d..c3d4be9b15 100644
+index a53582f17b..fafca1360e 100644
 --- a/block/mirror.c
 +++ b/block/mirror.c
 @@ -51,7 +51,7 @@ typedef struct MirrorBlockJob {
@@ -258,10 +258,10 @@ index 2afe700b4d..c3d4be9b15 100644
                       base_read_only, errp);
      if (!job) {
 diff --git a/blockdev.c b/blockdev.c
-index 6740663fda..38fa63155c 100644
+index 1d1f27cfff..ec45bbaa52 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -2781,6 +2781,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2797,6 +2797,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                     BlockDriverState *target,
                                     const char *replaces,
                                     enum MirrorSyncMode sync,
@@ -271,7 +271,7 @@ index 6740663fda..38fa63155c 100644
                                     BlockMirrorBackingMode backing_mode,
                                     bool zero_target,
                                     bool has_speed, int64_t speed,
-@@ -2799,6 +2802,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2815,6 +2818,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
  {
      BlockDriverState *unfiltered_bs;
      int job_flags = JOB_DEFAULT;
@@ -279,7 +279,7 @@ index 6740663fda..38fa63155c 100644
  
      GLOBAL_STATE_CODE();
      GRAPH_RDLOCK_GUARD_MAINLOOP();
-@@ -2853,6 +2857,29 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2869,6 +2873,29 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
          sync = MIRROR_SYNC_MODE_FULL;
      }
  
@@ -309,7 +309,7 @@ index 6740663fda..38fa63155c 100644
      if (!replaces) {
          /* We want to mirror from @bs, but keep implicit filters on top */
          unfiltered_bs = bdrv_skip_implicit_filters(bs);
-@@ -2894,8 +2921,8 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2910,8 +2937,8 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
       * and will allow to check whether the node still exist at mirror completion
       */
      mirror_start(job_id, bs, target,
@@ -320,7 +320,7 @@ index 6740663fda..38fa63155c 100644
                   on_source_error, on_target_error, unmap, filter_node_name,
                   copy_mode, errp);
  }
-@@ -3039,6 +3066,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
+@@ -3055,6 +3082,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
  
      blockdev_mirror_common(arg->job_id, bs, target_bs,
                             arg->replaces, arg->sync,
@@ -329,7 +329,7 @@ index 6740663fda..38fa63155c 100644
                             backing_mode, zero_target,
                             arg->has_speed, arg->speed,
                             arg->has_granularity, arg->granularity,
-@@ -3058,6 +3087,8 @@ void qmp_blockdev_mirror(const char *job_id,
+@@ -3074,6 +3103,8 @@ void qmp_blockdev_mirror(const char *job_id,
                           const char *device, const char *target,
                           const char *replaces,
                           MirrorSyncMode sync,
@@ -338,7 +338,7 @@ index 6740663fda..38fa63155c 100644
                           bool has_speed, int64_t speed,
                           bool has_granularity, uint32_t granularity,
                           bool has_buf_size, int64_t buf_size,
-@@ -3098,7 +3129,8 @@ void qmp_blockdev_mirror(const char *job_id,
+@@ -3114,7 +3145,8 @@ void qmp_blockdev_mirror(const char *job_id,
      }
  
      blockdev_mirror_common(job_id, bs, target_bs,
@@ -364,10 +364,10 @@ index eb2d92a226..f0c642b194 100644
                    BlockdevOnError on_source_error,
                    BlockdevOnError on_target_error,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index fd3bcc1c17..48ba32049f 100644
+index b1937780e1..0e5f148d30 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -2178,6 +2178,15 @@
+@@ -2182,6 +2182,15 @@
  #     destination (all the disk, only the sectors allocated in the
  #     topmost image, or only new I/O).
  #
@@ -383,7 +383,7 @@ index fd3bcc1c17..48ba32049f 100644
  # @granularity: granularity of the dirty bitmap, default is 64K if the
  #     image format doesn't have clusters, 4K if the clusters are
  #     smaller than that, else the cluster size.  Must be a power of 2
-@@ -2220,7 +2229,9 @@
+@@ -2224,7 +2233,9 @@
  { 'struct': 'DriveMirror',
    'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
              '*format': 'str', '*node-name': 'str', '*replaces': 'str',
@@ -394,7 +394,7 @@ index fd3bcc1c17..48ba32049f 100644
              '*speed': 'int', '*granularity': 'uint32',
              '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
              '*on-target-error': 'BlockdevOnError',
-@@ -2499,6 +2510,15 @@
+@@ -2503,6 +2514,15 @@
  #     destination (all the disk, only the sectors allocated in the
  #     topmost image, or only new I/O).
  #
@@ -410,7 +410,7 @@ index fd3bcc1c17..48ba32049f 100644
  # @granularity: granularity of the dirty bitmap, default is 64K if the
  #     image format doesn't have clusters, 4K if the clusters are
  #     smaller than that, else the cluster size.  Must be a power of 2
-@@ -2547,7 +2567,8 @@
+@@ -2551,7 +2571,8 @@
  { 'command': 'blockdev-mirror',
    'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
              '*replaces': 'str',
@@ -421,7 +421,7 @@ index fd3bcc1c17..48ba32049f 100644
              '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
              '*on-target-error': 'BlockdevOnError',
 diff --git a/tests/unit/test-block-iothread.c b/tests/unit/test-block-iothread.c
-index 20ed54f570..4f50a99334 100644
+index 2b358eaaa8..2a149fe021 100644
 --- a/tests/unit/test-block-iothread.c
 +++ b/tests/unit/test-block-iothread.c
 @@ -755,8 +755,8 @@ static void test_propagate_mirror(void)

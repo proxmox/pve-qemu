@@ -14,10 +14,10 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  create mode 100644 pbs-restore.c
 
 diff --git a/meson.build b/meson.build
-index f6fb9b4fd8..f666d0f028 100644
+index 1f74de1d93..8508aab9c9 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -4350,6 +4350,10 @@ if have_tools
+@@ -4373,6 +4373,10 @@ if have_tools
    vma = executable('vma', files('vma.c', 'vma-reader.c') + genh,
                     dependencies: [authz, block, crypto, io, qemuutil, qom], install: true)
  
@@ -30,7 +30,7 @@ index f6fb9b4fd8..f666d0f028 100644
    foreach exe: [ 'qemu-img', 'qemu-io', 'qemu-nbd', 'qemu-storage-daemon']
 diff --git a/pbs-restore.c b/pbs-restore.c
 new file mode 100644
-index 0000000000..f03d9bab8d
+index 0000000000..f165f418af
 --- /dev/null
 +++ b/pbs-restore.c
 @@ -0,0 +1,236 @@
@@ -57,8 +57,8 @@ index 0000000000..f03d9bab8d
 +#include "qemu/main-loop.h"
 +#include "qemu/cutils.h"
 +#include "qapi/error.h"
-+#include "qapi/qmp/qdict.h"
-+#include "sysemu/block-backend.h"
++#include "qobject/qdict.h"
++#include "system/block-backend.h"
 +
 +#include <proxmox-backup-qemu.h>
 +

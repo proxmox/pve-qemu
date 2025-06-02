@@ -14,7 +14,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/block/rbd.c b/block/rbd.c
-index 6c9a8e0add..6f5fe90f3a 100644
+index 70d92966f7..931b513828 100644
 --- a/block/rbd.c
 +++ b/block/rbd.c
 @@ -1474,11 +1474,11 @@ static int qemu_rbd_diff_iterate_cb(uint64_t offs, size_t len,

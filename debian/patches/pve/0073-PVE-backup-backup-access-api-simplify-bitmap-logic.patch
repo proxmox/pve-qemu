@@ -20,7 +20,7 @@ Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  2 files changed, 26 insertions(+), 61 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 18bcf29533..0ea0343b22 100644
+index f657aba68d..0450303017 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -74,7 +74,6 @@ static struct PVEBackupState {
@@ -168,10 +168,10 @@ index 18bcf29533..0ea0343b22 100644
      }
      g_list_free(backup_state.di_list);
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 09beb3217c..02c043f0f7 100644
+index cde92071a1..2fb51215f2 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1140,18 +1140,12 @@
+@@ -1144,18 +1144,12 @@
  #
  # @device: the block device name.
  #
@@ -192,7 +192,7 @@ index 09beb3217c..02c043f0f7 100644
  
  ##
  # @BackupAccessSetupBitmapMode:
-@@ -1175,7 +1169,10 @@
+@@ -1179,7 +1173,10 @@
  #
  # @target-id: the unique ID of the backup target.
  #

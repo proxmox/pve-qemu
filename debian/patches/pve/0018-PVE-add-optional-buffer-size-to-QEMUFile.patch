@@ -19,7 +19,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 38 insertions(+), 17 deletions(-)
 
 diff --git a/migration/qemu-file.c b/migration/qemu-file.c
-index b6d2f588bd..754dc0b3f7 100644
+index 1303a5bf58..6e2d58d5c0 100644
 --- a/migration/qemu-file.c
 +++ b/migration/qemu-file.c
 @@ -34,8 +34,8 @@
@@ -31,9 +31,9 @@ index b6d2f588bd..754dc0b3f7 100644
 +#define DEFAULT_IO_BUF_SIZE 32768
 +#define MAX_IOV_SIZE MIN_CONST(IOV_MAX, 256)
  
- struct QEMUFile {
-     QIOChannel *ioc;
-@@ -43,7 +43,8 @@ struct QEMUFile {
+ typedef struct FdEntry {
+     QTAILQ_ENTRY(FdEntry) entry;
+@@ -48,7 +48,8 @@ struct QEMUFile {
  
      int buf_index;
      int buf_size; /* 0 when writing */
@@ -43,7 +43,7 @@ index b6d2f588bd..754dc0b3f7 100644
  
      DECLARE_BITMAP(may_free, MAX_IOV_SIZE);
      struct iovec iov[MAX_IOV_SIZE];
-@@ -100,7 +101,9 @@ int qemu_file_shutdown(QEMUFile *f)
+@@ -108,7 +109,9 @@ int qemu_file_shutdown(QEMUFile *f)
      return 0;
  }
  
@@ -54,16 +54,16 @@ index b6d2f588bd..754dc0b3f7 100644
  {
      QEMUFile *f;
  
-@@ -109,6 +112,8 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
-     object_ref(ioc);
-     f->ioc = ioc;
+@@ -119,6 +122,8 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
      f->is_writable = is_writable;
+     f->can_pass_fd = qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS);
+     QTAILQ_INIT(&f->fds);
 +    f->buf_allocated_size = buffer_size;
 +    f->buf = malloc(buffer_size);
  
      return f;
  }
-@@ -119,17 +124,27 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
+@@ -129,17 +134,27 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
   */
  QEMUFile *qemu_file_get_return_path(QEMUFile *f)
  {
@@ -94,17 +94,17 @@ index b6d2f588bd..754dc0b3f7 100644
  }
  
  /*
-@@ -327,7 +342,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
+@@ -339,7 +354,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
+     }
+ 
      do {
-         len = qio_channel_read(f->ioc,
-                                (char *)f->buf + pending,
--                               IO_BUF_SIZE - pending,
-+                               f->buf_allocated_size - pending,
-                                &local_error);
+-        struct iovec iov = { f->buf + pending, IO_BUF_SIZE - pending };
++        struct iovec iov = { f->buf + pending, f->buf_allocated_size - pending };
+         len = qio_channel_readv_full(f->ioc, &iov, 1, pfds, pnfd, 0,
+                                      &local_error);
          if (len == QIO_CHANNEL_ERR_BLOCK) {
-             if (qemu_in_coroutine()) {
-@@ -367,6 +382,9 @@ int qemu_fclose(QEMUFile *f)
-         ret = ret2;
+@@ -443,6 +458,9 @@ int qemu_fclose(QEMUFile *f)
+         g_free(fde);
      }
      g_clear_pointer(&f->ioc, object_unref);
 +
@@ -113,7 +113,7 @@ index b6d2f588bd..754dc0b3f7 100644
      error_free(f->last_error_obj);
      g_free(f);
      trace_qemu_file_fclose();
-@@ -415,7 +433,7 @@ static void add_buf_to_iovec(QEMUFile *f, size_t len)
+@@ -491,7 +509,7 @@ static void add_buf_to_iovec(QEMUFile *f, size_t len)
  {
      if (!add_to_iovec(f, f->buf + f->buf_index, len, false)) {
          f->buf_index += len;
@@ -122,7 +122,7 @@ index b6d2f588bd..754dc0b3f7 100644
              qemu_fflush(f);
          }
      }
-@@ -440,7 +458,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
+@@ -516,7 +534,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
      }
  
      while (size > 0) {
@@ -131,7 +131,7 @@ index b6d2f588bd..754dc0b3f7 100644
          if (l > size) {
              l = size;
          }
-@@ -586,8 +604,8 @@ size_t coroutine_mixed_fn qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t si
+@@ -662,8 +680,8 @@ size_t coroutine_mixed_fn qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t si
      size_t index;
  
      assert(!qemu_file_is_writable(f));
@@ -142,7 +142,7 @@ index b6d2f588bd..754dc0b3f7 100644
  
      /* The 1st byte to read from */
      index = f->buf_index + offset;
-@@ -637,7 +655,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
+@@ -713,7 +731,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
          size_t res;
          uint8_t *src;
  
@@ -151,7 +151,7 @@ index b6d2f588bd..754dc0b3f7 100644
          if (res == 0) {
              return done;
          }
-@@ -671,7 +689,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
+@@ -747,7 +765,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
   */
  size_t coroutine_mixed_fn qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size)
  {
@@ -160,7 +160,7 @@ index b6d2f588bd..754dc0b3f7 100644
          size_t res;
          uint8_t *src = NULL;
  
-@@ -696,7 +714,7 @@ int coroutine_mixed_fn qemu_peek_byte(QEMUFile *f, int offset)
+@@ -772,7 +790,7 @@ int coroutine_mixed_fn qemu_peek_byte(QEMUFile *f, int offset)
      int index = f->buf_index + offset;
  
      assert(!qemu_file_is_writable(f));
@@ -170,7 +170,7 @@ index b6d2f588bd..754dc0b3f7 100644
      if (index >= f->buf_size) {
          qemu_fill_buffer(f);
 diff --git a/migration/qemu-file.h b/migration/qemu-file.h
-index 11c2120edd..edf3c5d147 100644
+index f5b9f430e0..0179b90698 100644
 --- a/migration/qemu-file.h
 +++ b/migration/qemu-file.h
 @@ -30,7 +30,9 @@
@@ -182,12 +182,12 @@ index 11c2120edd..edf3c5d147 100644
 +QEMUFile *qemu_file_new_output_sized(QIOChannel *ioc, size_t buffer_size);
  int qemu_fclose(QEMUFile *f);
  
- /*
+ G_DEFINE_AUTOPTR_CLEANUP_FUNC(QEMUFile, qemu_fclose)
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index ee8ef316d0..1e79fce9ba 100644
+index 7c0e857519..fbcf74f9e2 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
-@@ -390,7 +390,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+@@ -391,7 +391,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
  
      QIOChannel *ioc = QIO_CHANNEL(qio_channel_savevm_async_new(snap_state.target,
                                                                 &snap_state.bs_pos));
@@ -196,7 +196,7 @@ index ee8ef316d0..1e79fce9ba 100644
  
      if (!snap_state.file) {
          error_setg(errp, "failed to open '%s'", statefile);
-@@ -534,7 +534,8 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
+@@ -535,7 +535,8 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
      bdrv_op_block_all(bs, blocker);
  
      /* restore the VM state */

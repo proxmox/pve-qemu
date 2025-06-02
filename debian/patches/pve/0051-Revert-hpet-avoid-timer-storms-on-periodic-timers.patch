@@ -11,10 +11,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 2 insertions(+), 11 deletions(-)
 
 diff --git a/hw/timer/hpet.c b/hw/timer/hpet.c
-index 5399f1b2a3..8ccc421cbb 100644
+index ccb97b6806..0f45af8bbe 100644
 --- a/hw/timer/hpet.c
 +++ b/hw/timer/hpet.c
-@@ -59,7 +59,6 @@ typedef struct HPETTimer {  /* timers */
+@@ -61,7 +61,6 @@ typedef struct HPETTimer {  /* timers */
      uint8_t wrap_flag;      /* timer pop will indicate wrap for one-shot 32-bit
                               * mode. Next pop will be actual timer expiration.
                               */
@@ -22,7 +22,7 @@ index 5399f1b2a3..8ccc421cbb 100644
  } HPETTimer;
  
  struct HPETState {
-@@ -267,7 +266,6 @@ static int hpet_post_load(void *opaque, int version_id)
+@@ -262,7 +261,6 @@ static int hpet_post_load(void *opaque, int version_id)
      for (i = 0; i < s->num_timers; i++) {
          HPETTimer *t = &s->timer[i];
          t->cmp64 = hpet_calculate_cmp64(t, s->hpet_counter, t->cmp);
@@ -30,7 +30,7 @@ index 5399f1b2a3..8ccc421cbb 100644
      }
      /* Recalculate the offset between the main counter and guest time */
      if (!s->hpet_offset_saved) {
-@@ -366,15 +364,8 @@ static const VMStateDescription vmstate_hpet = {
+@@ -350,15 +348,8 @@ static const VMStateDescription vmstate_hpet = {
  
  static void hpet_arm(HPETTimer *t, uint64_t tick)
  {

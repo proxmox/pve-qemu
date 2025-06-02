@@ -21,10 +21,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  4 files changed, 34 insertions(+)
 
 diff --git a/hw/core/machine-qmp-cmds.c b/hw/core/machine-qmp-cmds.c
-index 52a6d74820..362128842d 100644
+index 93fb4bc24a..b9999423b4 100644
 --- a/hw/core/machine-qmp-cmds.c
 +++ b/hw/core/machine-qmp-cmds.c
-@@ -94,6 +94,11 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
+@@ -95,6 +95,11 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
          if (strcmp(mc->name, MACHINE_GET_CLASS(current_machine)->name) == 0) {
              info->has_is_current = true;
              info->is_current = true;
@@ -35,12 +35,12 @@ index 52a6d74820..362128842d 100644
 +            }
          }
  
-         if (mc->default_cpu_type) {
+         if (default_cpu_type) {
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index 36fbb9b59d..d1741ea121 100644
+index f22b2e7fc7..8ada4d5832 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
-@@ -268,6 +268,8 @@ struct MachineClass {
+@@ -271,6 +271,8 @@ struct MachineClass {
      const char *desc;
      const char *deprecation_reason;
  
@@ -71,10 +71,10 @@ index 16366b774a..12cfd3f260 100644
                                 'features': ['unstable'] } } }
  
 diff --git a/system/vl.c b/system/vl.c
-index e7cae51f13..3f4916ac5a 100644
+index 452742ab58..c3707b2412 100644
 --- a/system/vl.c
 +++ b/system/vl.c
-@@ -1675,6 +1675,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+@@ -1674,6 +1674,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
  {
      ERRP_GUARD();
      const char *machine_type = qdict_get_try_str(qdict, "type");
@@ -82,7 +82,7 @@ index e7cae51f13..3f4916ac5a 100644
      g_autoptr(GSList) machines = object_class_get_list(TYPE_MACHINE, false);
      MachineClass *machine_class = NULL;
  
-@@ -1694,7 +1695,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+@@ -1693,7 +1694,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
      if (!machine_class) {
          error_append_hint(errp,
                            "Use -machine help to list supported machines\n");
@@ -94,7 +94,7 @@ index e7cae51f13..3f4916ac5a 100644
      return machine_class;
  }
  
-@@ -3316,12 +3321,31 @@ void qemu_init(int argc, char **argv)
+@@ -3414,12 +3419,31 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_machine:
                  {
                      bool help;

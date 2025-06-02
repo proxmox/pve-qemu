@@ -18,7 +18,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  4 files changed, 82 insertions(+), 4 deletions(-)
 
 diff --git a/hw/core/machine-hmp-cmds.c b/hw/core/machine-hmp-cmds.c
-index 8701f00cc7..3b4c5ef403 100644
+index c6325cdcaa..7f817d622d 100644
 --- a/hw/core/machine-hmp-cmds.c
 +++ b/hw/core/machine-hmp-cmds.c
 @@ -179,7 +179,35 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
@@ -59,7 +59,7 @@ index 8701f00cc7..3b4c5ef403 100644
      qapi_free_BalloonInfo(info);
  }
 diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-index afd2ad6dd6..c724218c17 100644
+index 2eb5a14fa2..aa2fd6c32f 100644
 --- a/hw/virtio/virtio-balloon.c
 +++ b/hw/virtio/virtio-balloon.c
 @@ -795,8 +795,37 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,

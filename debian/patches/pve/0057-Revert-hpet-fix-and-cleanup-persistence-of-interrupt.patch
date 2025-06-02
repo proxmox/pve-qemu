@@ -12,10 +12,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 19 insertions(+), 41 deletions(-)
 
 diff --git a/hw/timer/hpet.c b/hw/timer/hpet.c
-index 509986c0a9..402cc960f0 100644
+index 927263e2ff..5aae09f166 100644
 --- a/hw/timer/hpet.c
 +++ b/hw/timer/hpet.c
-@@ -196,31 +196,21 @@ static void update_irq(struct HPETTimer *timer, int set)
+@@ -199,31 +199,21 @@ static void update_irq(struct HPETTimer *timer, int set)
      }
      s = timer->state;
      mask = 1 << timer->tn;
@@ -58,7 +58,7 @@ index 509986c0a9..402cc960f0 100644
      }
  }
  
-@@ -424,13 +414,8 @@ static void hpet_set_timer(HPETTimer *t)
+@@ -408,13 +398,8 @@ static void hpet_set_timer(HPETTimer *t)
  
  static void hpet_del_timer(HPETTimer *t)
  {
@@ -73,7 +73,7 @@ index 509986c0a9..402cc960f0 100644
  }
  
  static uint64_t hpet_ram_read(void *opaque, hwaddr addr,
-@@ -530,26 +515,20 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -514,26 +499,20 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
          switch ((addr - 0x100) % 0x20) {
          case HPET_TN_CFG:
              trace_hpet_ram_write_tn_cfg();
@@ -105,7 +105,7 @@ index 509986c0a9..402cc960f0 100644
              }
              break;
          case HPET_TN_CFG + 4: // Interrupt capabilities
-@@ -627,10 +606,9 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
+@@ -611,10 +590,9 @@ static void hpet_ram_write(void *opaque, hwaddr addr,
                  s->hpet_offset =
                      ticks_to_ns(s->hpet_counter) - qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL);
                  for (i = 0; i < s->num_timers; i++) {

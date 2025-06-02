@@ -15,7 +15,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  2 files changed, 35 insertions(+), 2 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 8909842292..18bcf29533 100644
+index 788647a22d..f657aba68d 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -1043,7 +1043,16 @@ BackupAccessInfoList *coroutine_fn qmp_backup_access_setup(
@@ -50,10 +50,10 @@ index 8909842292..18bcf29533 100644
              BdrvDirtyBitmap *old_bitmap = bdrv_find_dirty_bitmap(di->bs, old_bitmap_name);
              if (!old_bitmap) {
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 58586170d9..09beb3217c 100644
+index d94c856160..cde92071a1 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1145,9 +1145,27 @@
+@@ -1149,9 +1149,27 @@
  #     in the result to see if you can actually re-use the bitmap or if it had to
  #     be newly created.
  #

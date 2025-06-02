@@ -18,7 +18,7 @@ Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  1 file changed, 3 insertions(+), 1 deletion(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 32352fb5ec..2408f182bc 100644
+index b411d58a9a..9b66788ab5 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -576,6 +576,9 @@ static int setup_snapshot_access(PVEBackupDevInfo *di, Error **errp)

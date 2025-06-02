@@ -17,7 +17,7 @@ Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  2 files changed, 13 insertions(+), 2 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 0490d1f421..8909842292 100644
+index bd4d5e2579..788647a22d 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -1119,7 +1119,11 @@ BackupAccessInfoList *coroutine_fn qmp_backup_access_setup(
@@ -34,10 +34,10 @@ index 0490d1f421..8909842292 100644
                  /* track clean chunks as reused */
                  dirty = MIN(bdrv_get_dirty_count(bitmap), di->size);
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 873db3f276..58586170d9 100644
+index 61307ed1d7..d94c856160 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1067,9 +1067,16 @@
+@@ -1071,9 +1071,16 @@
  #           base snapshot did not match the base given for the current job or
  #           the crypt mode has changed.
  #

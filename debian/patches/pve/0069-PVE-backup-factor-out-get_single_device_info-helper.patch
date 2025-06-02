@@ -11,7 +11,7 @@ Sigend-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  1 file changed, 53 insertions(+), 37 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 091b5bd231..8b7414f057 100644
+index 78ed6c980c..681d25b97e 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -760,6 +760,57 @@ static bool fleecing_all(const char *device_id)

@@ -52,11 +52,11 @@ Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  4 files changed, 220 insertions(+), 16 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 8b7414f057..0490d1f421 100644
+index 681d25b97e..bd4d5e2579 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -15,6 +15,7 @@
- #include "qapi/qmp/qdict.h"
+ #include "qobject/qdict.h"
  #include "qapi/qmp/qerror.h"
  #include "qemu/cutils.h"
 +#include "qemu/error-report.h"
@@ -387,10 +387,10 @@ index 4033bc848f..9ebeef7c8f 100644
  
  #endif /* PVE_BACKUP_H */
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 3f092221ce..873db3f276 100644
+index 8d499650a8..61307ed1d7 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1114,9 +1114,33 @@
+@@ -1118,9 +1118,33 @@
  #
  # @size: the size of the block device in bytes.
  #
@@ -425,7 +425,7 @@ index 3f092221ce..873db3f276 100644
  
  ##
  # @backup-access-setup:
-@@ -1126,14 +1150,13 @@
+@@ -1130,14 +1154,13 @@
  #
  # @target-id: the unique ID of the backup target.
  #
@@ -442,7 +442,7 @@ index 3f092221ce..873db3f276 100644
    'returns': [ 'BackupAccessInfo' ], 'coroutine': true }
  
  ##
-@@ -1143,8 +1166,11 @@
+@@ -1147,8 +1170,11 @@
  #
  # @target-id: the ID of the backup target.
  #
@@ -456,10 +456,10 @@ index 3f092221ce..873db3f276 100644
  
  ##
 diff --git a/system/runstate.c b/system/runstate.c
-index 6f93d7c2fb..ef3277930f 100644
+index 73026a3884..cf775213bd 100644
 --- a/system/runstate.c
 +++ b/system/runstate.c
-@@ -925,7 +925,7 @@ void qemu_cleanup(int status)
+@@ -926,7 +926,7 @@ void qemu_cleanup(int status)
       * The backup access is set up by a QMP command, but is neither owned by a monitor nor
       * associated to a BlockBackend. Need to tear it down manually here.
       */

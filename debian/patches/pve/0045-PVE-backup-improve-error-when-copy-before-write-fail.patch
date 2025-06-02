@@ -21,13 +21,13 @@ Tested-by: Friedrich Weber <f.weber@proxmox.com>
  3 files changed, 22 insertions(+), 6 deletions(-)
 
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index 81afeff1c7..fdf9cdc0cd 100644
+index fd470f5f92..5c23b578ef 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -27,6 +27,7 @@
- #include "qapi/qmp/qjson.h"
+ #include "qobject/qjson.h"
  
- #include "sysemu/block-backend.h"
+ #include "system/block-backend.h"
 +#include "qemu/atomic.h"
  #include "qemu/cutils.h"
  #include "qapi/error.h"
@@ -96,7 +96,7 @@ index 2a5d4ba693..969da3620f 100644
  
  #endif /* COPY_BEFORE_WRITE_H */
 diff --git a/pve-backup.c b/pve-backup.c
-index 4b0820c8a7..81697d9bf9 100644
+index 257cd0b0e1..ffcfaa649d 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -374,6 +374,15 @@ static void pvebackup_complete_cb(void *opaque, int ret)

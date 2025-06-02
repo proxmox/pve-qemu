@@ -66,22 +66,14 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 [WB: update to the changed error handling in the previous commit]
 Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 ---
- migration/savevm-async.c | 42 ++++++++++++++++++++++++++++------------
- 1 file changed, 30 insertions(+), 12 deletions(-)
+ migration/savevm-async.c | 41 ++++++++++++++++++++++++++++------------
+ 1 file changed, 29 insertions(+), 12 deletions(-)
 
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index d8d2c80475..11ea4c601d 100644
+index d70ae737bd..2236f32784 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
-@@ -25,6 +25,7 @@
- #include "qemu/main-loop.h"
- #include "qemu/rcu.h"
- #include "qemu/yank.h"
-+#include "sysemu/iothread.h"
- 
- /* #define DEBUG_SAVEVM_STATE */
- 
-@@ -57,6 +58,7 @@ static struct SnapshotState {
+@@ -58,6 +58,7 @@ static struct SnapshotState {
      QEMUBH *finalize_bh;
      Coroutine *co;
      QemuCoSleep target_close_wait;
@@ -89,7 +81,7 @@ index d8d2c80475..11ea4c601d 100644
  } snap_state;
  
  static bool savevm_aborted(void)
-@@ -256,16 +258,13 @@ static void coroutine_fn process_savevm_co(void *opaque)
+@@ -257,16 +258,13 @@ static void coroutine_fn process_savevm_co(void *opaque)
          uint64_t threshold = 400 * 1000;
  
          /*
@@ -108,7 +100,7 @@ index d8d2c80475..11ea4c601d 100644
          pending_size = pend_precopy + pend_postcopy;
  
          /*
-@@ -332,11 +331,17 @@ static void coroutine_fn process_savevm_co(void *opaque)
+@@ -333,11 +331,17 @@ static void coroutine_fn process_savevm_co(void *opaque)
      qemu_bh_schedule(snap_state.finalize_bh);
  }
  
@@ -127,7 +119,7 @@ index d8d2c80475..11ea4c601d 100644
      BlockDriverState *target_bs = NULL;
      int ret = 0;
  
-@@ -374,6 +379,19 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+@@ -375,6 +379,19 @@ void qmp_savevm_start(const char *statefile, Error **errp)
          goto fail;
      }
  
@@ -147,7 +139,7 @@ index d8d2c80475..11ea4c601d 100644
      /* Open the image */
      QDict *options = NULL;
      options = qdict_new();
-@@ -422,22 +440,20 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+@@ -423,22 +440,20 @@ void qmp_savevm_start(const char *statefile, Error **errp)
          goto fail;
      }
  
@@ -174,7 +166,7 @@ index d8d2c80475..11ea4c601d 100644
      save_snapshot_error("setup failed");
  }
  
-@@ -463,6 +479,8 @@ static void coroutine_fn wait_for_close_co(void *opaque)
+@@ -464,6 +479,8 @@ static void coroutine_fn wait_for_close_co(void *opaque)
          DPRINTF("savevm-end: no target file open\n");
      }
  

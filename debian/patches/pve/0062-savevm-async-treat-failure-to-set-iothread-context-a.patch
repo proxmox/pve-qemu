@@ -15,7 +15,7 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  1 file changed, 3 insertions(+), 3 deletions(-)
 
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index 11ea4c601d..f2b10b5519 100644
+index 2236f32784..730b815494 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
 @@ -442,9 +442,9 @@ void qmp_savevm_start(const char *statefile, Error **errp)

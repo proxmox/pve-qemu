@@ -9,7 +9,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/qemu-img.c b/qemu-img.c
-index 7668f86769..2575e97b43 100644
+index 2044c22a4c..4c8b5412c6 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
 @@ -3075,7 +3075,8 @@ static int img_info(int argc, char **argv)

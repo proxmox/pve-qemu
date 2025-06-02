@@ -26,19 +26,19 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 migration/pbs-state.c
 
 diff --git a/include/migration/misc.h b/include/migration/misc.h
-index 804eb23c06..c75b146ae6 100644
+index 8fd36eba1d..e963e93e71 100644
 --- a/include/migration/misc.h
 +++ b/include/migration/misc.h
-@@ -106,4 +106,7 @@ bool migration_incoming_postcopy_advised(void);
- /* True if background snapshot is active */
- bool migration_in_bg_snapshot(void);
+@@ -140,4 +140,7 @@ bool multifd_device_state_save_thread_should_exit(void);
+ void multifd_abort_device_state_save_threads(void);
+ bool multifd_join_device_state_save_threads(void);
  
 +/* migration/pbs-state.c */
 +void pbs_state_mig_init(void);
 +
  #endif
 diff --git a/migration/meson.build b/migration/meson.build
-index 075b013971..eca57cb2a3 100644
+index 46e92249a1..fb3fd7d7d0 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
 @@ -8,6 +8,7 @@ migration_files = files(
@@ -49,7 +49,7 @@ index 075b013971..eca57cb2a3 100644
  
  system_ss.add(files(
    'block-dirty-bitmap.c',
-@@ -27,6 +28,7 @@ system_ss.add(files(
+@@ -31,6 +32,7 @@ system_ss.add(files(
    'multifd-zlib.c',
    'multifd-zero-page.c',
    'options.c',
@@ -58,10 +58,10 @@ index 075b013971..eca57cb2a3 100644
    'savevm.c',
    'savevm-async.c',
 diff --git a/migration/migration.c b/migration/migration.c
-index 8c5bd0a75c..491d9aa017 100644
+index d46e776e24..2f3430f440 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
-@@ -266,6 +266,7 @@ void migration_object_init(void)
+@@ -319,6 +319,7 @@ void migration_object_init(void)
  
      /* Initialize cpu throttle timers */
      cpu_throttle_init();
@@ -180,10 +180,10 @@ index 0000000000..a97187e4d7
 +                         NULL);
 +}
 diff --git a/pve-backup.c b/pve-backup.c
-index fea0152de0..faa6a9b93c 100644
+index 36e5042860..11ea4b5c56 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
-@@ -1083,6 +1083,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+@@ -1084,6 +1084,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
      ret->pbs_library_version = g_strdup(proxmox_backup_qemu_version());
      ret->pbs_dirty_bitmap = true;
      ret->pbs_dirty_bitmap_savevm = true;
@@ -192,10 +192,10 @@ index fea0152de0..faa6a9b93c 100644
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index d45e8975a7..9795247c1f 100644
+index 0c3ebfa74e..6838187607 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1004,6 +1004,11 @@
+@@ -1008,6 +1008,11 @@
  # @pbs-dirty-bitmap-savevm: True if 'dirty-bitmaps' migration capability can
  #                           safely be set for savevm-async.
  #
@@ -207,7 +207,7 @@ index d45e8975a7..9795247c1f 100644
  # @pbs-masterkey: True if the QMP backup call supports the 'master_keyfile'
  #                 parameter.
  #
-@@ -1017,6 +1022,7 @@
+@@ -1021,6 +1026,7 @@
    'data': { 'pbs-dirty-bitmap': 'bool',
              'query-bitmap-info': 'bool',
              'pbs-dirty-bitmap-savevm': 'bool',

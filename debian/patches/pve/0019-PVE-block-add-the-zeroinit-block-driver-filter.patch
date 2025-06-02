@@ -15,7 +15,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 block/zeroinit.c
 
 diff --git a/block/meson.build b/block/meson.build
-index f1262ec2ba..6a60b5d6b9 100644
+index 34b1b2a306..a21d9a5411 100644
 --- a/block/meson.build
 +++ b/block/meson.build
 @@ -39,6 +39,7 @@ block_ss.add(files(
@@ -28,7 +28,7 @@ index f1262ec2ba..6a60b5d6b9 100644
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
 diff --git a/block/zeroinit.c b/block/zeroinit.c
 new file mode 100644
-index 0000000000..2b2b194ccf
+index 0000000000..f9d513db15
 --- /dev/null
 +++ b/block/zeroinit.c
 @@ -0,0 +1,207 @@
@@ -47,8 +47,8 @@ index 0000000000..2b2b194ccf
 +#include "block/block_int.h"
 +#include "block/block-io.h"
 +#include "block/graph-lock.h"
-+#include "qapi/qmp/qdict.h"
-+#include "qapi/qmp/qstring.h"
++#include "qobject/qdict.h"
++#include "qobject/qstring.h"
 +#include "qemu/cutils.h"
 +#include "qemu/option.h"
 +#include "qemu/module.h"

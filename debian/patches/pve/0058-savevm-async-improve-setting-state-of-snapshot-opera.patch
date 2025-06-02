@@ -28,10 +28,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 15 insertions(+), 18 deletions(-)
 
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index 1e79fce9ba..e63dc6d8a3 100644
+index fbcf74f9e2..2163bf50b1 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
-@@ -450,23 +450,22 @@ static void coroutine_fn wait_for_close_co(void *opaque)
+@@ -451,23 +451,22 @@ static void coroutine_fn wait_for_close_co(void *opaque)
  {
      int64_t timeout;
  
@@ -70,7 +70,7 @@ index 1e79fce9ba..e63dc6d8a3 100644
      }
  
      // File closed and no other error, so ensure next snapshot can be started.
-@@ -497,8 +496,6 @@ void qmp_savevm_end(Error **errp)
+@@ -498,8 +497,6 @@ void qmp_savevm_end(Error **errp)
          snap_state.saved_vm_running = false;
      }
  
