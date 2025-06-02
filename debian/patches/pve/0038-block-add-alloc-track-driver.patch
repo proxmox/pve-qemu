@@ -31,21 +31,22 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: adapt to changed function signatures
      make error return value consistent with QEMU
      avoid premature break during read
-     adhere to block graph lock requirements]
+     adhere to block graph lock requirements
+     avoid superfluous child permission update]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/alloc-track.c | 366 ++++++++++++++++++++++++++++++++++++++++++++
+ block/alloc-track.c | 343 ++++++++++++++++++++++++++++++++++++++++++++
  block/meson.build   |   1 +
- block/stream.c      |  34 ++++
- 3 files changed, 401 insertions(+)
+ block/stream.c      |  34 +++++
+ 3 files changed, 378 insertions(+)
  create mode 100644 block/alloc-track.c
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
 new file mode 100644
-index 0000000000..cb9829ae36
+index 0000000000..718aaabf2a
 --- /dev/null
 +++ b/block/alloc-track.c
-@@ -0,0 +1,366 @@
+@@ -0,0 +1,343 @@
 +/*
 + * Node to allow backing images to be applied to any node. Assumes a blank
 + * image to begin with, only new writes are tracked as allocated, thus this
@@ -73,16 +74,9 @@ index 0000000000..cb9829ae36
 +
 +#define TRACK_OPT_AUTO_REMOVE "auto-remove"
 +
-+typedef enum DropState {
-+    DropNone,
-+    DropInProgress,
-+} DropState;
-+
 +typedef struct {
 +    BdrvDirtyBitmap *bitmap;
 +    uint64_t granularity;
-+    DropState drop_state;
-+    bool auto_remove;
 +} BDRVAllocTrackState;
 +
 +static QemuOptsList runtime_opts = {
@@ -134,7 +128,11 @@ index 0000000000..cb9829ae36
 +        goto fail;
 +    }
 +
-+    s->auto_remove = qemu_opt_get_bool(opts, TRACK_OPT_AUTO_REMOVE, false);
++    if (!qemu_opt_get_bool(opts, TRACK_OPT_AUTO_REMOVE, false)) {
++        error_setg(errp, "alloc-track: requires auto-remove option to be set to on");
++        ret = -EINVAL;
++        goto fail;
++    }
 +
 +    /* open the target (write) node, backing will be attached by block layer */
 +    file = bdrv_open_child(NULL, options, "file", bs, &child_of_bds,
@@ -181,8 +179,6 @@ index 0000000000..cb9829ae36
 +        error_propagate(errp, local_err);
 +        goto fail;
 +    }
-+
-+    s->drop_state = DropNone;
 +
 +fail:
 +    if (ret < 0) {
@@ -334,17 +330,7 @@ index 0000000000..cb9829ae36
 +                 BlockReopenQueue *reopen_queue, uint64_t perm, uint64_t shared,
 +                 uint64_t *nperm, uint64_t *nshared)
 +{
-+    BDRVAllocTrackState *s = bs->opaque;
-+
 +    *nshared = BLK_PERM_ALL;
-+
-+    /* in case we're currently dropping ourselves, claim to not use any
-+     * permissions at all - which is fine, since from this point on we will
-+     * never issue a read or write anymore */
-+    if (s->drop_state == DropInProgress) {
-+        *nperm = 0;
-+        return;
-+    }
 +
 +    if (role & BDRV_CHILD_DATA) {
 +        *nperm = perm & DEFAULT_PERM_PASSTHROUGH;
@@ -371,14 +357,6 @@ index 0000000000..cb9829ae36
 +     * kinda fits better, but in the long-term, a special parameter would be
 +     * nice (or done via qemu-server via upcoming blockdev-replace QMP command).
 +     */
-+    if (backing_file == NULL) {
-+        BDRVAllocTrackState *s = bs->opaque;
-+        bdrv_drained_begin(bs);
-+        s->drop_state = DropInProgress;
-+        bdrv_child_refresh_perms(bs, bs->file, &error_abort);
-+        bdrv_drained_end(bs);
-+    }
-+
 +    return 0;
 +}
 +

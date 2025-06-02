@@ -94,11 +94,11 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  monitor/hmp-cmds.c             |   72 +++
  proxmox-backup-client.c        |  146 +++++
  proxmox-backup-client.h        |   60 ++
- pve-backup.c                   | 1091 ++++++++++++++++++++++++++++++++
+ pve-backup.c                   | 1096 ++++++++++++++++++++++++++++++++
  qapi/block-core.json           |  233 +++++++
  qapi/common.json               |   14 +
  qapi/machine.json              |   16 +-
- 14 files changed, 1710 insertions(+), 14 deletions(-)
+ 14 files changed, 1715 insertions(+), 14 deletions(-)
  create mode 100644 proxmox-backup-client.c
  create mode 100644 proxmox-backup-client.h
  create mode 100644 pve-backup.c
@@ -586,10 +586,10 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..36e5042860
+index 0000000000..e931cb9203
 --- /dev/null
 +++ b/pve-backup.c
-@@ -0,0 +1,1091 @@
+@@ -0,0 +1,1096 @@
 +#include "proxmox-backup-client.h"
 +#include "vma.h"
 +
@@ -678,6 +678,7 @@ index 0000000000..36e5042860
 +    size_t size;
 +    uint64_t block_size;
 +    uint8_t dev_id;
++    char* device_name;
 +    int completed_ret; // INT_MAX if not completed
 +    BdrvDirtyBitmap *bitmap;
 +    BlockDriverState *target;
@@ -911,6 +912,8 @@ index 0000000000..36e5042860
 +    }
 +
 +    di->bs = NULL;
++    g_free(di->device_name);
++    di->device_name = NULL;
 +
 +    assert(di->target == NULL);
 +
@@ -1200,6 +1203,8 @@ index 0000000000..36e5042860
 +            }
 +            PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
 +            di->bs = bs;
++            di->device_name = g_strdup(bdrv_get_device_name(bs));
++
 +            di_list = g_list_append(di_list, di);
 +            d++;
 +        }
@@ -1213,6 +1218,7 @@ index 0000000000..36e5042860
 +
 +            PVEBackupDevInfo *di = g_new0(PVEBackupDevInfo, 1);
 +            di->bs = bs;
++            di->device_name = g_strdup(bdrv_get_device_name(bs));
 +            di_list = g_list_append(di_list, di);
 +        }
 +    }
@@ -1379,9 +1385,6 @@ index 0000000000..36e5042860
 +
 +            di->block_size = dump_cb_block_size;
 +
-+            bdrv_graph_co_rdlock();
-+            const char *devname = bdrv_get_device_name(di->bs);
-+            bdrv_graph_co_rdunlock();
 +            PBSBitmapAction action = PBS_BITMAP_ACTION_NOT_USED;
 +            size_t dirty = di->size;
 +
@@ -1396,7 +1399,8 @@ index 0000000000..36e5042860
 +                    }
 +                    action = PBS_BITMAP_ACTION_NEW;
 +                } else {
-+                    expect_only_dirty = proxmox_backup_check_incremental(pbs, devname, di->size) != 0;
++                    expect_only_dirty =
++                        proxmox_backup_check_incremental(pbs, di->device_name, di->size) != 0;
 +                }
 +
 +                if (expect_only_dirty) {
@@ -1420,7 +1424,8 @@ index 0000000000..36e5042860
 +                }
 +            }
 +
-+            int dev_id = proxmox_backup_co_register_image(pbs, devname, di->size, expect_only_dirty, errp);
++            int dev_id = proxmox_backup_co_register_image(pbs, di->device_name, di->size,
++                                                          expect_only_dirty, errp);
 +            if (dev_id < 0) {
 +                goto err_mutex;
 +            }
@@ -1432,7 +1437,7 @@ index 0000000000..36e5042860
 +            di->dev_id = dev_id;
 +
 +            PBSBitmapInfo *info = g_malloc(sizeof(*info));
-+            info->drive = g_strdup(devname);
++            info->drive = g_strdup(di->device_name);
 +            info->action = action;
 +            info->size = di->size;
 +            info->dirty = dirty;
@@ -1455,10 +1460,7 @@ index 0000000000..36e5042860
 +                goto err_mutex;
 +            }
 +
-+            bdrv_graph_co_rdlock();
-+            const char *devname = bdrv_get_device_name(di->bs);
-+            bdrv_graph_co_rdunlock();
-+            di->dev_id = vma_writer_register_stream(vmaw, devname, di->size);
++            di->dev_id = vma_writer_register_stream(vmaw, di->device_name, di->size);
 +            if (di->dev_id <= 0) {
 +                error_set(errp, ERROR_CLASS_GENERIC_ERROR,
 +                          "register_stream failed");
@@ -1568,6 +1570,9 @@ index 0000000000..36e5042860
 +        if (di->target) {
 +            bdrv_co_unref(di->target);
 +        }
++
++        g_free(di->device_name);
++        di->device_name = NULL;
 +
 +        g_free(di);
 +    }
