@@ -56,8 +56,7 @@ $(BUILDDIR): submodule
 
 .PHONY: deb kvm
 deb kvm: $(DEBS)
-$(DEB_DBG): $(DEB)
-$(DEB): $(BUILDDIR)
+$(DEBS) &: $(BUILDDIR)
 	cd $(BUILDDIR); dpkg-buildpackage -b -us -uc
 	lintian $(DEBS)
 
