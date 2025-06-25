@@ -1,3 +1,20 @@
+pve-qemu-kvm (10.0.2-2) trixie; urgency=medium
+
+  * drop support for native Gl
+  * drop support for accessing Gluster based storage directly due to its
+    effective end of support and maintenance. The last upstream release
+    happened over 2.5 years ago and there's currently no one providing
+    enterprise support or security updates. Further, upstream QEMU will remove
+    the integration in one of the next releases, so use the upcomming PVE 9
+    major release to provide a clean cut.
+    User can either stay on Proxmox VE 8 until its end-of-life (probably end
+    of June 2026), or mount GlusterFS "manually" (e.g., /etc/fstab) and add it
+    as directory storage to Proxmox VE.
+    We recommend moving to other actively maintained storage technology
+    altogether though.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 25 Jun 2025 19:23:30 +0200
+
 pve-qemu-kvm (10.0.2-1) trixie; urgency=medium
 
   * update QEMU and downstream patches for 10.0.2 release.
