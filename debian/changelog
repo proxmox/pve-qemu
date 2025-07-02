@@ -1,3 +1,9 @@
+pve-qemu-kvm (9.2.0-6) bookworm; urgency=medium
+
+  * gluster: provide more context for deprecation warning.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 02 Jul 2025 12:30:27 +0200
+
 pve-qemu-kvm (9.2.0-5) bookworm; urgency=medium
 
   * pve backup: backup-access api: simplify bitmap logic
