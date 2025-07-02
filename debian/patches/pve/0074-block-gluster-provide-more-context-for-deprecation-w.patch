@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Mon, 2 Jun 2025 12:56:16 +0200
+Subject: [PATCH] block/gluster: provide more context for deprecation warning
+
+Suggested-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Acked-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Reviewed-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+---
+ block/gluster.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/block/gluster.c b/block/gluster.c
+index c3a9555591..71c4a60b02 100644
+--- a/block/gluster.c
++++ b/block/gluster.c
+@@ -816,7 +816,11 @@ static int qemu_gluster_open(BlockDriverState *bs,  QDict *options,
+         goto out;
+     }
+ 
+-    warn_report_once("'gluster' is deprecated");
++    warn_report_once("Native 'gluster' support will be deprecated and removed"
++                     " in Proxmox VE 9.");
++    warn_report_once("Before upgrading, switch to accessing your Gluster"
++                     " storage as a directory storage or migrate to another"
++                     " storage type.");
+ 
+     filename = qemu_opt_get(opts, GLUSTER_OPT_FILENAME);
+ 

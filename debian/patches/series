@@ -88,3 +88,4 @@ pve/0070-PVE-backup-implement-bitmap-support-for-external-bac.patch
 pve/0071-PVE-backup-backup-access-api-indicate-situation-wher.patch
 pve/0072-PVE-backup-backup-access-api-explicit-bitmap-mode-pa.patch
 pve/0073-PVE-backup-backup-access-api-simplify-bitmap-logic.patch
+pve/0074-block-gluster-provide-more-context-for-deprecation-w.patch
