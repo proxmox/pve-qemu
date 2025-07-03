@@ -1,3 +1,9 @@
+pve-qemu-kvm (10.0.2-3) trixie; urgency=medium
+
+  * add backup/zeroinit/track-alloc blockdev patches
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 03 Jul 2025 12:02:03 +0200
+
 pve-qemu-kvm (10.0.2-2) trixie; urgency=medium
 
   * drop support for native Gl
