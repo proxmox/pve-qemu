@@ -1,0 +1,137 @@
+From 76442f3eafa8cbe647fe2d39e78e817ec681143c Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Wed, 2 Jul 2025 18:27:37 +0200
+Subject: [PATCH 59/59] block/qapi: include child references in block device
+ info
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In combination with using a throttle filter to enforce IO limits for
+a guest device, knowing the 'file' child of a block device can be
+useful. If the throttle filter is only intended for guest IO, block
+jobs should not also be limited by the throttle filter, so the
+block operations need to be done with the 'file' child of the top
+throttle node as the target. In combination with mirroring, the name
+of that child is not fixed.
+
+Another scenario is when unplugging a guest device after mirroring
+below a top throttle node, where the mirror target is added explicitly
+via blockdev-add. After mirroring, the target becomes the new 'file'
+child of the throttle node. For unplugging, both the top throttle node
+and the mirror target need to be deleted, because only implicitly
+added child nodes are deleted automatically, and the current 'file'
+child of the throttle node was explicitly added (as the mirror
+target).
+
+In other scenarios, it could be useful to follow the backing chain.
+
+Note that iotests 191 and 273 use _filter_img_info, so the 'children'
+information is filtered out there.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Signed-off-by: Fabian Grünbichler <f.gruenbichler@proxmox.com>
+---
+ block/qapi.c               | 10 ++++++++++
+ qapi/block-core.json       | 16 ++++++++++++++++
+ tests/qemu-iotests/184.out |  8 ++++++++
+ 3 files changed, 34 insertions(+)
+
+diff --git a/block/qapi.c b/block/qapi.c
+index 2c50a6bf3b..e08a1e970f 100644
+--- a/block/qapi.c
++++ b/block/qapi.c
+@@ -51,6 +51,8 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
+     ImageInfo *backing_info;
+     BlockDriverState *backing;
+     BlockDeviceInfo *info;
++    BlockdevChildList **children_list_tail;
++    BdrvChild *child;
+ 
+     if (!bs->drv) {
+         error_setg(errp, "Block device %s is ejected", bs->node_name);
+@@ -77,6 +79,14 @@ BlockDeviceInfo *bdrv_block_device_info(BlockBackend *blk,
+         info->node_name = g_strdup(bs->node_name);
+     }
+ 
++    children_list_tail = &info->children;
++    QLIST_FOREACH(child, &bs->children, next) {
++        BlockdevChild *child_ref = g_new0(BlockdevChild, 1);
++        child_ref->child = g_strdup(child->name);
++        child_ref->node_name = g_strdup(child->bs->node_name);
++        QAPI_LIST_APPEND(children_list_tail, child_ref);
++    }
++
+     backing = bdrv_cow_bs(bs);
+     if (backing) {
+         info->backing_file = g_strdup(backing->filename);
+diff --git a/qapi/block-core.json b/qapi/block-core.json
+index 07c5773717..4db27f5819 100644
+--- a/qapi/block-core.json
++++ b/qapi/block-core.json
+@@ -461,6 +461,19 @@
+             'direct': 'bool',
+             'no-flush': 'bool' } }
+ 
++##
++# @BlockdevChild:
++#
++# @child: The name of the child, for example 'file' or 'backing'.
++#
++# @node-name: The name of the child's block driver node.
++#
++# Since: 10.1
++##
++{ 'struct': 'BlockdevChild',
++  'data': { 'child': 'str',
++            'node-name': 'str' } }
++
+ ##
+ # @BlockDeviceInfo:
+ #
+@@ -486,6 +499,8 @@
+ # @backing_file_depth: number of files in the backing file chain
+ #     (since: 1.2)
+ #
++# @children: Information about child block nodes. (since: 10.1)
++#
+ # @active: true if the backend is active; typical cases for inactive backends
+ #     are on the migration source instance after migration completes and on the
+ #     destination before it completes. (since: 10.0)
+@@ -560,6 +575,7 @@
+ { 'struct': 'BlockDeviceInfo',
+   'data': { 'file': 'str', '*node-name': 'str', 'ro': 'bool', 'drv': 'str',
+             '*backing_file': 'str', 'backing_file_depth': 'int',
++            'children': ['BlockdevChild'],
+             'active': 'bool', 'encrypted': 'bool',
+             'detect_zeroes': 'BlockdevDetectZeroesOptions',
+             'bps': 'int', 'bps_rd': 'int', 'bps_wr': 'int',
+diff --git a/tests/qemu-iotests/184.out b/tests/qemu-iotests/184.out
+index 52692b6b3b..ef99bb2e9a 100644
+--- a/tests/qemu-iotests/184.out
++++ b/tests/qemu-iotests/184.out
+@@ -41,6 +41,12 @@ Testing:
+             },
+             "iops_wr": 0,
+             "ro": false,
++            "children": [
++                {
++                    "node-name": "disk0",
++                    "child": "file"
++                }
++            ],
+             "node-name": "throttle0",
+             "backing_file_depth": 1,
+             "drv": "throttle",
+@@ -69,6 +75,8 @@ Testing:
+             },
+             "iops_wr": 0,
+             "ro": false,
++            "children": [
++            ],
+             "node-name": "disk0",
+             "backing_file_depth": 0,
+             "drv": "null-co",
+-- 
+2.39.5
+
