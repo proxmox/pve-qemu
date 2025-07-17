@@ -1,3 +1,11 @@
+pve-qemu-kvm (10.0.2-4) trixie; urgency=medium
+
+  * savevm-async: reuse migration blocker check for snapshots/hibernation to
+    avoid crashing a VM when on these actions if its configuration does not
+    support them.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 17 Jul 2025 23:08:46 +0200
+
 pve-qemu-kvm (10.0.2-3) trixie; urgency=medium
 
   * add backup/zeroinit/track-alloc blockdev patches
