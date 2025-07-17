@@ -1,0 +1,150 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Wed, 18 Jun 2025 12:25:31 +0200
+Subject: [PATCH] savevm-async: reuse migration blocker check for
+ snapshots/hibernation
+
+Same rationale as with upstream QEMU commit 5aaac46793 ("migration:
+savevm: consult migration blockers"), migration and (async) snapshot
+are essentially the same operation and thus snapshot also needs to
+check for migration blockers. For example, this catches passed-through
+PCI devices, where the driver does not support migration and VirtIO-GL
+display, which also does not support migration yet.
+
+In the case of VirtIO-GL, there were crashes [0].
+
+However, the commit notes:
+
+> There is really no difference between live migration and savevm, except
+> that savevm does not require bdrv_invalidate_cache to be implemented
+> by all disks.  However, it is unlikely that savevm is used with anything
+> except qcow2 disks, so the penalty is small and worth the improvement
+> in catching bad usage of savevm.
+
+and for Proxmox VE, suspend-to-disk with VMDK does use savevm-async
+and would be broken by simply using migration_is_blocked(). To keep
+this working, introduce a new helper that filters blockers with the
+prefix used by the VMDK migration blocker.
+
+The function qemu_savevm_state_blocked() is called as part of
+savevm_async_is_blocked() so no check is lost with this
+patch. The helper is declared in migration/migration.c to be able to
+access the 'migration_blockers'.
+
+The VMDK blocker message is declared via a '#define', because using a
+'const char*' led to the linker to complain about multiple
+declarations. The message does not include the reference to the block
+node anymore, but users can still easily find a VMDK disk in the VM
+configuration.
+
+Note, this also "breaks" snapshot and hibernate with VNC clipboard by
+preventing it. Previously, this would "work", because the Proxmox VE
+API has no check yet, but the clipboard will be broken after rollback,
+in the sense that it cannot be used anymore, not just lost contents.
+So some users might consider adding the check here a breaking change
+even if it's technically correct to prevent snapshot and hibernate
+with VNC clipboard. But other users might rightfully complain about
+broken clipboard. And again, the check also prevents blockers from
+passed-through PCI devices, etc. so it seems worth tolerating that
+breakage.
+
+[0]: https://forum.proxmox.com/threads/136976/
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Message-ID: <20250618102531.57444-1-f.ebner@proxmox.com>
+---
+ block/vmdk.c                |  4 +---
+ include/migration/blocker.h |  2 ++
+ migration/migration.c       | 24 ++++++++++++++++++++++++
+ migration/migration.h       |  1 +
+ migration/savevm-async.c    |  2 +-
+ 5 files changed, 29 insertions(+), 4 deletions(-)
+
+diff --git a/block/vmdk.c b/block/vmdk.c
+index 2adec49912..80696a8d27 100644
+--- a/block/vmdk.c
++++ b/block/vmdk.c
+@@ -1402,9 +1402,7 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
+     qemu_co_mutex_init(&s->lock);
+ 
+     /* Disable migration when VMDK images are used */
+-    error_setg(&s->migration_blocker, "The vmdk format used by node '%s' "
+-               "does not support live migration",
+-               bdrv_get_device_or_node_name(bs));
++    error_setg(&s->migration_blocker, "%s", MIGRATION_BLOCKER_VMDK);
+     ret = migrate_add_blocker_normal(&s->migration_blocker, errp);
+     if (ret < 0) {
+         goto fail;
+diff --git a/include/migration/blocker.h b/include/migration/blocker.h
+index a687ac0efe..f36bfb2df1 100644
+--- a/include/migration/blocker.h
++++ b/include/migration/blocker.h
+@@ -18,6 +18,8 @@
+ 
+ #define MIG_MODE_ALL MIG_MODE__MAX
+ 
++#define MIGRATION_BLOCKER_VMDK "The vmdk format used by a disk does not support live migration"
++
+ /**
+  * @migrate_add_blocker - prevent all modes of migration from proceeding
+  *
+diff --git a/migration/migration.c b/migration/migration.c
+index 2f3430f440..ecad1aca32 100644
+--- a/migration/migration.c
++++ b/migration/migration.c
+@@ -2030,6 +2030,30 @@ bool migration_is_blocked(Error **errp)
+     return false;
+ }
+ 
++bool savevm_async_is_blocked(Error **errp)
++{
++    GSList *blockers = migration_blockers[migrate_mode()];
++
++    if (qemu_savevm_state_blocked(errp)) {
++        return true;
++    }
++
++    /*
++     * The limitation for VMDK images only applies to live-migration, not
++     * snapshots, see commit 5aaac46793 ("migration: savevm: consult migration
++     * blockers").
++     */
++    while (blockers) {
++        if (strcmp(error_get_pretty(blockers->data), MIGRATION_BLOCKER_VMDK)) {
++            error_propagate(errp, error_copy(blockers->data));
++            return true;
++        }
++        blockers = g_slist_next(blockers);
++    }
++
++    return false;
++}
++
+ /* Returns true if continue to migrate, or false if error detected */
+ static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
+ {
+diff --git a/migration/migration.h b/migration/migration.h
+index d53f7cad84..b772073572 100644
+--- a/migration/migration.h
++++ b/migration/migration.h
+@@ -531,6 +531,7 @@ int migration_call_notifiers(MigrationState *s, MigrationEventType type,
+ 
+ int migrate_init(MigrationState *s, Error **errp);
+ bool migration_is_blocked(Error **errp);
++bool savevm_async_is_blocked(Error **errp);
+ /* True if outgoing migration has entered postcopy phase */
+ bool migration_in_postcopy(void);
+ bool migration_postcopy_is_alive(MigrationStatus state);
+diff --git a/migration/savevm-async.c b/migration/savevm-async.c
+index 730b815494..6cb91dca27 100644
+--- a/migration/savevm-async.c
++++ b/migration/savevm-async.c
+@@ -375,7 +375,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)
+         return;
+     }
+ 
+-    if (qemu_savevm_state_blocked(errp)) {
++    if (savevm_async_is_blocked(errp)) {
+         goto fail;
+     }
+ 
