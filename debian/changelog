@@ -1,3 +1,11 @@
+pve-qemu-kvm (9.2.0-7) bookworm; urgency=medium
+
+  * savevm-async: reuse migration blocker check for snapshots/hibernation to
+    avoid crashing a VM when on these actions if its configuration does not
+    support them.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 17 Jul 2025 22:34:53 +0200
+
 pve-qemu-kvm (9.2.0-6) bookworm; urgency=medium
 
   * gluster: provide more context for deprecation warning.
