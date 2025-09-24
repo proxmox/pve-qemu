@@ -61,10 +61,10 @@ Message-ID: <20250618102531.57444-1-f.ebner@proxmox.com>
  5 files changed, 29 insertions(+), 4 deletions(-)
 
 diff --git a/block/vmdk.c b/block/vmdk.c
-index 2adec49912..80696a8d27 100644
+index 7b98debc2b..2af32f3d5d 100644
 --- a/block/vmdk.c
 +++ b/block/vmdk.c
-@@ -1402,9 +1402,7 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
+@@ -1404,9 +1404,7 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
      qemu_co_mutex_init(&s->lock);
  
      /* Disable migration when VMDK images are used */
@@ -89,10 +89,10 @@ index a687ac0efe..f36bfb2df1 100644
   * @migrate_add_blocker - prevent all modes of migration from proceeding
   *
 diff --git a/migration/migration.c b/migration/migration.c
-index 2f3430f440..ecad1aca32 100644
+index b58cbdc2c0..594e253a8a 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
-@@ -2030,6 +2030,30 @@ bool migration_is_blocked(Error **errp)
+@@ -2055,6 +2055,30 @@ bool migration_is_blocked(Error **errp)
      return false;
  }
  
@@ -124,7 +124,7 @@ index 2f3430f440..ecad1aca32 100644
  static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
  {
 diff --git a/migration/migration.h b/migration/migration.h
-index d53f7cad84..b772073572 100644
+index 01329bf824..a805e98a30 100644
 --- a/migration/migration.h
 +++ b/migration/migration.h
 @@ -531,6 +531,7 @@ int migration_call_notifiers(MigrationState *s, MigrationEventType type,

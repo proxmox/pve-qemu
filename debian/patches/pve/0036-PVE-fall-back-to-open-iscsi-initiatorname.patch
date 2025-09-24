@@ -21,7 +21,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 30 insertions(+)
 
 diff --git a/block/iscsi.c b/block/iscsi.c
-index 2f0f4dac09..b523137cff 100644
+index 15b96ee880..5aa4b602b1 100644
 --- a/block/iscsi.c
 +++ b/block/iscsi.c
 @@ -1392,12 +1392,42 @@ static char *get_initiator_name(QemuOpts *opts)

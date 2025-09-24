@@ -14,12 +14,12 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  2 files changed, 7 insertions(+)
 
 diff --git a/qapi/ui.json b/qapi/ui.json
-index c536d4e524..c2df48959b 100644
+index 1b2f4a4769..c9982e1bcc 100644
 --- a/qapi/ui.json
 +++ b/qapi/ui.json
-@@ -312,11 +312,14 @@
+@@ -315,11 +315,14 @@
  #
- # @channels: a list of @SpiceChannel for each active spice channel
+ # @channels: a list of `SpiceChannel` for each active spice channel
  #
 +# @ticket: The last ticket set with set_password
 +#
@@ -33,10 +33,10 @@ index c536d4e524..c2df48959b 100644
    'if': 'CONFIG_SPICE' }
  
 diff --git a/ui/spice-core.c b/ui/spice-core.c
-index d523d00200..c76c224706 100644
+index cd1ec9c082..4064053778 100644
 --- a/ui/spice-core.c
 +++ b/ui/spice-core.c
-@@ -548,6 +548,10 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)
+@@ -556,6 +556,10 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)
      micro = SPICE_SERVER_VERSION & 0xff;
      info->compiled_version = g_strdup_printf("%d.%d.%d", major, minor, micro);
  

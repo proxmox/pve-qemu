@@ -25,7 +25,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 
 diff --git a/migration/channel-savevm-async.c b/migration/channel-savevm-async.c
 new file mode 100644
-index 0000000000..e57ab2ae40
+index 0000000000..d851e74567
 --- /dev/null
 +++ b/migration/channel-savevm-async.c
 @@ -0,0 +1,184 @@
@@ -187,7 +187,7 @@ index 0000000000..e57ab2ae40
 +
 +static void
 +qio_channel_savevm_async_class_init(ObjectClass *klass,
-+                             void *class_data G_GNUC_UNUSED)
++                                    const void *class_data G_GNUC_UNUSED)
 +{
 +    QIOChannelClass *ioc_klass = QIO_CHANNEL_CLASS(klass);
 +
@@ -271,7 +271,7 @@ index 0000000000..17ae2cb261
 +
 +#endif /* QIO_CHANNEL_SAVEVM_ASYNC_H */
 diff --git a/migration/meson.build b/migration/meson.build
-index 9aa48b290e..cf66c78681 100644
+index 276da3be5a..1d32185fff 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
 @@ -14,6 +14,7 @@ system_ss.add(files(

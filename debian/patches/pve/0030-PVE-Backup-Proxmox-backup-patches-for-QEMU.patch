@@ -81,7 +81,8 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
      improve canceling
      allow passing max-workers setting
      use malloc_trim after backup
-     create jobs in a drained section]
+     create jobs in a drained section
+     adapt to new arguments for backup_job_create]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/meson.build              |    5 +
@@ -120,10 +121,10 @@ index 6278c4af0f..d1b16e40e9 100644
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
  system_ss.add(files('block-ram-registrar.c'))
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 6919a49bf5..4f30f99644 100644
+index 282d1c386e..bbb08ecabd 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1010,3 +1010,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
+@@ -1015,3 +1015,42 @@ void hmp_change_medium(Monitor *mon, const char *device, const char *target,
      qmp_blockdev_change_medium(device, NULL, target, arg, true, force,
                                 !!read_only, read_only_mode, errp);
  }
@@ -167,7 +168,7 @@ index 6919a49bf5..4f30f99644 100644
 +    hmp_handle_error(mon, error);
 +}
 diff --git a/blockdev.c b/blockdev.c
-index 158ac9314b..17de5d2ae4 100644
+index 782cc5dd75..2505f9040a 100644
 --- a/blockdev.c
 +++ b/blockdev.c
 @@ -37,6 +37,7 @@
@@ -179,10 +180,10 @@ index 158ac9314b..17de5d2ae4 100644
  #include "monitor/monitor.h"
  #include "qemu/error-report.h"
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
-index d1a7b99add..af588145ff 100644
+index 3e15458335..7dffd5f68c 100644
 --- a/hmp-commands-info.hx
 +++ b/hmp-commands-info.hx
-@@ -458,6 +458,20 @@ SRST
+@@ -456,6 +456,20 @@ SRST
      Show the current VM UUID.
  ERST
  
@@ -204,7 +205,7 @@ index d1a7b99add..af588145ff 100644
      {
          .name       = "usernet",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index 0c7c6f2c16..bf8315f226 100644
+index 0d9241db9e..5f88b8dfaa 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
 @@ -101,6 +101,35 @@ ERST
@@ -265,10 +266,10 @@ index 2596cc2426..9dda91d65a 100644
  void hmp_device_add(Monitor *mon, const QDict *qdict);
  void hmp_device_del(Monitor *mon, const QDict *qdict);
 diff --git a/meson.build b/meson.build
-index 680ab48b9b..1f74de1d93 100644
+index 25eee758fc..347197d2d7 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -2162,6 +2162,7 @@ endif
+@@ -2199,6 +2199,7 @@ endif
  has_gettid = cc.has_function('gettid')
  
  libuuid = cc.find_library('uuid', required: true)
@@ -277,7 +278,7 @@ index 680ab48b9b..1f74de1d93 100644
  # libselinux
  selinux = dependency('libselinux',
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index bade2a4b92..77a2fa409a 100644
+index 1e66bff724..d2fc956c18 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
 @@ -22,6 +22,7 @@
@@ -586,7 +587,7 @@ index 0000000000..8cbf645b2c
 +#endif /* PROXMOX_BACKUP_CLIENT_H */
 diff --git a/pve-backup.c b/pve-backup.c
 new file mode 100644
-index 0000000000..e931cb9203
+index 0000000000..177fb851b4
 --- /dev/null
 +++ b/pve-backup.c
 @@ -0,0 +1,1096 @@
@@ -1117,9 +1118,9 @@ index 0000000000..e931cb9203
 +
 +        BlockJob *job = backup_job_create(
 +            NULL, di->bs, di->target, backup_state.speed, sync_mode, di->bitmap,
-+            bitmap_mode, false, NULL, &backup_state.perf, BLOCKDEV_ON_ERROR_REPORT,
-+            BLOCKDEV_ON_ERROR_REPORT, JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn,
-+            &local_err);
++            bitmap_mode, false, false, NULL, &backup_state.perf, BLOCKDEV_ON_ERROR_REPORT,
++            BLOCKDEV_ON_ERROR_REPORT, ON_CBW_ERROR_BREAK_GUEST_WRITE, JOB_DEFAULT,
++            pvebackup_complete_cb, di, backup_state.txn, &local_err);
 +
 +        bdrv_drained_end(di->bs);
 +
@@ -1687,10 +1688,10 @@ index 0000000000..e931cb9203
 +    return ret;
 +}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 7f92c80179..5379fde30f 100644
+index e17ef6abdf..a54390d9ad 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -855,6 +855,239 @@
+@@ -879,6 +879,239 @@
  { 'command': 'query-block', 'returns': ['BlockInfo'],
    'allow-preconfig': true }
  
@@ -1931,10 +1932,10 @@ index 7f92c80179..5379fde30f 100644
  # @BlockDeviceTimedStats:
  #
 diff --git a/qapi/common.json b/qapi/common.json
-index 0e3a0bbbfb..554680c716 100644
+index af7e3d618a..dc9ab77310 100644
 --- a/qapi/common.json
 +++ b/qapi/common.json
-@@ -226,3 +226,17 @@
+@@ -228,3 +228,17 @@
  ##
  { 'enum': 'EndianMode',
    'data': [ 'unspecified', 'little', 'big' ] }
@@ -1953,7 +1954,7 @@ index 0e3a0bbbfb..554680c716 100644
 +##
 +{ 'struct': 'UuidInfo', 'data': {'UUID': 'str'} }
 diff --git a/qapi/machine.json b/qapi/machine.json
-index 12cfd3f260..a8abdb42a3 100644
+index 957ff0f4dd..5628cf4be4 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
 @@ -4,6 +4,8 @@
@@ -1963,11 +1964,11 @@ index 12cfd3f260..a8abdb42a3 100644
 +{ 'include': 'common.json' }
 +
  ##
- # = Machines
+ # ********
+ # Machines
+@@ -299,20 +301,6 @@
  ##
-@@ -302,20 +304,6 @@
- ##
- { 'command': 'query-target', 'returns': 'TargetInfo' }
+ { 'command': 'query-target', 'returns': 'QemuTargetInfo' }
  
 -##
 -# @UuidInfo:

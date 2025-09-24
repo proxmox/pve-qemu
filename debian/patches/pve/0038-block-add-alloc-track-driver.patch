@@ -44,7 +44,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
 new file mode 100644
-index 0000000000..718aaabf2a
+index 0000000000..02ff45b624
 --- /dev/null
 +++ b/block/alloc-track.c
 @@ -0,0 +1,343 @@
@@ -295,7 +295,7 @@ index 0000000000..718aaabf2a
 +}
 +
 +static int coroutine_fn GRAPH_RDLOCK
-+track_co_block_status(BlockDriverState *bs, bool want_zero,
++track_co_block_status(BlockDriverState *bs, unsigned int mode,
 +                                            int64_t offset,
 +                                            int64_t bytes,
 +                                            int64_t *pnum,
@@ -404,10 +404,10 @@ index d243372c41..9b45b5256d 100644
    'backup.c',
    'backup-dump.c',
 diff --git a/block/stream.c b/block/stream.c
-index e187cd1262..0b61029399 100644
+index d023753091..a777c8079c 100644
 --- a/block/stream.c
 +++ b/block/stream.c
-@@ -120,6 +120,40 @@ static int stream_prepare(Job *job)
+@@ -118,6 +118,40 @@ static int GRAPH_UNLOCKED stream_prepare(Job *job)
              ret = -EPERM;
              goto out;
          }
@@ -449,10 +449,10 @@ index e187cd1262..0b61029399 100644
  
  out:
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 7b32b59717..8d912dc96b 100644
+index be6bf25219..cbefc6d0d3 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3462,7 +3462,8 @@
+@@ -3526,7 +3526,8 @@
  # Since: 2.9
  ##
  { 'enum': 'BlockdevDriver',
@@ -462,7 +462,7 @@ index 7b32b59717..8d912dc96b 100644
              'cloop', 'compress', 'copy-before-write', 'copy-on-read', 'dmg',
              'file', 'snapshot-access', 'ftp', 'ftps',
              {'name': 'gluster', 'features': [ 'deprecated' ] },
-@@ -3563,6 +3564,21 @@
+@@ -3627,6 +3628,21 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -484,7 +484,7 @@ index 7b32b59717..8d912dc96b 100644
  ##
  # @BlockdevOptionsPbs:
  #
-@@ -5009,6 +5025,7 @@
+@@ -5073,6 +5089,7 @@
              '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
    'discriminator': 'driver',
    'data': {

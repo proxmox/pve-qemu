@@ -16,7 +16,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 9 insertions(+), 1 deletion(-)
 
 diff --git a/block/gluster.c b/block/gluster.c
-index ccca125c3a..301a653ea7 100644
+index d3f2e56229..de0fb4cf68 100644
 --- a/block/gluster.c
 +++ b/block/gluster.c
 @@ -57,6 +57,7 @@ typedef struct GlusterAIOCB {
@@ -39,7 +39,7 @@ index ccca125c3a..301a653ea7 100644
      }
  
      aio_co_schedule(acb->aio_context, acb->coroutine);
-@@ -1018,6 +1021,7 @@ static coroutine_fn int qemu_gluster_co_pwrite_zeroes(BlockDriverState *bs,
+@@ -1014,6 +1017,7 @@ static coroutine_fn int qemu_gluster_co_pwrite_zeroes(BlockDriverState *bs,
      acb.ret = 0;
      acb.coroutine = qemu_coroutine_self();
      acb.aio_context = bdrv_get_aio_context(bs);
@@ -47,7 +47,7 @@ index ccca125c3a..301a653ea7 100644
  
      ret = glfs_zerofill_async(s->fd, offset, bytes, gluster_finish_aiocb, &acb);
      if (ret < 0) {
-@@ -1198,9 +1202,11 @@ static coroutine_fn int qemu_gluster_co_rw(BlockDriverState *bs,
+@@ -1194,9 +1198,11 @@ static coroutine_fn int qemu_gluster_co_rw(BlockDriverState *bs,
      acb.aio_context = bdrv_get_aio_context(bs);
  
      if (write) {
@@ -59,7 +59,7 @@ index ccca125c3a..301a653ea7 100644
          ret = glfs_preadv_async(s->fd, qiov->iov, qiov->niov, offset, 0,
                                  gluster_finish_aiocb, &acb);
      }
-@@ -1263,6 +1269,7 @@ static coroutine_fn int qemu_gluster_co_flush_to_disk(BlockDriverState *bs)
+@@ -1259,6 +1265,7 @@ static coroutine_fn int qemu_gluster_co_flush_to_disk(BlockDriverState *bs)
      acb.ret = 0;
      acb.coroutine = qemu_coroutine_self();
      acb.aio_context = bdrv_get_aio_context(bs);
@@ -67,7 +67,7 @@ index ccca125c3a..301a653ea7 100644
  
      ret = glfs_fsync_async(s->fd, gluster_finish_aiocb, &acb);
      if (ret < 0) {
-@@ -1311,6 +1318,7 @@ static coroutine_fn int qemu_gluster_co_pdiscard(BlockDriverState *bs,
+@@ -1307,6 +1314,7 @@ static coroutine_fn int qemu_gluster_co_pdiscard(BlockDriverState *bs,
      acb.ret = 0;
      acb.coroutine = qemu_coroutine_self();
      acb.aio_context = bdrv_get_aio_context(bs);

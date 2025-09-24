@@ -19,7 +19,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 38 insertions(+), 17 deletions(-)
 
 diff --git a/migration/qemu-file.c b/migration/qemu-file.c
-index 1303a5bf58..6e2d58d5c0 100644
+index b6ac190034..46d899edb0 100644
 --- a/migration/qemu-file.c
 +++ b/migration/qemu-file.c
 @@ -34,8 +34,8 @@
@@ -131,7 +131,7 @@ index 1303a5bf58..6e2d58d5c0 100644
          if (l > size) {
              l = size;
          }
-@@ -662,8 +680,8 @@ size_t coroutine_mixed_fn qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t si
+@@ -660,8 +678,8 @@ size_t coroutine_mixed_fn qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t si
      size_t index;
  
      assert(!qemu_file_is_writable(f));
@@ -142,7 +142,7 @@ index 1303a5bf58..6e2d58d5c0 100644
  
      /* The 1st byte to read from */
      index = f->buf_index + offset;
-@@ -713,7 +731,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
+@@ -711,7 +729,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
          size_t res;
          uint8_t *src;
  
@@ -151,7 +151,7 @@ index 1303a5bf58..6e2d58d5c0 100644
          if (res == 0) {
              return done;
          }
-@@ -747,7 +765,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
+@@ -745,7 +763,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
   */
  size_t coroutine_mixed_fn qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size)
  {
@@ -160,7 +160,7 @@ index 1303a5bf58..6e2d58d5c0 100644
          size_t res;
          uint8_t *src = NULL;
  
-@@ -772,7 +790,7 @@ int coroutine_mixed_fn qemu_peek_byte(QEMUFile *f, int offset)
+@@ -770,7 +788,7 @@ int coroutine_mixed_fn qemu_peek_byte(QEMUFile *f, int offset)
      int index = f->buf_index + offset;
  
      assert(!qemu_file_is_writable(f));

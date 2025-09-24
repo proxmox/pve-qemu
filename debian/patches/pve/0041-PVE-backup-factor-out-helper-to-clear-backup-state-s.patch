@@ -12,7 +12,7 @@ Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  1 file changed, 18 insertions(+), 10 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 9b66788ab5..588ee98ffc 100644
+index 8b83465ebd..3e0d1ffc5c 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -811,6 +811,23 @@ err:

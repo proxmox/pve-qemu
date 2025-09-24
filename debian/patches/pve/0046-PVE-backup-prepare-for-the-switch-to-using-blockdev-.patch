@@ -21,7 +21,7 @@ Signed-off-by: Fabian Grünbichler <f.gruenbichler@proxmox.com>
  1 file changed, 39 insertions(+), 12 deletions(-)
 
 diff --git a/pve-backup.c b/pve-backup.c
-index 0450303017..457fcb7e5c 100644
+index da4995d368..ad0f8668fd 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -847,29 +847,56 @@ static PVEBackupDevInfo coroutine_fn GRAPH_RDLOCK *get_single_device_info(

@@ -5,6 +5,8 @@ Subject: [PATCH] qemu-img dd: add -l option for loading a snapshot
 
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[FE: rebase for 10.1.0]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  docs/tools/qemu-img.rst |  6 +++---
  qemu-img-cmds.hx        |  4 ++--
@@ -12,7 +14,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  3 files changed, 36 insertions(+), 7 deletions(-)
 
 diff --git a/docs/tools/qemu-img.rst b/docs/tools/qemu-img.rst
-index d83e8fb3c0..61c6b21859 100644
+index 6249e01da9..0ea21e061f 100644
 --- a/docs/tools/qemu-img.rst
 +++ b/docs/tools/qemu-img.rst
 @@ -496,10 +496,10 @@ Command description:
@@ -30,7 +32,7 @@ index d83e8fb3c0..61c6b21859 100644
    The data is by default read and written using blocks of 512 bytes but can be
    modified by specifying *BLOCK_SIZE*. If count=\ *BLOCKS* is specified
 diff --git a/qemu-img-cmds.hx b/qemu-img-cmds.hx
-index 0b29a67a06..758f397232 100644
+index d584624f8e..be30905374 100644
 --- a/qemu-img-cmds.hx
 +++ b/qemu-img-cmds.hx
 @@ -60,9 +60,9 @@ SRST
@@ -46,10 +48,10 @@ index 0b29a67a06..758f397232 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index dc13efba8b..02f2e0aa45 100644
+index 6e92a70254..e38317a445 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -5114,6 +5114,7 @@ static int img_dd(int argc, char **argv)
+@@ -5370,6 +5370,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      BlockDriver *drv = NULL, *proto_drv = NULL;
      BlockBackend *blk1 = NULL, *blk2 = NULL;
      QemuOpts *opts = NULL;
@@ -57,7 +59,7 @@ index dc13efba8b..02f2e0aa45 100644
      QemuOptsList *create_opts = NULL;
      Error *local_err = NULL;
      bool image_opts = false;
-@@ -5123,6 +5124,7 @@ static int img_dd(int argc, char **argv)
+@@ -5379,6 +5380,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      int64_t size = 0, readsize = 0;
      int64_t out_pos, in_pos;
      bool force_share = false, skip_create = false;
@@ -65,16 +67,16 @@ index dc13efba8b..02f2e0aa45 100644
      struct DdInfo dd = {
          .flags = 0,
          .count = 0,
-@@ -5160,7 +5162,7 @@ static int img_dd(int argc, char **argv)
+@@ -5418,7 +5420,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          { 0, 0, 0, 0 }
      };
  
--    while ((c = getopt_long(argc, argv, ":hf:O:Un", long_options, NULL))) {
-+    while ((c = getopt_long(argc, argv, ":hf:O:l:Un", long_options, NULL))) {
+-    while ((c = getopt_long(argc, argv, "hf:O:Un", long_options, NULL))) {
++    while ((c = getopt_long(argc, argv, "hf:O:l:Un", long_options, NULL))) {
          if (c == EOF) {
              break;
          }
-@@ -5183,6 +5185,19 @@ static int img_dd(int argc, char **argv)
+@@ -5462,6 +5464,19 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          case 'n':
              skip_create = true;
              break;
@@ -94,7 +96,7 @@ index dc13efba8b..02f2e0aa45 100644
          case 'U':
              force_share = true;
              break;
-@@ -5242,11 +5257,24 @@ static int img_dd(int argc, char **argv)
+@@ -5520,11 +5535,24 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      if (dd.flags & C_IF) {
          blk1 = img_open(image_opts, in.filename, fmt, 0, false, false,
                          force_share);
@@ -120,7 +122,7 @@ index dc13efba8b..02f2e0aa45 100644
      }
  
      if (dd.flags & C_OSIZE) {
-@@ -5401,6 +5429,7 @@ static int img_dd(int argc, char **argv)
+@@ -5679,6 +5707,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
  out:
      g_free(arg);
      qemu_opts_del(opts);

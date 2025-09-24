@@ -11,7 +11,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 9 insertions(+)
 
 diff --git a/hw/intc/apic_common.c b/hw/intc/apic_common.c
-index 2a3e878c4d..efbed1aea3 100644
+index 37a7a7019d..444136c665 100644
 --- a/hw/intc/apic_common.c
 +++ b/hw/intc/apic_common.c
 @@ -263,6 +263,15 @@ static void apic_reset_common(DeviceState *dev)

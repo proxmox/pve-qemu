@@ -199,7 +199,7 @@ index 0000000000..354593bc10
 +    return bs;
 +}
 diff --git a/block/backup.c b/block/backup.c
-index cc747e9163..6f7c45f922 100644
+index 9189f64ebc..f6a2d19793 100644
 --- a/block/backup.c
 +++ b/block/backup.c
 @@ -29,28 +29,6 @@
@@ -231,7 +231,7 @@ index cc747e9163..6f7c45f922 100644
  static const BlockJobDriver backup_job_driver;
  
  static void backup_cleanup_sync_bitmap(BackupBlockJob *job, int ret)
-@@ -462,6 +440,14 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
+@@ -463,6 +441,14 @@ BlockJob *backup_job_create(const char *job_id, BlockDriverState *bs,
      }
  
      cluster_size = block_copy_cluster_size(bcs);
@@ -259,7 +259,7 @@ index 1373612c10..6278c4af0f 100644
    'blklogwrites.c',
    'blkverify.c',
 diff --git a/include/block/block_int-common.h b/include/block/block_int-common.h
-index ebb4e56a50..e717a74e5f 100644
+index 034c0634c8..5688ced531 100644
 --- a/include/block/block_int-common.h
 +++ b/include/block/block_int-common.h
 @@ -26,6 +26,7 @@

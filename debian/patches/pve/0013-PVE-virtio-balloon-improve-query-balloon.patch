@@ -18,10 +18,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  4 files changed, 82 insertions(+), 4 deletions(-)
 
 diff --git a/hw/core/machine-hmp-cmds.c b/hw/core/machine-hmp-cmds.c
-index c6325cdcaa..7f817d622d 100644
+index 3a612e2232..036d87cc90 100644
 --- a/hw/core/machine-hmp-cmds.c
 +++ b/hw/core/machine-hmp-cmds.c
-@@ -179,7 +179,35 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
+@@ -182,7 +182,35 @@ void hmp_info_balloon(Monitor *mon, const QDict *qdict)
          return;
      }
  
@@ -59,7 +59,7 @@ index c6325cdcaa..7f817d622d 100644
      qapi_free_BalloonInfo(info);
  }
 diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-index 2eb5a14fa2..aa2fd6c32f 100644
+index db787d00b3..26ebf3a5ce 100644
 --- a/hw/virtio/virtio-balloon.c
 +++ b/hw/virtio/virtio-balloon.c
 @@ -795,8 +795,37 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
@@ -103,11 +103,11 @@ index 2eb5a14fa2..aa2fd6c32f 100644
  
  static void virtio_balloon_to_target(void *opaque, ram_addr_t target)
 diff --git a/qapi/machine.json b/qapi/machine.json
-index a6b8795b09..9f7ed0eaa0 100644
+index 038eab281c..5f172ece18 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
-@@ -1163,9 +1163,29 @@
- # @actual: the logical size of the VM in bytes Formula used:
+@@ -1125,9 +1125,29 @@
+ # @actual: the logical size of the VM in bytes.  Formula used:
  #     logical_vm_size = vm_ram_size - balloon_size
  #
 +# @last_update: time when stats got updated from guest

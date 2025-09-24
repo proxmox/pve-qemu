@@ -18,24 +18,27 @@ single major PVE release.
 
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- include/hw/boards.h | 78 +++++++++++++++++++++++++++++----------------
- 1 file changed, 51 insertions(+), 27 deletions(-)
+ include/hw/boards.h | 99 ++++++++++++++++++++++++++-------------------
+ 1 file changed, 58 insertions(+), 41 deletions(-)
 
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index 8ada4d5832..6bfc2a7961 100644
+index 7a389f6998..0595a569d2 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
-@@ -636,42 +636,66 @@ struct MachineState {
+@@ -636,40 +636,57 @@ struct MachineState {
  
  
  /*
 - * How many years/major releases for each phase
 - * of the life cycle. Assumes use of versioning
-- * scheme where major is bumped each year
+- * scheme where major is bumped each year.
 + * Baseline of machine versions that are still considered supported throughout
 + * current major Proxmox VE release. Machine versions older than this are
 + * considered to be deprecated in Proxmox VE.
-+ *
+  *
+- * These values must match the ver_machine_deprecation_version
+- * and ver_machine_deletion_version logic in docs/conf.py and
+- * the text in docs/about/deprecated.rst
 + * Machine versions older than 6 years are removed just like in upstream QEMU.
 + * (policy takes effect with QEMU 10.1). Assumes yearly major QEMU release.
 + *
@@ -55,16 +58,13 @@ index 8ada4d5832..6bfc2a7961 100644
 +/*
 + * Proxmox VE needs to support the baseline throughout a major PVE release. So
 + * a QEMU release where the baseline is already deleted cannot be used.
-+ * Removal policy after 6 years takes effect with QEMU 10.1.
   */
 -#define MACHINE_VER_DELETION_MAJOR 6
 -#define MACHINE_VER_DEPRECATION_MAJOR 3
-+#if ((QEMU_VERSION_MAJOR > 10) || ((QEMU_VERSION_MAJOR == 10) && (QEMU_VERSION_MINOR >= 1)))
 +#if ((MACHINE_VER_BASELINE_PVE_MAJOR < MACHINE_VER_DELETION_MAJOR) || \
 +     ((MACHINE_VER_BASELINE_PVE_MAJOR == MACHINE_VER_DELETION_MAJOR) && \
 +      (MACHINE_VER_BASELINE_PVE_MINOR < MACHINE_VER_DELETION_MINOR)))
 +#error "Baseline machine version needed by Proxmox VE not supported anymore by this QEMU release"
-+#endif
 +#endif
  
  /*
@@ -75,11 +75,51 @@ index 8ada4d5832..6bfc2a7961 100644
 -    "machines more than " stringify(MACHINE_VER_DEPRECATION_MAJOR) \
 -    " years old are subject to deletion after " \
 -    stringify(MACHINE_VER_DELETION_MAJOR) " years"
--
--#define _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor) \
++    "old machine version is subject to deletion during current major Proxmox VE release"
+ 
+-#define _MACHINE_VER_IS_CURRENT_EXPIRED(cutoff, major, minor) \
 -    (((QEMU_VERSION_MAJOR - major) > cutoff) || \
 -     (((QEMU_VERSION_MAJOR - major) == cutoff) && \
 -      (QEMU_VERSION_MINOR - minor) >= 0))
++#define _MACHINE_VER_IS_CURRENT_EXPIRED(baseline_major, baseline_minor, major, minor) \
++    ((major < baseline_major) || \
++     ((major == baseline_major) && \
++      (minor < baseline_minor)))
+ 
+-#define _MACHINE_VER_IS_NEXT_MINOR_EXPIRED(cutoff, major, minor) \
+-    (((QEMU_VERSION_MAJOR - major) > cutoff) || \
+-     (((QEMU_VERSION_MAJOR - major) == cutoff) && \
+-      ((QEMU_VERSION_MINOR + 1) - minor) >= 0))
++#define _MACHINE_VER_IS_NEXT_MINOR_EXPIRED(baseline_major, baseline_minor, major, minor) \
++    ((major < baseline_major) || \
++     ((major == baseline_major) && \
++      ((minor + 1) < baseline_minor)))
+ 
+-#define _MACHINE_VER_IS_NEXT_MAJOR_EXPIRED(cutoff, major, minor) \
+-    ((((QEMU_VERSION_MAJOR + 1) - major) > cutoff) ||            \
+-     ((((QEMU_VERSION_MAJOR + 1) - major) == cutoff) &&          \
+-      (0 - minor) >= 0))
++#define _MACHINE_VER_IS_NEXT_MAJOR_EXPIRED(baseline_major, baseline_minor, major, minor) \
++    (((major + 1) < baseline_major) || \
++     (((major + 1) == baseline_major) && \
++      (minor < baseline_minor)))
+ 
+ /*
+  * - The first check applies to formal releases
+@@ -684,29 +701,29 @@ struct MachineState {
+  * and dev snapshots / release candidates are numbered with micro >= 50
+  * If this ever changes the logic below will need modifying....
+  */
+-#define _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor) \
++#define _MACHINE_VER_IS_EXPIRED_IMPL(baseline_major, baseline_minor, major, minor) \
+     ((QEMU_VERSION_MICRO < 50 && \
+-      _MACHINE_VER_IS_CURRENT_EXPIRED(cutoff, major, minor)) || \
++      _MACHINE_VER_IS_CURRENT_EXPIRED(baseline_major, baseline_minor, major, minor)) || \
+      (QEMU_VERSION_MICRO >= 50 && QEMU_VERSION_MINOR < 2 && \
+-      _MACHINE_VER_IS_NEXT_MINOR_EXPIRED(cutoff, major, minor)) || \
++      _MACHINE_VER_IS_NEXT_MINOR_EXPIRED(baseline_major, baseline_minor, major, minor)) || \
+      (QEMU_VERSION_MICRO >= 50 && QEMU_VERSION_MINOR == 2 && \
+-      _MACHINE_VER_IS_NEXT_MAJOR_EXPIRED(cutoff, major, minor)))
 -
 -#define _MACHINE_VER_IS_EXPIRED2(cutoff, major, minor) \
 -    _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor)
@@ -91,12 +131,7 @@ index 8ada4d5832..6bfc2a7961 100644
 -    _MACHINE_VER_IS_EXPIRED_IMPL(cutoff, major, minor)
 -
 -#define _MACHINE_IS_EXPIRED(cutoff, ...) \
-+    "old machine version is subject to deletion during current major Proxmox VE release"
-+
-+#define _MACHINE_VER_IS_EXPIRED_IMPL(baseline_major, baseline_minor, major, minor) \
-+    ((major < baseline_major) || \
-+     ((major == baseline_major) && \
-+      (minor < baseline_minor)))
++      _MACHINE_VER_IS_NEXT_MAJOR_EXPIRED(baseline_major, baseline_minor, major, minor)))
 +
 +#define _MACHINE_VER_IS_EXPIRED2(baseline_major, baseline_minor, major, minor) \
 +    _MACHINE_VER_IS_EXPIRED_IMPL(baseline_major, baseline_minor, major, minor)
@@ -117,7 +152,7 @@ index 8ada4d5832..6bfc2a7961 100644
  
  /*
   * Evaluates true when a machine type with (major, minor)
-@@ -680,7 +704,7 @@ struct MachineState {
+@@ -715,7 +732,7 @@ struct MachineState {
   * lifecycle rules
   */
  #define MACHINE_VER_IS_DEPRECATED(...) \
@@ -126,7 +161,7 @@ index 8ada4d5832..6bfc2a7961 100644
  
  /*
   * Evaluates true when a machine type with (major, minor)
-@@ -689,7 +713,7 @@ struct MachineState {
+@@ -724,7 +741,7 @@ struct MachineState {
   * lifecycle rules
   */
  #define MACHINE_VER_SHOULD_DELETE(...) \

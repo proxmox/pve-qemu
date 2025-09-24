@@ -72,7 +72,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  5 files changed, 195 insertions(+), 10 deletions(-)
 
 diff --git a/block/copy-before-write.c b/block/copy-before-write.c
-index fd470f5f92..5c23b578ef 100644
+index 36d5d3ed9b..6813d1a929 100644
 --- a/block/copy-before-write.c
 +++ b/block/copy-before-write.c
 @@ -27,6 +27,7 @@
@@ -122,7 +122,7 @@ index fd470f5f92..5c23b578ef 100644
          g_free(req);
          return NULL;
      }
-@@ -595,6 +595,12 @@ void bdrv_cbw_drop(BlockDriverState *bs)
+@@ -597,6 +597,12 @@ void bdrv_cbw_drop(BlockDriverState *bs)
      bdrv_unref(bs);
  }
  
@@ -136,21 +136,21 @@ index fd470f5f92..5c23b578ef 100644
  {
      bdrv_register(&bdrv_cbw_filter);
 diff --git a/block/copy-before-write.h b/block/copy-before-write.h
-index 2a5d4ba693..969da3620f 100644
+index eb93364e85..6a6dbf90f5 100644
 --- a/block/copy-before-write.h
 +++ b/block/copy-before-write.h
-@@ -44,5 +44,6 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
-                                   BlockCopyState **bcs,
+@@ -45,5 +45,6 @@ BlockDriverState *bdrv_cbw_append(BlockDriverState *source,
+                                   OnCbwError on_cbw_error,
                                    Error **errp);
  void bdrv_cbw_drop(BlockDriverState *bs);
 +int bdrv_cbw_snapshot_error(BlockDriverState *bs);
  
  #endif /* COPY_BEFORE_WRITE_H */
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index 4f30f99644..66d16d342f 100644
+index bbb08ecabd..d8771ce8fc 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1045,6 +1045,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1050,6 +1050,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
          NULL, NULL,
          devlist, qdict_haskey(qdict, "speed"), speed,
          false, 0, // BackupPerf max-workers
@@ -159,7 +159,7 @@ index 4f30f99644..66d16d342f 100644
  
      hmp_handle_error(mon, error);
 diff --git a/pve-backup.c b/pve-backup.c
-index 366b015589..9b66788ab5 100644
+index 7575abab7c..8b83465ebd 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -7,6 +7,7 @@
@@ -336,11 +336,11 @@ index 366b015589..9b66788ab5 100644
 +
          BlockJob *job = backup_job_create(
 -            NULL, di->bs, di->target, backup_state.speed, sync_mode, di->bitmap,
--            bitmap_mode, false, NULL, &backup_state.perf, BLOCKDEV_ON_ERROR_REPORT,
+-            bitmap_mode, false, false, NULL, &backup_state.perf, BLOCKDEV_ON_ERROR_REPORT,
 +            di->device_name, source_bs, di->target, backup_state.speed, sync_mode, di->bitmap,
 +            bitmap_mode, false, discard_source, NULL, &perf, BLOCKDEV_ON_ERROR_REPORT,
-             BLOCKDEV_ON_ERROR_REPORT, JOB_DEFAULT, pvebackup_complete_cb, di, backup_state.txn,
-             &local_err);
+             BLOCKDEV_ON_ERROR_REPORT, ON_CBW_ERROR_BREAK_GUEST_WRITE, JOB_DEFAULT,
+             pvebackup_complete_cb, di, backup_state.txn, &local_err);
  
 @@ -539,6 +672,7 @@ static void create_backup_jobs_bh(void *opaque) {
          }
@@ -429,10 +429,10 @@ index 366b015589..9b66788ab5 100644
      return ret;
  }
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 8d912dc96b..ba2a13e668 100644
+index cbefc6d0d3..7cafc96616 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -952,6 +952,10 @@
+@@ -976,6 +976,10 @@
  #
  # @max-workers: see @BackupPerf for details. Default 16.
  #
@@ -443,7 +443,7 @@ index 8d912dc96b..ba2a13e668 100644
  # Returns: the uuid of the backup job
  #
  ##
-@@ -972,7 +976,8 @@
+@@ -996,7 +1000,8 @@
                                      '*firewall-file': 'str',
                                      '*devlist': 'str',
                                      '*speed': 'int',
@@ -453,7 +453,7 @@ index 8d912dc96b..ba2a13e668 100644
    'returns': 'UuidInfo', 'coroutine': true }
  
  ##
-@@ -1018,6 +1023,8 @@
+@@ -1042,6 +1047,8 @@
  #
  # @pbs-library-version: Running version of libproxmox-backup-qemu0 library.
  #
@@ -462,7 +462,7 @@ index 8d912dc96b..ba2a13e668 100644
  # @backup-max-workers: Whether the 'max-workers' @BackupPerf setting is
  #     supported or not.
  #
-@@ -1029,6 +1036,7 @@
+@@ -1053,6 +1060,7 @@
              'pbs-dirty-bitmap-migration': 'bool',
              'pbs-masterkey': 'bool',
              'pbs-library-version': 'str',

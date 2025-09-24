@@ -18,10 +18,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 2 insertions(+)
 
 diff --git a/block/rbd.c b/block/rbd.c
-index af984fb7db..bf143fac00 100644
+index 3611dc81cf..d114119671 100644
 --- a/block/rbd.c
 +++ b/block/rbd.c
-@@ -963,6 +963,8 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
+@@ -1017,6 +1017,8 @@ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
          rados_conf_set(*cluster, "rbd_cache", "false");
      }
  

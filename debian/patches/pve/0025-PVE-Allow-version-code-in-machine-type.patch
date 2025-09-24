@@ -21,10 +21,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  4 files changed, 34 insertions(+)
 
 diff --git a/hw/core/machine-qmp-cmds.c b/hw/core/machine-qmp-cmds.c
-index 93fb4bc24a..b9999423b4 100644
+index 934cdb886d..124000b771 100644
 --- a/hw/core/machine-qmp-cmds.c
 +++ b/hw/core/machine-qmp-cmds.c
-@@ -95,6 +95,11 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
+@@ -98,6 +98,11 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
          if (strcmp(mc->name, MACHINE_GET_CLASS(current_machine)->name) == 0) {
              info->has_is_current = true;
              info->is_current = true;
@@ -37,7 +37,7 @@ index 93fb4bc24a..b9999423b4 100644
  
          if (default_cpu_type) {
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index f22b2e7fc7..8ada4d5832 100644
+index f94713e6e2..7a389f6998 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
 @@ -271,6 +271,8 @@ struct MachineClass {
@@ -50,19 +50,19 @@ index f22b2e7fc7..8ada4d5832 100644
      void (*reset)(MachineState *state, ResetType type);
      void (*wakeup)(MachineState *state);
 diff --git a/qapi/machine.json b/qapi/machine.json
-index 16366b774a..12cfd3f260 100644
+index 47ac68a3b5..957ff0f4dd 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
-@@ -189,6 +189,8 @@
+@@ -192,6 +192,8 @@
  #
  # @acpi: machine type supports ACPI (since 8.0)
  #
 +# @pve-version: custom PVE version suffix specified as 'machine+pveN'
 +#
  # @compat-props: The machine type's compatibility properties.  Only
- #     present when query-machines argument @compat-props is true.
+ #     present when `query-machines` argument @compat-props is true.
  #     (since 9.1)
-@@ -205,6 +207,7 @@
+@@ -208,6 +210,7 @@
              'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
              'deprecated': 'bool', '*default-cpu-type': 'str',
              '*default-ram-id': 'str', 'acpi': 'bool',
@@ -71,10 +71,10 @@ index 16366b774a..12cfd3f260 100644
                                 'features': ['unstable'] } } }
  
 diff --git a/system/vl.c b/system/vl.c
-index 452742ab58..c3707b2412 100644
+index 56f8900451..4d583d60b1 100644
 --- a/system/vl.c
 +++ b/system/vl.c
-@@ -1674,6 +1674,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+@@ -1673,6 +1673,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
  {
      ERRP_GUARD();
      const char *machine_type = qdict_get_try_str(qdict, "type");
@@ -82,7 +82,7 @@ index 452742ab58..c3707b2412 100644
      g_autoptr(GSList) machines = object_class_get_list(TYPE_MACHINE, false);
      MachineClass *machine_class = NULL;
  
-@@ -1693,7 +1694,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+@@ -1692,7 +1693,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
      if (!machine_class) {
          error_append_hint(errp,
                            "Use -machine help to list supported machines\n");
@@ -94,7 +94,7 @@ index 452742ab58..c3707b2412 100644
      return machine_class;
  }
  
-@@ -3414,12 +3419,31 @@ void qemu_init(int argc, char **argv)
+@@ -3411,12 +3416,31 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_machine:
                  {
                      bool help;

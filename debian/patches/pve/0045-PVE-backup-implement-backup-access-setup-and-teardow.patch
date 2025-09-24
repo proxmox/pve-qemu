@@ -90,7 +90,7 @@ Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
  create mode 100644 pve-backup.h
 
 diff --git a/pve-backup.c b/pve-backup.c
-index bd81621d51..0450303017 100644
+index 7718065c63..da4995d368 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -1,4 +1,5 @@
@@ -740,10 +740,10 @@ index 0000000000..9ebeef7c8f
 +
 +#endif /* PVE_BACKUP_H */
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index ba2a13e668..07c5773717 100644
+index 7cafc96616..adb94bebb4 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1023,6 +1023,9 @@
+@@ -1047,6 +1047,9 @@
  #
  # @pbs-library-version: Running version of libproxmox-backup-qemu0 library.
  #
@@ -753,7 +753,7 @@ index ba2a13e668..07c5773717 100644
  # @backup-fleecing: Whether backup fleecing is supported or not.
  #
  # @backup-max-workers: Whether the 'max-workers' @BackupPerf setting is
-@@ -1036,6 +1039,7 @@
+@@ -1060,6 +1063,7 @@
              'pbs-dirty-bitmap-migration': 'bool',
              'pbs-masterkey': 'bool',
              'pbs-library-version': 'str',
@@ -761,7 +761,7 @@ index ba2a13e668..07c5773717 100644
              'backup-fleecing': 'bool',
              'backup-max-workers': 'bool' } }
  
-@@ -1067,9 +1071,16 @@
+@@ -1091,9 +1095,16 @@
  #           base snapshot did not match the base given for the current job or
  #           the crypt mode has changed.
  #
@@ -779,7 +779,7 @@ index ba2a13e668..07c5773717 100644
  
  ##
  # @PBSBitmapInfo:
-@@ -1102,6 +1113,92 @@
+@@ -1126,6 +1137,92 @@
  ##
  { 'command': 'query-pbs-bitmap-info', 'returns': ['PBSBitmapInfo'] }
  
@@ -873,7 +873,7 @@ index ba2a13e668..07c5773717 100644
  # @BlockDeviceTimedStats:
  #
 diff --git a/system/runstate.c b/system/runstate.c
-index 272801d307..cf775213bd 100644
+index 6178b0091a..5f370ddb60 100644
 --- a/system/runstate.c
 +++ b/system/runstate.c
 @@ -60,6 +60,7 @@
@@ -884,7 +884,7 @@ index 272801d307..cf775213bd 100644
  
  static NotifierList exit_notifiers =
      NOTIFIER_LIST_INITIALIZER(exit_notifiers);
-@@ -921,6 +922,11 @@ void qemu_cleanup(int status)
+@@ -991,6 +992,11 @@ void qemu_cleanup(int status)
       * requests happening from here on anyway.
       */
      bdrv_drain_all_begin();

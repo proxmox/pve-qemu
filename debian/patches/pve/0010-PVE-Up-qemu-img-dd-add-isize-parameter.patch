@@ -10,16 +10,17 @@ an expected end of input.
 
 Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[FE: rebase for 10.1.0]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  qemu-img.c | 28 +++++++++++++++++++++++++---
  1 file changed, 25 insertions(+), 3 deletions(-)
 
 diff --git a/qemu-img.c b/qemu-img.c
-index d5fa89a204..d458e85af2 100644
+index 0a0ca0cec7..89ef74ae07 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -4998,11 +4998,13 @@ static int img_bitmap(int argc, char **argv)
+@@ -5254,11 +5254,13 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
  #define C_OF      010
  #define C_SKIP    020
  #define C_OSIZE   040
@@ -33,7 +34,7 @@ index d5fa89a204..d458e85af2 100644
  };
  
  struct DdIo {
-@@ -5091,6 +5093,19 @@ static int img_dd_osize(const char *arg,
+@@ -5347,6 +5349,19 @@ static int img_dd_osize(const char *arg,
      return 0;
  }
  
@@ -41,7 +42,7 @@ index d5fa89a204..d458e85af2 100644
 +                        struct DdIo *in, struct DdIo *out,
 +                        struct DdInfo *dd)
 +{
-+    dd->isize = cvtnum("size", arg);
++    dd->isize = cvtnum("isize", arg, true);
 +
 +    if (dd->isize < 0) {
 +        return 1;
@@ -50,10 +51,10 @@ index d5fa89a204..d458e85af2 100644
 +    return 0;
 +}
 +
- static int img_dd(int argc, char **argv)
+ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
  {
      int ret = 0;
-@@ -5105,12 +5120,14 @@ static int img_dd(int argc, char **argv)
+@@ -5361,12 +5376,14 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      int c, i;
      const char *out_fmt = "raw";
      const char *fmt = NULL;
@@ -69,7 +70,7 @@ index d5fa89a204..d458e85af2 100644
      };
      struct DdIo in = {
          .bsz = 512, /* Block size is by default 512 bytes */
-@@ -5132,6 +5149,7 @@ static int img_dd(int argc, char **argv)
+@@ -5388,6 +5405,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          { "of", img_dd_of, C_OF },
          { "skip", img_dd_skip, C_SKIP },
          { "osize", img_dd_osize, C_OSIZE },
@@ -77,7 +78,7 @@ index d5fa89a204..d458e85af2 100644
          { NULL, NULL, 0 }
      };
      const struct option long_options[] = {
-@@ -5328,9 +5346,10 @@ static int img_dd(int argc, char **argv)
+@@ -5606,9 +5624,10 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
  
      in.buf = g_new(uint8_t, in.bsz);
  
@@ -90,7 +91,7 @@ index d5fa89a204..d458e85af2 100644
          if (blk1) {
              in_ret = blk_pread(blk1, in_pos, bytes, in.buf, 0);
              if (in_ret == 0) {
-@@ -5339,6 +5358,9 @@ static int img_dd(int argc, char **argv)
+@@ -5617,6 +5636,9 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          } else {
              in_ret = read(STDIN_FILENO, in.buf, bytes);
              if (in_ret == 0) {

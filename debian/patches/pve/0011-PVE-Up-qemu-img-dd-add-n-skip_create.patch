@@ -4,7 +4,8 @@ Date: Mon, 6 Apr 2020 12:16:42 +0200
 Subject: [PATCH] PVE: [Up] qemu-img dd: add -n skip_create
 
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[FE: fix getopt-string + add documentation]
+[FE: fix getopt-string + add documentation
+     rebase for 10.1.0]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  docs/tools/qemu-img.rst | 11 ++++++++++-
@@ -13,7 +14,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 26 insertions(+), 12 deletions(-)
 
 diff --git a/docs/tools/qemu-img.rst b/docs/tools/qemu-img.rst
-index 3653adb963..d83e8fb3c0 100644
+index 5e7b85079d..6249e01da9 100644
 --- a/docs/tools/qemu-img.rst
 +++ b/docs/tools/qemu-img.rst
 @@ -212,6 +212,10 @@ Parameters to convert subcommand:
@@ -49,7 +50,7 @@ index 3653adb963..d83e8fb3c0 100644
  
    Give information about the disk image *FILENAME*. Use it in
 diff --git a/qemu-img-cmds.hx b/qemu-img-cmds.hx
-index 048788b23d..0b29a67a06 100644
+index a6de1434a3..d584624f8e 100644
 --- a/qemu-img-cmds.hx
 +++ b/qemu-img-cmds.hx
 @@ -60,9 +60,9 @@ SRST
@@ -65,10 +66,10 @@ index 048788b23d..0b29a67a06 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index d458e85af2..dc13efba8b 100644
+index 89ef74ae07..6e92a70254 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -5122,7 +5122,7 @@ static int img_dd(int argc, char **argv)
+@@ -5378,7 +5378,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      const char *fmt = NULL;
      int64_t size = 0, readsize = 0;
      int64_t out_pos, in_pos;
@@ -77,18 +78,18 @@ index d458e85af2..dc13efba8b 100644
      struct DdInfo dd = {
          .flags = 0,
          .count = 0,
-@@ -5160,7 +5160,7 @@ static int img_dd(int argc, char **argv)
+@@ -5418,7 +5418,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          { 0, 0, 0, 0 }
      };
  
--    while ((c = getopt_long(argc, argv, ":hf:O:U", long_options, NULL))) {
-+    while ((c = getopt_long(argc, argv, ":hf:O:Un", long_options, NULL))) {
+-    while ((c = getopt_long(argc, argv, "hf:O:U", long_options, NULL))) {
++    while ((c = getopt_long(argc, argv, "hf:O:Un", long_options, NULL))) {
          if (c == EOF) {
              break;
          }
-@@ -5180,6 +5180,9 @@ static int img_dd(int argc, char **argv)
-         case 'h':
-             help();
+@@ -5459,6 +5459,9 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+         case 'O':
+             out_fmt = optarg;
              break;
 +        case 'n':
 +            skip_create = true;
@@ -96,7 +97,7 @@ index d458e85af2..dc13efba8b 100644
          case 'U':
              force_share = true;
              break;
-@@ -5310,13 +5313,15 @@ static int img_dd(int argc, char **argv)
+@@ -5588,13 +5591,15 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
                                  size - in.bsz * in.offset, &error_abort);
          }
  

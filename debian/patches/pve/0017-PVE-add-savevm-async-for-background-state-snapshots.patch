@@ -33,7 +33,8 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
      force raw format when loading state as suggested by Friedrich Weber
      improve setting state in savevm-end handler
      improve runstate preservation
-     use dedicated iothread for state file to avoid deadlock, bug #6262]
+     use dedicated iothread for state file to avoid deadlock, bug #6262
+     rebase for 10.1.0]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hmp-commands-info.hx         |  13 +
@@ -51,10 +52,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
-index c59cd6637b..d1a7b99add 100644
+index 6142f60e7b..3e15458335 100644
 --- a/hmp-commands-info.hx
 +++ b/hmp-commands-info.hx
-@@ -512,6 +512,19 @@ SRST
+@@ -510,6 +510,19 @@ SRST
      Show current migration parameters.
  ERST
  
@@ -75,10 +76,10 @@ index c59cd6637b..d1a7b99add 100644
          .name       = "balloon",
          .args_type  = "",
 diff --git a/hmp-commands.hx b/hmp-commands.hx
-index 06746f0afc..0c7c6f2c16 100644
+index d0e4f35a30..0d9241db9e 100644
 --- a/hmp-commands.hx
 +++ b/hmp-commands.hx
-@@ -1859,3 +1859,20 @@ SRST
+@@ -1862,3 +1862,20 @@ SRST
    List event channels in the guest
  ERST
  #endif
@@ -132,7 +133,7 @@ index ae116d9804..2596cc2426 100644
  void coroutine_fn hmp_screendump(Monitor *mon, const QDict *qdict);
  void hmp_chardev_add(Monitor *mon, const QDict *qdict);
 diff --git a/migration/meson.build b/migration/meson.build
-index cf66c78681..46e92249a1 100644
+index 1d32185fff..409b748980 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
 @@ -33,6 +33,7 @@ system_ss.add(files(
@@ -731,7 +732,7 @@ index 0000000000..56e0fa6c69
 +    return ret;
 +}
 diff --git a/monitor/hmp-cmds.c b/monitor/hmp-cmds.c
-index 7ded3378cf..bade2a4b92 100644
+index 74a0f56566..1e66bff724 100644
 --- a/monitor/hmp-cmds.c
 +++ b/monitor/hmp-cmds.c
 @@ -24,6 +24,7 @@
@@ -784,10 +785,10 @@ index 7ded3378cf..bade2a4b92 100644
 +    }
 +}
 diff --git a/qapi/migration.json b/qapi/migration.json
-index 8b9c53595c..ff3479da65 100644
+index 2387c21e9c..c1d962b4ed 100644
 --- a/qapi/migration.json
 +++ b/qapi/migration.json
-@@ -279,6 +279,40 @@
+@@ -319,6 +319,40 @@
             '*dirty-limit-throttle-time-per-round': 'uint64',
             '*dirty-limit-ring-full-time': 'uint64'} }
  
@@ -829,10 +830,10 @@ index 8b9c53595c..ff3479da65 100644
  # @query-migrate:
  #
 diff --git a/qapi/misc.json b/qapi/misc.json
-index 559b66f201..7959e89c1e 100644
+index 28c641fe2f..51d907b2b8 100644
 --- a/qapi/misc.json
 +++ b/qapi/misc.json
-@@ -454,6 +454,24 @@
+@@ -449,6 +449,24 @@
  ##
  { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
  
@@ -858,10 +859,10 @@ index 559b66f201..7959e89c1e 100644
  # @CommandLineParameterType:
  #
 diff --git a/qemu-options.hx b/qemu-options.hx
-index dc694a99a3..defee0c06a 100644
+index ab23f14d21..3ec9e52d31 100644
 --- a/qemu-options.hx
 +++ b/qemu-options.hx
-@@ -4862,6 +4862,18 @@ SRST
+@@ -5048,6 +5048,18 @@ SRST
      Start right away with a saved state (``loadvm`` in monitor)
  ERST
  
@@ -877,14 +878,14 @@ index dc694a99a3..defee0c06a 100644
 +  for "Device URL Syntax" for more information.
 +ERST
 +
- #ifndef _WIN32
+ #if !defined(_WIN32) && !defined(EMSCRIPTEN)
  DEF("daemonize", 0, QEMU_OPTION_daemonize, \
      "-daemonize      daemonize QEMU after initializing\n", QEMU_ARCH_ALL)
 diff --git a/system/vl.c b/system/vl.c
-index ec93988a03..9b36ace6b4 100644
+index 3b7057e6c6..28a7d74f5b 100644
 --- a/system/vl.c
 +++ b/system/vl.c
-@@ -171,6 +171,7 @@ static const char *accelerators;
+@@ -173,6 +173,7 @@ static const char *accelerators;
  static bool have_custom_ram_size;
  static const char *ram_memdev_id;
  static QDict *machine_opts_dict;
@@ -892,7 +893,7 @@ index ec93988a03..9b36ace6b4 100644
  static QTAILQ_HEAD(, ObjectOption) object_opts = QTAILQ_HEAD_INITIALIZER(object_opts);
  static QTAILQ_HEAD(, DeviceOption) device_opts = QTAILQ_HEAD_INITIALIZER(device_opts);
  static int display_remote;
-@@ -2814,6 +2815,12 @@ void qmp_x_exit_preconfig(Error **errp)
+@@ -2811,6 +2812,12 @@ void qmp_x_exit_preconfig(Error **errp)
          RunState state = autostart ? RUN_STATE_RUNNING : runstate_get();
          load_snapshot(loadvm, NULL, false, NULL, &error_fatal);
          load_snapshot_resume(state);
@@ -905,7 +906,7 @@ index ec93988a03..9b36ace6b4 100644
      }
      if (replay_mode != REPLAY_MODE_NONE) {
          replay_vmstate_init();
-@@ -3360,6 +3367,9 @@ void qemu_init(int argc, char **argv)
+@@ -3357,6 +3364,9 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_loadvm:
                  loadvm = optarg;
                  break;

@@ -26,7 +26,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 migration/pbs-state.c
 
 diff --git a/include/migration/misc.h b/include/migration/misc.h
-index 8fd36eba1d..e963e93e71 100644
+index a261f99d89..e8c6a87305 100644
 --- a/include/migration/misc.h
 +++ b/include/migration/misc.h
 @@ -140,4 +140,7 @@ bool multifd_device_state_save_thread_should_exit(void);
@@ -38,7 +38,7 @@ index 8fd36eba1d..e963e93e71 100644
 +
  #endif
 diff --git a/migration/meson.build b/migration/meson.build
-index 46e92249a1..fb3fd7d7d0 100644
+index 409b748980..ca94e7e17b 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
 @@ -8,6 +8,7 @@ migration_files = files(
@@ -58,10 +58,10 @@ index 46e92249a1..fb3fd7d7d0 100644
    'savevm.c',
    'savevm-async.c',
 diff --git a/migration/migration.c b/migration/migration.c
-index d46e776e24..2f3430f440 100644
+index 10c216d25d..b58cbdc2c0 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
-@@ -319,6 +319,7 @@ void migration_object_init(void)
+@@ -340,6 +340,7 @@ void migration_object_init(void)
  
      /* Initialize cpu throttle timers */
      cpu_throttle_init();
@@ -180,7 +180,7 @@ index 0000000000..a97187e4d7
 +                         NULL);
 +}
 diff --git a/pve-backup.c b/pve-backup.c
-index e931cb9203..366b015589 100644
+index 177fb851b4..7575abab7c 100644
 --- a/pve-backup.c
 +++ b/pve-backup.c
 @@ -1089,6 +1089,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
@@ -192,10 +192,10 @@ index e931cb9203..366b015589 100644
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 01fb2d899d..7b32b59717 100644
+index e6b8ba49b2..be6bf25219 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1008,6 +1008,11 @@
+@@ -1032,6 +1032,11 @@
  # @pbs-dirty-bitmap-savevm: True if 'dirty-bitmaps' migration capability can
  #                           safely be set for savevm-async.
  #
@@ -207,7 +207,7 @@ index 01fb2d899d..7b32b59717 100644
  # @pbs-masterkey: True if the QMP backup call supports the 'master_keyfile'
  #                 parameter.
  #
-@@ -1021,6 +1026,7 @@
+@@ -1045,6 +1050,7 @@
    'data': { 'pbs-dirty-bitmap': 'bool',
              'query-bitmap-info': 'bool',
              'pbs-dirty-bitmap-savevm': 'bool',
