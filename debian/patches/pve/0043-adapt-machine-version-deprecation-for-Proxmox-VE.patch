@@ -47,8 +47,8 @@ index 8ada4d5832..f9f3b75284 100644
 + *   9        11.2              5.2 and older        6.0
 + *  10        13.2              7.2 and older        8.0
 + */
-+#define MACHINE_VER_BASELINE_PVE_MAJOR 2
-+#define MACHINE_VER_BASELINE_PVE_MINOR 4
++#define MACHINE_VER_BASELINE_PVE_MAJOR 6
++#define MACHINE_VER_BASELINE_PVE_MINOR 0
 +#define MACHINE_VER_DELETION_MAJOR (QEMU_VERSION_MAJOR - 6)
 +#define MACHINE_VER_DELETION_MINOR QEMU_VERSION_MINOR
 +
