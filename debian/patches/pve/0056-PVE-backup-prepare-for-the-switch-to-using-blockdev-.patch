@@ -1,8 +1,8 @@
-From 5a8cf9e98ba1668a6a20c2fcda1704de4103ff58 Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Fiona Ebner <f.ebner@proxmox.com>
 Date: Wed, 2 Jul 2025 18:27:34 +0200
-Subject: [PATCH 56/59] PVE backup: prepare for the switch to using blockdev
- rather than drive
+Subject: [PATCH] PVE backup: prepare for the switch to using blockdev rather
+ than drive
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -101,6 +101,3 @@ index 0450303017..457fcb7e5c 100644
              di_list = g_list_append(di_list, di);
          }
      }
--- 
-2.39.5
-

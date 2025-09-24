@@ -1,8 +1,7 @@
-From 76442f3eafa8cbe647fe2d39e78e817ec681143c Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Fiona Ebner <f.ebner@proxmox.com>
 Date: Wed, 2 Jul 2025 18:27:37 +0200
-Subject: [PATCH 59/59] block/qapi: include child references in block device
- info
+Subject: [PATCH] block/qapi: include child references in block device info
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -132,6 +131,3 @@ index 52692b6b3b..ef99bb2e9a 100644
              "node-name": "disk0",
              "backing_file_depth": 0,
              "drv": "null-co",
--- 
-2.39.5
-

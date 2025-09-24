@@ -35,10 +35,11 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
      avoid superfluous child permission update]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/alloc-track.c | 343 ++++++++++++++++++++++++++++++++++++++++++++
- block/meson.build   |   1 +
- block/stream.c      |  34 +++++
- 3 files changed, 378 insertions(+)
+ block/alloc-track.c  | 343 +++++++++++++++++++++++++++++++++++++++++++
+ block/meson.build    |   1 +
+ block/stream.c       |  34 +++++
+ qapi/block-core.json |  19 ++-
+ 4 files changed, 396 insertions(+), 1 deletion(-)
  create mode 100644 block/alloc-track.c
 
 diff --git a/block/alloc-track.c b/block/alloc-track.c
@@ -447,3 +448,47 @@ index e187cd1262..0b61029399 100644
      }
  
  out:
+diff --git a/qapi/block-core.json b/qapi/block-core.json
+index 7b32b59717..8d912dc96b 100644
+--- a/qapi/block-core.json
++++ b/qapi/block-core.json
+@@ -3462,7 +3462,8 @@
+ # Since: 2.9
+ ##
+ { 'enum': 'BlockdevDriver',
+-  'data': [ 'blkdebug', 'blklogwrites', 'blkreplay', 'blkverify', 'bochs',
++  'data': [ 'alloc-track',
++            'blkdebug', 'blklogwrites', 'blkreplay', 'blkverify', 'bochs',
+             'cloop', 'compress', 'copy-before-write', 'copy-on-read', 'dmg',
+             'file', 'snapshot-access', 'ftp', 'ftps',
+             {'name': 'gluster', 'features': [ 'deprecated' ] },
+@@ -3563,6 +3564,21 @@
+ { 'struct': 'BlockdevOptionsNull',
+   'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
+ 
++##
++# @BlockdevOptionsAllocTrack:
++#
++# Driver specific block device options for the alloc-track backend.
++#
++# @backing: backing file with the data.
++#
++# @auto-remove: whether the alloc-track driver should drop itself
++#     after completing the stream.
++#
++##
++{ 'struct': 'BlockdevOptionsAllocTrack',
++  'base': 'BlockdevOptionsGenericFormat',
++  'data': { 'auto-remove': 'bool', 'backing': 'BlockdevRefOrNull' } }
++
+ ##
+ # @BlockdevOptionsPbs:
+ #
+@@ -5009,6 +5025,7 @@
+             '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
+   'discriminator': 'driver',
+   'data': {
++      'alloc-track':'BlockdevOptionsAllocTrack',
+       'blkdebug':   'BlockdevOptionsBlkdebug',
+       'blklogwrites':'BlockdevOptionsBlklogwrites',
+       'blkverify':  'BlockdevOptionsBlkverify',

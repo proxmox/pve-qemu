@@ -62,7 +62,5 @@ pve/0053-PVE-backup-add-target-ID-in-backup-state.patch
 pve/0054-PVE-backup-get-device-info-allow-caller-to-specify-f.patch
 pve/0055-PVE-backup-implement-backup-access-setup-and-teardow.patch
 pve/0056-PVE-backup-prepare-for-the-switch-to-using-blockdev-.patch
-pve/0057-block-zeroinit-support-using-as-blockdev-driver.patch
-pve/0058-block-alloc-track-support-using-as-blockdev-driver.patch
-pve/0059-block-qapi-include-child-references-in-block-device-.patch
-pve/0060-savevm-async-reuse-migration-blocker-check-for-snaps.patch
+pve/0057-block-qapi-include-child-references-in-block-device-.patch
+pve/0058-savevm-async-reuse-migration-blocker-check-for-snaps.patch

@@ -9,9 +9,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
      use dedicated function to open file child]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
- block/meson.build |   1 +
- block/zeroinit.c  | 207 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 208 insertions(+)
+ block/meson.build    |   1 +
+ block/zeroinit.c     | 213 +++++++++++++++++++++++++++++++++++++++++++
+ qapi/block-core.json |   5 +-
+ 3 files changed, 217 insertions(+), 2 deletions(-)
  create mode 100644 block/zeroinit.c
 
 diff --git a/block/meson.build b/block/meson.build
@@ -28,10 +29,10 @@ index 34b1b2a306..a21d9a5411 100644
  system_ss.add(when: 'CONFIG_TCG', if_true: files('blkreplay.c'))
 diff --git a/block/zeroinit.c b/block/zeroinit.c
 new file mode 100644
-index 0000000000..f9d513db15
+index 0000000000..036edb17f5
 --- /dev/null
 +++ b/block/zeroinit.c
-@@ -0,0 +1,207 @@
+@@ -0,0 +1,213 @@
 +/*
 + * Filter to fake a zero-initialized block device.
 + *
@@ -100,6 +101,7 @@ index 0000000000..f9d513db15
 +    QemuOpts *opts;
 +    Error *local_err = NULL;
 +    int ret;
++    const char *next = NULL;
 +
 +    s->extents = 0;
 +
@@ -111,9 +113,14 @@ index 0000000000..f9d513db15
 +        goto fail;
 +    }
 +
-+    /* Open the raw file */
-+    ret = bdrv_open_file_child(qemu_opt_get(opts, "x-next"), options, "next",
-+                               bs, &local_err);
++
++    next = qemu_opt_get(opts, "x-next");
++
++    if (next) {
++        ret = bdrv_open_file_child(next, options, "next", bs, &local_err);
++    } else { /* when opened as a blockdev, there is no 'next' option */
++        ret = bdrv_open_file_child(NULL, options, "file", bs, &local_err);
++    }
 +    if (ret < 0) {
 +        error_propagate(errp, local_err);
 +        goto fail;
@@ -239,3 +246,26 @@ index 0000000000..f9d513db15
 +}
 +
 +block_init(bdrv_zeroinit_init);
+diff --git a/qapi/block-core.json b/qapi/block-core.json
+index 0e5f148d30..0711253f06 100644
+--- a/qapi/block-core.json
++++ b/qapi/block-core.json
+@@ -3241,7 +3241,7 @@
+             { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
+             { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
+             { 'name': 'virtio-blk-vhost-vdpa', 'if': 'CONFIG_BLKIO' },
+-            'vmdk', 'vpc', 'vvfat' ] }
++            'vmdk', 'vpc', 'vvfat', 'zeroinit' ] }
+ 
+ ##
+ # @BlockdevOptionsFile:
+@@ -4799,7 +4799,8 @@
+                       'if': 'CONFIG_BLKIO' },
+       'vmdk':       'BlockdevOptionsGenericCOWFormat',
+       'vpc':        'BlockdevOptionsGenericFormat',
+-      'vvfat':      'BlockdevOptionsVVFAT'
++      'vvfat':      'BlockdevOptionsVVFAT',
++      'zeroinit':   'BlockdevOptionsGenericFormat'
+   } }
+ 
+ ##

@@ -740,7 +740,7 @@ index 0000000000..9ebeef7c8f
 +
 +#endif /* PVE_BACKUP_H */
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 9bdcfa31ea..2fb51215f2 100644
+index ba2a13e668..07c5773717 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -1023,6 +1023,9 @@

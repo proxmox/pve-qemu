@@ -361,7 +361,7 @@ index 8508aab9c9..9c39f54f86 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libcbor support':   libcbor}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index dd98e03bf1..0c3ebfa74e 100644
+index 5379fde30f..01fb2d899d 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -3470,6 +3470,7 @@
