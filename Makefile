@@ -32,8 +32,6 @@ PC_BIOS_FW_PURGE_LIST_IN = \
 	s390-ccw.img \
 	s390-netboot.img \
 	u-boot.e500 \
-	.*[a-zA-Z0-9]\.dtb \
-	.*[a-zA-Z0-9]\.dts \
 	qemu_vga.ndrv \
 	slof.bin \
 	opensbi-riscv.*-generic-fw_dynamic.bin \
@@ -49,8 +47,10 @@ $(BUILDDIR): submodule
 	cp -a $(SRCDIR) $@.tmp
 	cp -a debian $@.tmp/debian
 	rm -rf $@.tmp/roms/edk2 # packaged separately
+	rm -rf $@.tmp/pc-bios/dtb
 	find $@.tmp/pc-bios -type f | grep $(BLOB_PURGE_FILTER) | xargs rm -f
 	sed -i $(BLOB_PURGE_SED_CMDS) $@.tmp/pc-bios/meson.build
+	sed -i "/subdir('dtb')/d" $@.tmp/pc-bios/meson.build
 	echo "git clone git://git.proxmox.com/git/pve-qemu.git\\ngit checkout $(GITVERSION)" > $@.tmp/debian/SOURCE
 	mv $@.tmp $@
 
