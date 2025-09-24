@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: John Levon <john.levon@nutanix.com>
+Date: Wed, 27 Aug 2025 20:08:10 +0100
+Subject: [PATCH] hw/vfio-user: add x-pci-class-code
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+This new option was not added to vfio_user_pci_dev_properties, which
+caused an incorrect class code for vfio-user devices.
+
+Fixes: a59d06305fff ("vfio/pci: Introduce x-pci-class-code option")
+Signed-off-by: John Levon <john.levon@nutanix.com>
+Reviewed-by: Cédric Le Goater <clg@redhat.com>
+Link: https://lore.kernel.org/qemu-devel/20250827190810.1645340-1-john.levon@nutanix.com
+Signed-off-by: Cédric Le Goater <clg@redhat.com>
+(cherry picked from commit 1b50621881241ac5bc75ae7f8aa4c278ada8a668)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/vfio-user/pci.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/hw/vfio-user/pci.c b/hw/vfio-user/pci.c
+index be71c77729..dfaa89498d 100644
+--- a/hw/vfio-user/pci.c
++++ b/hw/vfio-user/pci.c
+@@ -406,6 +406,8 @@ static const Property vfio_user_pci_dev_properties[] = {
+                        sub_vendor_id, PCI_ANY_ID),
+     DEFINE_PROP_UINT32("x-pci-sub-device-id", VFIOPCIDevice,
+                        sub_device_id, PCI_ANY_ID),
++    DEFINE_PROP_UINT32("x-pci-class-code", VFIOPCIDevice,
++                       class_code, PCI_ANY_ID),
+     DEFINE_PROP_BOOL("x-send-queued", VFIOUserPCIDevice, send_queued, false),
+     DEFINE_PROP_UINT32("x-msg-timeout", VFIOUserPCIDevice, wait_time, 5000),
+     DEFINE_PROP_BOOL("x-no-posted-writes", VFIOUserPCIDevice, no_post, false),

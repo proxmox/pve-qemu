@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Zero Tang <zero.tangptr@gmail.com>
+Date: Mon, 18 Aug 2025 12:16:47 +0200
+Subject: [PATCH] i386/tcg/svm: fix incorrect canonicalization
+
+For all 32-bit systems and 64-bit Windows systems, "long" is 4 bytes long.
+Due to using "long" for a linear address, svm_canonicalization would
+set all high bits to 1 when (assuming 48-bit linear address) the segment
+base is bigger than 0x7FFF.
+
+This fixes booting guests under TCG when the guest IDT and GDT bases are
+above 0x7FFF, thereby resulting in incorrect bases. When an interrupt
+arrives, it would trigger a #PF exception; the #PF would trigger again,
+resulting in a #DF exception; the #PF would trigger for the third time,
+resulting in triple-fault, and eventually causes a shutdown VM-Exit to
+the hypervisor right after guest boot.
+
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Zero Tang <zero.tangptr@gmail.com>
+(cherry picked from commit c12cbaa007c9da97a11e74119ea3aed9fcc3ac4c)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/i386/tcg/system/svm_helper.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/target/i386/tcg/system/svm_helper.c b/target/i386/tcg/system/svm_helper.c
+index b27049b9ed..dea039b87a 100644
+--- a/target/i386/tcg/system/svm_helper.c
++++ b/target/i386/tcg/system/svm_helper.c
+@@ -49,7 +49,7 @@ static void svm_save_seg(CPUX86State *env, int mmu_idx, hwaddr addr,
+ static inline void svm_canonicalization(CPUX86State *env, target_ulong *seg_base)
+ {
+     uint16_t shift_amt = 64 - cpu_x86_virtual_addr_width(env);
+-    *seg_base = ((((long) *seg_base) << shift_amt) >> shift_amt);
++    *seg_base = (((int64_t) *seg_base) << shift_amt) >> shift_amt;
+ }
+ 
+ static void svm_load_seg(CPUX86State *env, int mmu_idx, hwaddr addr,

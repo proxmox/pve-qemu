@@ -1,0 +1,79 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Tomita Moeko <tomitamoeko@gmail.com>
+Date: Thu, 14 Aug 2025 00:05:10 +0800
+Subject: [PATCH] vfio/igd: Enable quirks when IGD is not the primary display
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Since linux 6.15, commit 41112160ca87 ("vfio/pci: match IGD devices in
+display controller class"), IGD related regions are also exposed when
+IGD is not primary display (device class is Display controller).
+
+Allow IGD quirks to be enabled in this configuration so that guests can
+have display output on IGD when it is not the primary display.
+
+Signed-off-by: Tomita Moeko <tomitamoeko@gmail.com>
+Reviewed-by: Alex Williamson <alex.williamson@redhat.com>
+Link: https://lore.kernel.org/qemu-devel/20250813160510.23553-1-tomitamoeko@gmail.com
+Signed-off-by: Cédric Le Goater <clg@redhat.com>
+(cherry picked from commit 432ca3dfa3d57a7bf1e427576fcfca4ab0079a50)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/vfio/igd.c | 7 ++++---
+ hw/vfio/pci.h | 5 +++++
+ 2 files changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/hw/vfio/igd.c b/hw/vfio/igd.c
+index ee0767b0b8..f116c40ccd 100644
+--- a/hw/vfio/igd.c
++++ b/hw/vfio/igd.c
+@@ -460,7 +460,7 @@ void vfio_probe_igd_bar0_quirk(VFIOPCIDevice *vdev, int nr)
+     int gen;
+ 
+     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
+-        !vfio_is_vga(vdev) || nr != 0) {
++        !vfio_is_base_display(vdev) || nr != 0) {
+         return;
+     }
+ 
+@@ -518,7 +518,7 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
+     Error *err = NULL;
+ 
+     if (!vfio_pci_is(vdev, PCI_VENDOR_ID_INTEL, PCI_ANY_ID) ||
+-        !vfio_is_vga(vdev)) {
++        !vfio_is_base_display(vdev)) {
+         return true;
+     }
+ 
+@@ -534,12 +534,13 @@ static bool vfio_pci_igd_config_quirk(VFIOPCIDevice *vdev, Error **errp)
+     /*
+      * For backward compatibility, enable legacy mode when
+      * - Device geneation is 6 to 9 (including both)
+-     * - IGD claims VGA cycles on host
++     * - IGD exposes itself as VGA controller and claims VGA cycles on host
+      * - Machine type is i440fx (pc_piix)
+      * - IGD device is at guest BDF 00:02.0
+      * - Not manually disabled by x-igd-legacy-mode=off
+      */
+     if ((vdev->igd_legacy_mode != ON_OFF_AUTO_OFF) &&
++        vfio_is_vga(vdev) &&
+         (gen >= 6 && gen <= 9) &&
+         !(gmch & IGD_GMCH_VGA_DISABLE) &&
+         !strcmp(MACHINE_GET_CLASS(qdev_get_machine())->family, "pc_piix") &&
+diff --git a/hw/vfio/pci.h b/hw/vfio/pci.h
+index 810a842f4a..923cf9c2f7 100644
+--- a/hw/vfio/pci.h
++++ b/hw/vfio/pci.h
+@@ -203,6 +203,11 @@ static inline bool vfio_is_vga(VFIOPCIDevice *vdev)
+     return (vdev->class_code >> 8) == PCI_CLASS_DISPLAY_VGA;
+ }
+ 
++static inline bool vfio_is_base_display(VFIOPCIDevice *vdev)
++{
++    return (vdev->class_code >> 16) == PCI_BASE_CLASS_DISPLAY;
++}
++
+ /* MSI/MSI-X/INTx */
+ void vfio_pci_vector_init(VFIOPCIDevice *vdev, int nr);
+ void vfio_pci_add_kvm_msi_virq(VFIOPCIDevice *vdev, VFIOMSIVector *vector,
