@@ -11,6 +11,7 @@ extra/0010-vfio-igd-Enable-quirks-when-IGD-is-not-the-primary-d.patch
 extra/0011-i386-cpu-Enable-SMM-cpu-address-space-under-KVM.patch
 extra/0012-target-i386-add-compatibility-property-for-arch_capa.patch
 extra/0013-target-i386-add-compatibility-property-for-pdcm-feat.patch
+extra/0014-hw-scsi-avoid-deadlock-upon-TMF-request-cancelling-w.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch

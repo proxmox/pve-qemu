@@ -1,0 +1,83 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Fri, 17 Oct 2025 11:43:30 +0200
+Subject: [PATCH] hw/scsi: avoid deadlock upon TMF request cancelling with
+ VirtIO
+
+When scsi_req_dequeue() is reached via
+scsi_req_cancel_async()
+virtio_scsi_tmf_cancel_req()
+virtio_scsi_do_tmf_aio_context(),
+there is a deadlock when trying to acquire the SCSI device's requests
+lock, because it was already acquired in
+virtio_scsi_do_tmf_aio_context().
+
+In particular, the issue happens with a FreeBSD guest (13, 14, 15,
+maybe more), when it cancels SCSI requests, because of timeout.
+
+This is a regression caused by commit da6eebb33b ("virtio-scsi:
+perform TMFs in appropriate AioContexts") and the introduction of the
+requests_lock earlier.
+
+To fix the issue, only cancel the requests after releasing the
+requests_lock. For this, the SCSI device's requests are iterated while
+holding the requests_lock and the requests to be cancelled are
+collected in a list. Then, the collected requests are cancelled
+one by one while not holding the requests_lock. This is safe, because
+only requests from the current AioContext are collected and acted
+upon.
+
+Originally reported by Proxmox VE users:
+https://bugzilla.proxmox.com/show_bug.cgi?id=6810
+https://forum.proxmox.com/threads/173914/
+
+Fixes: da6eebb33b ("virtio-scsi: perform TMFs in appropriate AioContexts")
+Suggested-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Message-id: 20251017094518.328905-1-f.ebner@proxmox.com
+[Changed g_list_append() to g_list_prepend() to avoid traversing the
+list each time.
+--Stefan]
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit 7d80d6d82db4c73e335f9e738d7a5778124df35e
+ from https://gitlab.com/stefanha/qemu/-/tree/block)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/scsi/virtio-scsi.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/hw/scsi/virtio-scsi.c b/hw/scsi/virtio-scsi.c
+index 34ae14f7bf..3b635053b5 100644
+--- a/hw/scsi/virtio-scsi.c
++++ b/hw/scsi/virtio-scsi.c
+@@ -343,6 +343,7 @@ static void virtio_scsi_do_tmf_aio_context(void *opaque)
+     SCSIDevice *d = virtio_scsi_device_get(s, tmf->req.tmf.lun);
+     SCSIRequest *r;
+     bool match_tag;
++    g_autoptr(GList) reqs = NULL;
+ 
+     if (!d) {
+         tmf->resp.tmf.response = VIRTIO_SCSI_S_BAD_TARGET;
+@@ -378,10 +379,21 @@ static void virtio_scsi_do_tmf_aio_context(void *opaque)
+             if (match_tag && cmd_req->req.cmd.tag != tmf->req.tmf.tag) {
+                 continue;
+             }
+-            virtio_scsi_tmf_cancel_req(tmf, r);
++            /*
++             * Cannot cancel directly, because scsi_req_dequeue() would deadlock
++             * when attempting to acquire the request_lock a second time. Taking
++             * a reference here is paired with an unref after cancelling below.
++             */
++            scsi_req_ref(r);
++            reqs = g_list_prepend(reqs, r);
+         }
+     }
+ 
++    for (GList *elem = g_list_first(reqs); elem; elem = g_list_next(elem)) {
++        virtio_scsi_tmf_cancel_req(tmf, elem->data);
++        scsi_req_unref(elem->data);
++    }
++
+     /* Incremented by virtio_scsi_do_tmf() */
+     virtio_scsi_tmf_dec_remaining(tmf);
+ 
