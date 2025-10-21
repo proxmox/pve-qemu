@@ -1,3 +1,15 @@
+pve-qemu-kvm (10.1.2-1) trixie; urgency=medium
+
+  * fix #6810: fix a potential deadlock upon TMF request cancelling with
+    VirtIO SCSI
+
+  * update QEMU and downstream patches for 10.1.2 stable release.
+
+  * cherry pick fix for VFIO regression affecting v10.1, which, e.g., could
+    affect some GPU passthrough setups.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 21 Oct 2025 15:55:12 +0200
+
 pve-qemu-kvm (10.1.0-1) trixie; urgency=medium
 
   * update QEMU and downstream patches for 10.1.0 release.
