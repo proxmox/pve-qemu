@@ -10,10 +10,10 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/target/i386/cpu.h b/target/i386/cpu.h
-index 2187e61654..da8497931f 100644
+index 42168f1d6d..4f63100453 100644
 --- a/target/i386/cpu.h
 +++ b/target/i386/cpu.h
-@@ -2625,9 +2625,9 @@ uint64_t cpu_get_tsc(CPUX86State *env);
+@@ -2630,9 +2630,9 @@ uint64_t cpu_get_tsc(CPUX86State *env);
  #define CPU_RESOLVING_TYPE TYPE_X86_CPU
  
  #ifdef TARGET_X86_64

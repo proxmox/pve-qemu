@@ -33,10 +33,10 @@ index 1b2f4a4769..c9982e1bcc 100644
    'if': 'CONFIG_SPICE' }
  
 diff --git a/ui/spice-core.c b/ui/spice-core.c
-index cd1ec9c082..4064053778 100644
+index a8b34d3bf5..994079ec87 100644
 --- a/ui/spice-core.c
 +++ b/ui/spice-core.c
-@@ -556,6 +556,10 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)
+@@ -554,6 +554,10 @@ static SpiceInfo *qmp_query_spice_real(Error **errp)
      micro = SPICE_SERVER_VERSION & 0xff;
      info->compiled_version = g_strdup_printf("%d.%d.%d", major, minor, micro);
  

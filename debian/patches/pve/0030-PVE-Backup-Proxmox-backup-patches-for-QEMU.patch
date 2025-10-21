@@ -266,10 +266,10 @@ index 2596cc2426..9dda91d65a 100644
  void hmp_device_add(Monitor *mon, const QDict *qdict);
  void hmp_device_del(Monitor *mon, const QDict *qdict);
 diff --git a/meson.build b/meson.build
-index 25eee758fc..347197d2d7 100644
+index fe7b7a88fd..3bb206ce4d 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -2199,6 +2199,7 @@ endif
+@@ -2200,6 +2200,7 @@ endif
  has_gettid = cc.has_function('gettid')
  
  libuuid = cc.find_library('uuid', required: true)

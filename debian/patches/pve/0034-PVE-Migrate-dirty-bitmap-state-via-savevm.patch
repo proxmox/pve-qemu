@@ -58,7 +58,7 @@ index 409b748980..ca94e7e17b 100644
    'savevm.c',
    'savevm-async.c',
 diff --git a/migration/migration.c b/migration/migration.c
-index 10c216d25d..b58cbdc2c0 100644
+index 32b8ce5613..60464d43c3 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
 @@ -340,6 +340,7 @@ void migration_object_init(void)
