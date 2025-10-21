@@ -1,0 +1,75 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: John Levon <john.levon@nutanix.com>
+Date: Tue, 14 Oct 2025 17:12:27 +0200
+Subject: [PATCH] vfio: only check region info cache for initial regions
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+It is semantically valid for a VFIO device to increase the number of
+regions after initialization. In this case, we'd attempt to check for
+cached region info past the size of the ->reginfo array. Check for the
+region index and skip the cache in these cases.
+
+This also works around some VGPU use cases which appear to be a bug,
+where VFIO_DEVICE_QUERY_GFX_PLANE returns a region index beyond the
+reported ->num_regions.
+
+Fixes: 95cdb024 ("vfio: add region info cache")
+Signed-off-by: John Levon <john.levon@nutanix.com>
+Reviewed-by: Cédric Le Goater <clg@redhat.com>
+Reviewed-by: Alex Williamson <alex@shazbot.org>
+Link: https://lore.kernel.org/qemu-devel/20251014151227.2298892-3-john.levon@nutanix.com
+Signed-off-by: Cédric Le Goater <clg@redhat.com>
+(cherry picked from commit 5bdcf2df64bf7e4be58524ef1442836b6d41282e
+ from https://gitlab.com/legoater/qemu/-/tree/vfio-next)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/vfio/device.c | 27 +++++++++++++++++++--------
+ 1 file changed, 19 insertions(+), 8 deletions(-)
+
+diff --git a/hw/vfio/device.c b/hw/vfio/device.c
+index 0b459c0f7c..7ebf41c95e 100644
+--- a/hw/vfio/device.c
++++ b/hw/vfio/device.c
+@@ -205,10 +205,19 @@ int vfio_device_get_region_info(VFIODevice *vbasedev, int index,
+     int fd = -1;
+     int ret;
+ 
+-    /* check cache */
+-    if (vbasedev->reginfo[index] != NULL) {
+-        *info = vbasedev->reginfo[index];
+-        return 0;
++    /*
++     * We only set up the region info cache for the initial number of regions.
++     *
++     * Since a VFIO device may later increase the number of regions then use
++     * such regions with an index past ->num_initial_regions, don't attempt to
++     * use the info cache in those cases.
++     */
++    if (index < vbasedev->num_initial_regions) {
++        /* check cache */
++        if (vbasedev->reginfo[index] != NULL) {
++            *info = vbasedev->reginfo[index];
++            return 0;
++        }
+     }
+ 
+     *info = g_malloc0(argsz);
+@@ -236,10 +245,12 @@ retry:
+         goto retry;
+     }
+ 
+-    /* fill cache */
+-    vbasedev->reginfo[index] = *info;
+-    if (vbasedev->region_fds != NULL) {
+-        vbasedev->region_fds[index] = fd;
++    if (index < vbasedev->num_initial_regions) {
++        /* fill cache */
++        vbasedev->reginfo[index] = *info;
++        if (vbasedev->region_fds != NULL) {
++            vbasedev->region_fds[index] = fd;
++        }
+     }
+ 
+     return 0;

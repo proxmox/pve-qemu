@@ -3,6 +3,8 @@ extra/0002-ide-avoid-potential-deadlock-when-draining-during-tr.patch
 extra/0003-tcg-arm-Fix-tgen_deposit.patch
 extra/0004-vfio-igd-Enable-quirks-when-IGD-is-not-the-primary-d.patch
 extra/0005-hw-scsi-avoid-deadlock-upon-TMF-request-cancelling-w.patch
+extra/0006-vfio-rename-field-to-num_initial_regions.patch
+extra/0007-vfio-only-check-region-info-cache-for-initial-region.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
