@@ -1,3 +1,10 @@
+pve-qemu-kvm (10.1.2-2) trixie; urgency=medium
+
+  * enable FUSE support in preparation to allow FUSE exports of, e.g.,
+    qcow2-formatted TPM state volumes via qemu-storage-daemon.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 13 Nov 2025 23:55:54 +0100
+
 pve-qemu-kvm (10.1.2-1) trixie; urgency=medium
 
   * fix #6810: fix a potential deadlock upon TMF request cancelling with
