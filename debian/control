@@ -11,6 +11,7 @@ Build-Depends: debhelper-compat (= 13),
                libcurl4-gnutls-dev,
                libepoxy-dev,
                libfdt-dev,
+               libfuse3-dev,
                libgbm-dev,
                libgnutls28-dev,
                libiscsi-dev (>= 1.12.0),
@@ -45,6 +46,7 @@ Standards-Version: 3.7.2
 Package: pve-qemu-kvm
 Architecture: any
 Depends: ceph-common (>= 0.48),
+         fuse3,
          iproute2,
          libiscsi4 (>= 1.12.0) | libiscsi7,
          libjpeg62-turbo,

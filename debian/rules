@@ -61,6 +61,7 @@ endif
 	    --disable-xen \
 	    --enable-curl \
 	    --enable-docs \
+	    --enable-fuse \
 	    --enable-gnutls \
 	    --enable-libiscsi \
 	    --enable-libusb \
