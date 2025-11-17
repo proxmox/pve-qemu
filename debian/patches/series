@@ -5,6 +5,7 @@ extra/0004-vfio-igd-Enable-quirks-when-IGD-is-not-the-primary-d.patch
 extra/0005-hw-scsi-avoid-deadlock-upon-TMF-request-cancelling-w.patch
 extra/0006-vfio-rename-field-to-num_initial_regions.patch
 extra/0007-vfio-only-check-region-info-cache-for-initial-region.patch
+extra/0008-ui-vdagent-fix-windows-agent-regression.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch

@@ -1,0 +1,105 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Mon, 27 Oct 2025 17:07:44 +0400
+Subject: [PATCH] ui/vdagent: fix windows agent regression
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Since commit f626116f ("ui/vdagent: factor out clipboard peer
+registration"), the QEMU clipboard serial is reset whenever the vdagent
+chardev receives the guest caps. This triggers a CHR_EVENT_CLOSED which
+is handled by virtio_serial_close() to notify the guest.
+
+The "reconnection logic" is there to reset the agent when a
+client (dbus, spice etc) reconnects, or the agent is restarted.
+It is required to sync the clipboard serials and to prevent races or
+loops due to clipboard managers on both ends (but this is not
+implemented by windows vdagent).
+
+The Unix agent has been reconnecting without resending caps, thus
+working with this approach.
+
+However, the Windows agent does not seem to have a way to handle
+VIRTIO_CONSOLE_PORT_OPEN=0 event and do not receive further data...
+
+Let's not trigger this disconnection/reset logic if the agent does not
+support VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL.
+
+Fixes: f626116f ("ui/vdagent: factor out clipboard peer registration")
+Signed-off-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reported-by: Lucas Kornicki <lucas.kornicki@nutanix.com>
+Tested-by: Lucas Kornicki <lucas.kornicki@nutanix.com>
+Link: https://lore.kernel.org/all/20251027130744.2714610-1-marcandre.lureau@redhat.com/
+[FE: picked from qemu-devel]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ ui/vdagent.c | 20 ++++++++++++++------
+ 1 file changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/ui/vdagent.c b/ui/vdagent.c
+index c0746fe5b1..a7c959e8ab 100644
+--- a/ui/vdagent.c
++++ b/ui/vdagent.c
+@@ -316,6 +316,15 @@ static bool have_selection(VDAgentChardev *vd)
+     return vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_SELECTION);
+ }
+ 
++static bool have_clipboard_serial(VDAgentChardev *vd)
++{
++#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
++    return vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL);
++#else
++    return false;
++#endif
++}
++
+ static uint32_t type_qemu_to_vdagent(enum QemuClipboardType type)
+ {
+     switch (type) {
+@@ -345,8 +354,7 @@ static void vdagent_send_clipboard_grab(VDAgentChardev *vd,
+         return;
+     }
+ 
+-#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
+-    if (vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL)) {
++    if (have_clipboard_serial(vd)) {
+         if (!info->has_serial) {
+             /* client should win */
+             info->serial = vd->last_serial[info->selection]++;
+@@ -356,7 +364,6 @@ static void vdagent_send_clipboard_grab(VDAgentChardev *vd,
+         data++;
+         msg->size += sizeof(uint32_t);
+     }
+-#endif
+ 
+     for (q = 0; q < QEMU_CLIPBOARD_TYPE__COUNT; q++) {
+         type = type_qemu_to_vdagent(q);
+@@ -464,6 +471,9 @@ static void vdagent_clipboard_reset_serial(VDAgentChardev *vd)
+ {
+     Chardev *chr = CHARDEV(vd);
+ 
++    if (!have_clipboard_serial(vd)) {
++        return;
++    }
+     /* reopen the agent connection to reset the serial state */
+     qemu_chr_be_event(chr, CHR_EVENT_CLOSED);
+     /* OPENED again after the guest disconnected, see set_fe_open */
+@@ -518,8 +528,7 @@ static void vdagent_clipboard_recv_grab(VDAgentChardev *vd, uint8_t s, uint32_t
+ 
+     trace_vdagent_cb_grab_selection(GET_NAME(sel_name, s));
+     info = qemu_clipboard_info_new(&vd->cbpeer, s);
+-#if CHECK_SPICE_PROTOCOL_VERSION(0, 14, 1)
+-    if (vd->caps & (1 << VD_AGENT_CAP_CLIPBOARD_GRAB_SERIAL)) {
++    if (have_clipboard_serial(vd)) {
+         if (size < sizeof(uint32_t)) {
+             /* this shouldn't happen! */
+             return;
+@@ -537,7 +546,6 @@ static void vdagent_clipboard_recv_grab(VDAgentChardev *vd, uint8_t s, uint32_t
+         data += sizeof(uint32_t);
+         size -= sizeof(uint32_t);
+     }
+-#endif
+     if (size > sizeof(uint32_t) * 10) {
+         /*
+          * spice has 6 types as of 2021. Limiting to 10 entries
