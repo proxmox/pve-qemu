@@ -1,3 +1,10 @@
+pve-qemu-kvm (10.1.2-3) trixie; urgency=medium
+
+  * cherry-pick fix for a regression with VNC clipboard breaking mouse pointer
+    in Windows guests.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 17 Nov 2025 16:42:03 +0100
+
 pve-qemu-kvm (10.1.2-2) trixie; urgency=medium
 
   * enable FUSE support in preparation to allow FUSE exports of, e.g.,
