@@ -13,7 +13,7 @@ Therefore it is necessary to populate the pwrite_zeroes_alignment field.
 
 Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
 Reviewed-by: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
-Link: https://lore.proxmox.com/20251007141700.71891-2-stefanha@redhat.com
+Link: https://lore.kernel.org/20251007141700.71891-2-stefanha@redhat.com
 [FE: picked from qemu-devel]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---

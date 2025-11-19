@@ -22,7 +22,7 @@ Reported-by: Jean-Louis Dupond <jean-louis@dupond.be>
 Buglink: https://gitlab.com/qemu-project/qemu/-/issues/3127
 Reviewed-by: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
 Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
-Link: https://lore.proxmox.com/20251007141700.71891-3-stefanha@redhat.com
+Link: https://lore.kernel.org/20251007141700.71891-3-stefanha@redhat.com
 [FE: picked from qemu-devel]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
