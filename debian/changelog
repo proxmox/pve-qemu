@@ -1,3 +1,10 @@
+pve-qemu-kvm (10.1.2-4) trixie; urgency=medium
+
+  * fix #7033: backport fixes for write zeroes request alignment to fix qcow2
+    creation on LVM.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 19 Nov 2025 17:36:08 +0100
+
 pve-qemu-kvm (10.1.2-3) trixie; urgency=medium
 
   * cherry-pick fix for a regression with VNC clipboard breaking mouse pointer
