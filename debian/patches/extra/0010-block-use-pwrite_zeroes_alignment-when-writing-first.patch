@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Tue, 7 Oct 2025 10:16:59 -0400
+Subject: [PATCH] block: use pwrite_zeroes_alignment when writing first sector
+
+Since commit 5634622bcb33 ("file-posix: allow BLKZEROOUT with -t
+writeback"), qemu-img create errors out on a Linux loop block device
+with a 4 KB sector size:
+
+  # dd if=/dev/zero of=blockfile bs=1M count=1024
+  # losetup --sector-size 4096 /dev/loop0 blockfile
+  # qemu-img create -f raw /dev/loop0 1G
+  Formatting '/dev/loop0', fmt=raw size=1073741824
+  qemu-img: /dev/loop0: Failed to clear the new image's first sector: Invalid argument
+
+Use the pwrite_zeroes_alignment block limit to avoid misaligned
+fallocate(2) or ioctl(BLKZEROOUT) in the block/file-posix.c block
+driver.
+
+Fixes: 5634622bcb33 ("file-posix: allow BLKZEROOUT with -t writeback")
+Reported-by: Jean-Louis Dupond <jean-louis@dupond.be>
+Buglink: https://gitlab.com/qemu-project/qemu/-/issues/3127
+Reviewed-by: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Link: https://lore.proxmox.com/20251007141700.71891-3-stefanha@redhat.com
+[FE: picked from qemu-devel]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ block.c                           |  3 ++-
+ block/block-backend.c             | 11 +++++++++++
+ include/system/block-backend-io.h |  1 +
+ 3 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/block.c b/block.c
+index 8848e9a7ed..be77e03904 100644
+--- a/block.c
++++ b/block.c
+@@ -606,12 +606,13 @@ create_file_fallback_zero_first_sector(BlockBackend *blk,
+                                        int64_t current_size,
+                                        Error **errp)
+ {
++    uint32_t alignment = blk_get_pwrite_zeroes_alignment(blk);
+     int64_t bytes_to_clear;
+     int ret;
+ 
+     GLOBAL_STATE_CODE();
+ 
+-    bytes_to_clear = MIN(current_size, BDRV_SECTOR_SIZE);
++    bytes_to_clear = MIN(current_size, MAX(BDRV_SECTOR_SIZE, alignment));
+     if (bytes_to_clear) {
+         ret = blk_co_pwrite_zeroes(blk, 0, bytes_to_clear, BDRV_REQ_MAY_UNMAP);
+         if (ret < 0) {
+diff --git a/block/block-backend.c b/block/block-backend.c
+index f8d6ba65c1..239d6eca37 100644
+--- a/block/block-backend.c
++++ b/block/block-backend.c
+@@ -2305,6 +2305,17 @@ uint32_t blk_get_request_alignment(BlockBackend *blk)
+     return bs ? bs->bl.request_alignment : BDRV_SECTOR_SIZE;
+ }
+ 
++/* Returns the optimal write zeroes alignment, in bytes; guaranteed nonzero */
++uint32_t blk_get_pwrite_zeroes_alignment(BlockBackend *blk)
++{
++    BlockDriverState *bs = blk_bs(blk);
++    IO_CODE();
++    if (!bs) {
++        return BDRV_SECTOR_SIZE;
++    }
++    return bs->bl.pwrite_zeroes_alignment ?: bs->bl.request_alignment;
++}
++
+ /* Returns the maximum hardware transfer length, in bytes; guaranteed nonzero */
+ uint64_t blk_get_max_hw_transfer(BlockBackend *blk)
+ {
+diff --git a/include/system/block-backend-io.h b/include/system/block-backend-io.h
+index ba8dfcc7d0..6d5ac476fc 100644
+--- a/include/system/block-backend-io.h
++++ b/include/system/block-backend-io.h
+@@ -116,6 +116,7 @@ BlockAIOCB *blk_abort_aio_request(BlockBackend *blk,
+                                   void *opaque, int ret);
+ 
+ uint32_t blk_get_request_alignment(BlockBackend *blk);
++uint32_t blk_get_pwrite_zeroes_alignment(BlockBackend *blk);
+ uint32_t blk_get_max_transfer(BlockBackend *blk);
+ uint64_t blk_get_max_hw_transfer(BlockBackend *blk);
+ 

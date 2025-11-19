@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Stefan Hajnoczi <stefanha@redhat.com>
+Date: Tue, 7 Oct 2025 10:16:58 -0400
+Subject: [PATCH] file-posix: populate pwrite_zeroes_alignment
+
+Linux block devices require write zeroes alignment whereas files do not.
+
+It may come as a surprise that block devices opened in buffered I/O mode
+require the alignment for write zeroes requests although normal
+read/write requests do not.
+
+Therefore it is necessary to populate the pwrite_zeroes_alignment field.
+
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+Reviewed-by: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
+Link: https://lore.proxmox.com/20251007141700.71891-2-stefanha@redhat.com
+[FE: picked from qemu-devel]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ block/file-posix.c | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/block/file-posix.c b/block/file-posix.c
+index 8c738674ce..827ffa77a5 100644
+--- a/block/file-posix.c
++++ b/block/file-posix.c
+@@ -1602,6 +1602,22 @@ static void raw_refresh_limits(BlockDriverState *bs, Error **errp)
+ 
+             bs->bl.pdiscard_alignment = dalign;
+         }
++
++#ifdef __linux__
++        /*
++         * Linux requires logical block size alignment for write zeroes even
++         * when normal reads/writes do not require alignment.
++         */
++        if (!s->needs_alignment) {
++            ret = probe_logical_blocksize(s->fd,
++                                          &bs->bl.pwrite_zeroes_alignment);
++            if (ret < 0) {
++                error_setg_errno(errp, -ret,
++                                 "Failed to probe logical block size");
++                return;
++            }
++        }
++#endif /* __linux__ */
+     }
+ 
+     raw_refresh_zoned_limits(bs, &st, errp);
