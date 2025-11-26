@@ -8,6 +8,7 @@ extra/0007-vfio-only-check-region-info-cache-for-initial-region.patch
 extra/0008-ui-vdagent-fix-windows-agent-regression.patch
 extra/0009-file-posix-populate-pwrite_zeroes_alignment.patch
 extra/0010-block-use-pwrite_zeroes_alignment-when-writing-first.patch
+extra/0011-block-io_uring-avoid-potentially-getting-stuck-after.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
