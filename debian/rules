@@ -10,7 +10,9 @@ PACKAGE=pve-qemu-kvm
 destdir := $(CURDIR)/debian/$(PACKAGE)
 
 flagfile := $(destdir)/usr/share/kvm/recognized-CPUID-flags-x86_64
-machinefile := $(destdir)/usr/share/kvm/machine-versions-x86_64.json
+
+machine_file_x86_64 := $(destdir)/usr/share/kvm/machine-versions-x86_64.json
+machine_file_aarch64 := $(destdir)/usr/share/kvm/machine-versions-aarch64.json
 
 # default QEMU out-of-tree build directory is ./build
 BUILDDIR=build
@@ -119,7 +121,10 @@ install: build
 
 	# CPU flags are static for QEMU version, allows avoiding more costly checks
 	$(destdir)/usr/bin/qemu-system-x86_64 -cpu help | ./debian/parse-cpu-flags.pl > $(flagfile)
-	$(destdir)/usr/bin/qemu-system-x86_64 -machine help | ./debian/parse-machines.pl > $(machinefile)
+
+	# Supported machine versions are static for a given QEMU binary.
+	$(destdir)/usr/bin/qemu-system-x86_64 -machine help | ./debian/parse-machines.pl > $(machine_file_x86_64)
+	$(destdir)/usr/bin/qemu-system-aarch64 -machine help | ./debian/parse-machines.pl > $(machine_file_aarch64)
 
 # Build architecture-independent files here.
 binary-indep: build install
