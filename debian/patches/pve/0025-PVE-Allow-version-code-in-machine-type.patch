@@ -11,7 +11,7 @@ and only if 'is-current').
 
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[FE: adapt to QAPI changes]
+[FE: rebase for 10.2.0]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  hw/core/machine-qmp-cmds.c |  5 +++++
@@ -21,10 +21,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  4 files changed, 34 insertions(+)
 
 diff --git a/hw/core/machine-qmp-cmds.c b/hw/core/machine-qmp-cmds.c
-index 934cdb886d..124000b771 100644
+index 55e4550cd4..6404fba525 100644
 --- a/hw/core/machine-qmp-cmds.c
 +++ b/hw/core/machine-qmp-cmds.c
-@@ -98,6 +98,11 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
+@@ -124,6 +124,11 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
          if (strcmp(mc->name, MACHINE_GET_CLASS(current_machine)->name) == 0) {
              info->has_is_current = true;
              info->is_current = true;
@@ -37,10 +37,10 @@ index 934cdb886d..124000b771 100644
  
          if (default_cpu_type) {
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index f94713e6e2..7a389f6998 100644
+index a48ed4f86a..dfa1dc0bb7 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
-@@ -271,6 +271,8 @@ struct MachineClass {
+@@ -273,6 +273,8 @@ struct MachineClass {
      const char *desc;
      const char *deprecation_reason;
  
@@ -50,7 +50,7 @@ index f94713e6e2..7a389f6998 100644
      void (*reset)(MachineState *state, ResetType type);
      void (*wakeup)(MachineState *state);
 diff --git a/qapi/machine.json b/qapi/machine.json
-index 47ac68a3b5..957ff0f4dd 100644
+index e981da9fbb..992900fe77 100644
 --- a/qapi/machine.json
 +++ b/qapi/machine.json
 @@ -192,6 +192,8 @@
@@ -71,18 +71,18 @@ index 47ac68a3b5..957ff0f4dd 100644
                                 'features': ['unstable'] } } }
  
 diff --git a/system/vl.c b/system/vl.c
-index 56f8900451..4d583d60b1 100644
+index 6bd8704c82..587956b30d 100644
 --- a/system/vl.c
 +++ b/system/vl.c
-@@ -1673,6 +1673,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+@@ -1678,6 +1678,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
  {
      ERRP_GUARD();
      const char *machine_type = qdict_get_try_str(qdict, "type");
 +    const char *pvever = qdict_get_try_str(qdict, "pvever");
-     g_autoptr(GSList) machines = object_class_get_list(TYPE_MACHINE, false);
+     g_autoptr(GSList) machines = object_class_get_list(target_machine_typename(),
+                                                        false);
      MachineClass *machine_class = NULL;
- 
-@@ -1692,7 +1693,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+@@ -1698,7 +1699,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
      if (!machine_class) {
          error_append_hint(errp,
                            "Use -machine help to list supported machines\n");
@@ -94,7 +94,7 @@ index 56f8900451..4d583d60b1 100644
      return machine_class;
  }
  
-@@ -3411,12 +3416,31 @@ void qemu_init(int argc, char **argv)
+@@ -3417,12 +3422,31 @@ void qemu_init(int argc, char **argv)
              case QEMU_OPTION_machine:
                  {
                      bool help;

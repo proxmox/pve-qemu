@@ -247,10 +247,10 @@ index 0000000000..036edb17f5
 +
 +block_init(bdrv_zeroinit_init);
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 7d281ab7ae..aa1dba4284 100644
+index 64f2befdf5..19b60e3a96 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3305,7 +3305,7 @@
+@@ -3376,7 +3376,7 @@
              { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
              { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
              { 'name': 'virtio-blk-vhost-vdpa', 'if': 'CONFIG_BLKIO' },
@@ -259,7 +259,7 @@ index 7d281ab7ae..aa1dba4284 100644
  
  ##
  # @BlockdevOptionsFile:
-@@ -4863,7 +4863,8 @@
+@@ -4934,7 +4934,8 @@
                        'if': 'CONFIG_BLKIO' },
        'vmdk':       'BlockdevOptionsGenericCOWFormat',
        'vpc':        'BlockdevOptionsGenericFormat',

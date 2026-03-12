@@ -84,9 +84,9 @@ Reviewed-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 ---
  pve-backup.c         | 519 +++++++++++++++++++++++++++++++++++++++----
  pve-backup.h         |  16 ++
- qapi/block-core.json |  99 ++++++++-
+ qapi/block-core.json | 105 ++++++++-
  system/runstate.c    |   6 +
- 4 files changed, 596 insertions(+), 44 deletions(-)
+ 4 files changed, 602 insertions(+), 44 deletions(-)
  create mode 100644 pve-backup.h
 
 diff --git a/pve-backup.c b/pve-backup.c
@@ -740,20 +740,20 @@ index 0000000000..9ebeef7c8f
 +
 +#endif /* PVE_BACKUP_H */
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 7cafc96616..adb94bebb4 100644
+index db0a5a1266..94296c0bc9 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1047,6 +1047,9 @@
+@@ -1123,6 +1123,9 @@
+ # @pbs-library-version: Running version of libproxmox-backup-qemu0
+ #     library.
  #
- # @pbs-library-version: Running version of libproxmox-backup-qemu0 library.
- #
-+# @backup-access-api: Whether backup access API for external providers is
-+#     supported or not.
++# @backup-access-api: Whether backup access API for external providers
++#     is supported or not.
 +#
  # @backup-fleecing: Whether backup fleecing is supported or not.
  #
- # @backup-max-workers: Whether the 'max-workers' @BackupPerf setting is
-@@ -1060,6 +1063,7 @@
+ # @backup-max-workers: Whether the 'max-workers' @BackupPerf setting
+@@ -1136,6 +1139,7 @@
              'pbs-dirty-bitmap-migration': 'bool',
              'pbs-masterkey': 'bool',
              'pbs-library-version': 'str',
@@ -761,15 +761,15 @@ index 7cafc96616..adb94bebb4 100644
              'backup-fleecing': 'bool',
              'backup-max-workers': 'bool' } }
  
-@@ -1091,9 +1095,16 @@
- #           base snapshot did not match the base given for the current job or
- #           the crypt mode has changed.
+@@ -1167,9 +1171,16 @@
+ #     associated base snapshot did not match the base given for the
+ #     current job or the crypt mode has changed.
  #
-+# @missing-recreated: A bitmap for incremental backup was expected to be
-+#     present, but was missing and thus got recreated. For example, this can
-+#     happen if the drive was re-attached or if the bitmap was deleted for some
-+#     other reason. PBS does not currently keep track of this; the backup-access
-+#     mechanism does.
++# @missing-recreated: A bitmap for incremental backup was expected to
++#     be present, but was missing and thus got recreated.  For
++#     example, this can happen if the drive was re-attached or if the
++#     bitmap was deleted for some other reason.  PBS does not
++#     currently keep track of this; the backup-access mechanism does.
 +#
  ##
  { 'enum': 'PBSBitmapAction',
@@ -779,15 +779,15 @@ index 7cafc96616..adb94bebb4 100644
  
  ##
  # @PBSBitmapInfo:
-@@ -1126,6 +1137,92 @@
+@@ -1203,6 +1214,98 @@
  ##
  { 'command': 'query-pbs-bitmap-info', 'returns': ['PBSBitmapInfo'] }
  
 +##
 +# @BackupAccessInfo:
 +#
-+# Info associated to a snapshot access for backup.  For more information about
-+# the bitmap see @BackupAccessBitmapMode.
++# Info associated to a snapshot access for backup.  For more
++# information about the bitmap see @BackupAccessBitmapMode.
 +#
 +# @node-name: the block node name of the snapshot-access node.
 +#
@@ -795,9 +795,11 @@ index 7cafc96616..adb94bebb4 100644
 +#
 +# @size: the size of the block device in bytes.
 +#
-+# @bitmap-node-name: the block node name the dirty bitmap is associated to.
++# @bitmap-node-name: the block node name the dirty bitmap is
++#     associated to.
 +#
-+# @bitmap-name: the name of the dirty bitmap associated to the backup access.
++# @bitmap-name: the name of the dirty bitmap associated to the backup
++#     access.
 +#
 +# @bitmap-action: the action taken on the dirty bitmap.
 +#
@@ -815,7 +817,7 @@ index 7cafc96616..adb94bebb4 100644
 +# @device: the block device name.
 +#
 +# @bitmap-mode: used to control whether the bitmap should be reused or
-+#     recreated or not used. Default is not using a bitmap.
++#     recreated or not used.  Default is not using a bitmap.
 +#
 +##
 +{ 'struct': 'BackupAccessSourceDevice',
@@ -826,11 +828,12 @@ index 7cafc96616..adb94bebb4 100644
 +#
 +# How to setup a bitmap for a device for @backup-access-setup.
 +#
-+# @none: do not use a bitmap. Removes an existing bitmap if present.
++# @none: do not use a bitmap.  Removes an existing bitmap if present.
 +#
 +# @new: create and use a new bitmap.
 +#
-+# @use: try to re-use an existing bitmap. Create a new one if it doesn't exist.
++# @use: try to re-use an existing bitmap.  Create a new one if it
++#     doesn't exist.
 +##
 +{ 'enum': 'BackupAccessSetupBitmapMode',
 +  'data': ['none', 'new', 'use' ] }
@@ -838,15 +841,17 @@ index 7cafc96616..adb94bebb4 100644
 +##
 +# @backup-access-setup:
 +#
-+# Set up snapshot access to VM drives for an external backup provider.  No other
-+# backup or backup access can be done before tearing down the backup access.
++# Set up snapshot access to VM drives for an external backup provider.
++# No other backup or backup access can be done before tearing down the
++# backup access.
 +#
 +# @target-id: the unique ID of the backup target.
 +#
-+# @devices: list of devices for which to create the backup access.  Also
-+#     controls whether to use/create a bitmap for the device.  Check the
-+#     @bitmap-action in the result to see what action was actually taken for the
-+#     bitmap.  Each target controls its own bitmaps.
++# @devices: list of devices for which to create the backup access.
++#     Also controls whether to use/create a bitmap for the device.
++#     Check the @bitmap-action in the result to see what action was
++#     actually taken for the bitmap.  Each target controls its own
++#     bitmaps.
 +#
 +# Returns: a list of @BackupAccessInfo, one for each device.
 +#
@@ -862,7 +867,8 @@ index 7cafc96616..adb94bebb4 100644
 +#
 +# @target-id: the ID of the backup target.
 +#
-+# @success: whether the backup done by the external provider was successful.
++# @success: whether the backup done by the external provider was
++#     successful.
 +#
 +##
 +{ 'command': 'backup-access-teardown',
@@ -873,7 +879,7 @@ index 7cafc96616..adb94bebb4 100644
  # @BlockDeviceTimedStats:
  #
 diff --git a/system/runstate.c b/system/runstate.c
-index 6178b0091a..5f370ddb60 100644
+index e3ec16ab74..d471fbece9 100644
 --- a/system/runstate.c
 +++ b/system/runstate.c
 @@ -60,6 +60,7 @@
@@ -884,7 +890,7 @@ index 6178b0091a..5f370ddb60 100644
  
  static NotifierList exit_notifiers =
      NOTIFIER_LIST_INITIALIZER(exit_notifiers);
-@@ -991,6 +992,11 @@ void qemu_cleanup(int status)
+@@ -989,6 +990,11 @@ void qemu_cleanup(int status)
       * requests happening from here on anyway.
       */
      bdrv_drain_all_begin();

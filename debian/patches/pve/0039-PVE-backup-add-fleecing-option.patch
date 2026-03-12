@@ -147,10 +147,10 @@ index eb93364e85..6a6dbf90f5 100644
  
  #endif /* COPY_BEFORE_WRITE_H */
 diff --git a/block/monitor/block-hmp-cmds.c b/block/monitor/block-hmp-cmds.c
-index bbb08ecabd..d8771ce8fc 100644
+index b7668139de..9e84ba164d 100644
 --- a/block/monitor/block-hmp-cmds.c
 +++ b/block/monitor/block-hmp-cmds.c
-@@ -1050,6 +1050,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
+@@ -1051,6 +1051,7 @@ void coroutine_fn hmp_backup(Monitor *mon, const QDict *qdict)
          NULL, NULL,
          devlist, qdict_haskey(qdict, "speed"), speed,
          false, 0, // BackupPerf max-workers
@@ -429,21 +429,21 @@ index 7575abab7c..8b83465ebd 100644
      return ret;
  }
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index cbefc6d0d3..7cafc96616 100644
+index 1d98f0a406..db0a5a1266 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -976,6 +976,10 @@
+@@ -1049,6 +1049,10 @@
  #
- # @max-workers: see @BackupPerf for details. Default 16.
+ # @max-workers: see @BackupPerf for details.  Default 16.
  #
-+# @fleecing: perform a backup with fleecing. For each device in @devlist, a
-+#            corresponing '-fleecing' device with the same size already needs to
-+#            be present.
++# @fleecing: perform a backup with fleecing.  For each device in
++#     @devlist, a corresponing '-fleecing' device with the same size
++#     already needs to be present.
 +#
  # Returns: the uuid of the backup job
  #
  ##
-@@ -996,7 +1000,8 @@
+@@ -1069,7 +1073,8 @@
                                      '*firewall-file': 'str',
                                      '*devlist': 'str',
                                      '*speed': 'int',
@@ -453,16 +453,16 @@ index cbefc6d0d3..7cafc96616 100644
    'returns': 'UuidInfo', 'coroutine': true }
  
  ##
-@@ -1042,6 +1047,8 @@
- #
- # @pbs-library-version: Running version of libproxmox-backup-qemu0 library.
+@@ -1118,6 +1123,8 @@
+ # @pbs-library-version: Running version of libproxmox-backup-qemu0
+ #     library.
  #
 +# @backup-fleecing: Whether backup fleecing is supported or not.
 +#
- # @backup-max-workers: Whether the 'max-workers' @BackupPerf setting is
- #     supported or not.
+ # @backup-max-workers: Whether the 'max-workers' @BackupPerf setting
+ #     is supported or not.
  #
-@@ -1053,6 +1060,7 @@
+@@ -1129,6 +1136,7 @@
              'pbs-dirty-bitmap-migration': 'bool',
              'pbs-masterkey': 'bool',
              'pbs-library-version': 'str',

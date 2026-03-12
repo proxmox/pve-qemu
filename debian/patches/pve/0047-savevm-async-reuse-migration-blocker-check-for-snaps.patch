@@ -61,7 +61,7 @@ Message-ID: <20250618102531.57444-1-f.ebner@proxmox.com>
  5 files changed, 29 insertions(+), 4 deletions(-)
 
 diff --git a/block/vmdk.c b/block/vmdk.c
-index 7b98debc2b..2af32f3d5d 100644
+index 89e89cd10e..06df10a799 100644
 --- a/block/vmdk.c
 +++ b/block/vmdk.c
 @@ -1404,9 +1404,7 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,
@@ -76,12 +76,12 @@ index 7b98debc2b..2af32f3d5d 100644
      if (ret < 0) {
          goto fail;
 diff --git a/include/migration/blocker.h b/include/migration/blocker.h
-index a687ac0efe..f36bfb2df1 100644
+index 80b75ad5cb..f8417347a1 100644
 --- a/include/migration/blocker.h
 +++ b/include/migration/blocker.h
-@@ -18,6 +18,8 @@
+@@ -16,6 +16,8 @@
  
- #define MIG_MODE_ALL MIG_MODE__MAX
+ #include "qapi/qapi-types-migration.h"
  
 +#define MIGRATION_BLOCKER_VMDK "The vmdk format used by a disk does not support live migration"
 +
@@ -89,10 +89,10 @@ index a687ac0efe..f36bfb2df1 100644
   * @migrate_add_blocker - prevent all modes of migration from proceeding
   *
 diff --git a/migration/migration.c b/migration/migration.c
-index 60464d43c3..998a7f87b8 100644
+index 1eae33bc73..979ebac75e 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
-@@ -2055,6 +2055,30 @@ bool migration_is_blocked(Error **errp)
+@@ -2063,6 +2063,30 @@ bool migration_is_blocked(Error **errp)
      return false;
  }
  
@@ -124,10 +124,10 @@ index 60464d43c3..998a7f87b8 100644
  static bool migrate_prepare(MigrationState *s, bool resume, Error **errp)
  {
 diff --git a/migration/migration.h b/migration/migration.h
-index 01329bf824..a805e98a30 100644
+index 213b33fe6e..c95eca727e 100644
 --- a/migration/migration.h
 +++ b/migration/migration.h
-@@ -531,6 +531,7 @@ int migration_call_notifiers(MigrationState *s, MigrationEventType type,
+@@ -535,6 +535,7 @@ int migration_call_notifiers(MigrationState *s, MigrationEventType type,
  
  int migrate_init(MigrationState *s, Error **errp);
  bool migration_is_blocked(Error **errp);
@@ -136,7 +136,7 @@ index 01329bf824..a805e98a30 100644
  bool migration_in_postcopy(void);
  bool migration_postcopy_is_alive(MigrationStatus state);
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index 730b815494..6cb91dca27 100644
+index 9942557455..8f498151bd 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
 @@ -375,7 +375,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)

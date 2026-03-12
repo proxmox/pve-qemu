@@ -18,7 +18,7 @@ Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
  1 file changed, 1 insertion(+), 2 deletions(-)
 
 diff --git a/monitor/qmp.c b/monitor/qmp.c
-index 170fef4531..448403b45b 100644
+index 16c20305d2..707c9cd419 100644
 --- a/monitor/qmp.c
 +++ b/monitor/qmp.c
 @@ -535,8 +535,7 @@ void monitor_init_qmp(Chardev *chr, bool pretty, Error **errp)

@@ -5,7 +5,7 @@ Subject: [PATCH] PVE: [Up] qemu-img dd: add -n skip_create
 
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: fix getopt-string + add documentation
-     rebase for 10.1.0]
+     rebase for 10.2.0]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  docs/tools/qemu-img.rst | 11 ++++++++++-
@@ -14,7 +14,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 26 insertions(+), 12 deletions(-)
 
 diff --git a/docs/tools/qemu-img.rst b/docs/tools/qemu-img.rst
-index 5e7b85079d..6249e01da9 100644
+index 558b0eb84d..c3fefaab07 100644
 --- a/docs/tools/qemu-img.rst
 +++ b/docs/tools/qemu-img.rst
 @@ -212,6 +212,10 @@ Parameters to convert subcommand:
@@ -46,11 +46,11 @@ index 5e7b85079d..6249e01da9 100644
 +  volume has already been created with site specific options that cannot
 +  be supplied through ``qemu-img``.
 +
- .. option:: info [--object OBJECTDEF] [--image-opts] [-f FMT] [--output=OFMT] [--backing-chain] [-U] FILENAME
+ .. option:: info [--object OBJECTDEF] [--image-opts] [-f FMT] [--output=OFMT] [--backing-chain] [--limits] [-t CACHE] [-U] FILENAME
  
    Give information about the disk image *FILENAME*. Use it in
 diff --git a/qemu-img-cmds.hx b/qemu-img-cmds.hx
-index a6de1434a3..d584624f8e 100644
+index 85458ea2d8..f97c2fa396 100644
 --- a/qemu-img-cmds.hx
 +++ b/qemu-img-cmds.hx
 @@ -60,9 +60,9 @@ SRST
@@ -66,10 +66,10 @@ index a6de1434a3..d584624f8e 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index 89ef74ae07..6e92a70254 100644
+index 84fd7d5470..c484479fc5 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -5378,7 +5378,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5404,7 +5404,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      const char *fmt = NULL;
      int64_t size = 0, readsize = 0;
      int64_t out_pos, in_pos;
@@ -78,7 +78,7 @@ index 89ef74ae07..6e92a70254 100644
      struct DdInfo dd = {
          .flags = 0,
          .count = 0,
-@@ -5418,7 +5418,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5444,7 +5444,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          { 0, 0, 0, 0 }
      };
  
@@ -87,7 +87,7 @@ index 89ef74ae07..6e92a70254 100644
          if (c == EOF) {
              break;
          }
-@@ -5459,6 +5459,9 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5485,6 +5485,9 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          case 'O':
              out_fmt = optarg;
              break;
@@ -97,7 +97,7 @@ index 89ef74ae07..6e92a70254 100644
          case 'U':
              force_share = true;
              break;
-@@ -5588,13 +5591,15 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5614,13 +5617,15 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
                                  size - in.bsz * in.offset, &error_abort);
          }
  

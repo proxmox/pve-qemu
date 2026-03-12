@@ -259,7 +259,7 @@ index 1373612c10..6278c4af0f 100644
    'blklogwrites.c',
    'blkverify.c',
 diff --git a/include/block/block_int-common.h b/include/block/block_int-common.h
-index 034c0634c8..5688ced531 100644
+index cb0143ea77..a5e85cff46 100644
 --- a/include/block/block_int-common.h
 +++ b/include/block/block_int-common.h
 @@ -26,6 +26,7 @@

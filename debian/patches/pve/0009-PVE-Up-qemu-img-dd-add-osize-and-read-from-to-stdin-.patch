@@ -39,7 +39,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  2 files changed, 133 insertions(+), 73 deletions(-)
 
 diff --git a/qemu-img-cmds.hx b/qemu-img-cmds.hx
-index 2c5a8a28f9..a6de1434a3 100644
+index 6bc8265cfb..85458ea2d8 100644
 --- a/qemu-img-cmds.hx
 +++ b/qemu-img-cmds.hx
 @@ -60,9 +60,9 @@ SRST
@@ -55,10 +55,10 @@ index 2c5a8a28f9..a6de1434a3 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index 0bed551960..0a0ca0cec7 100644
+index 616eebc42b..bf7c637d48 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -5253,10 +5253,12 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5279,10 +5279,12 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
  #define C_IF      04
  #define C_OF      010
  #define C_SKIP    020
@@ -71,7 +71,7 @@ index 0bed551960..0a0ca0cec7 100644
  };
  
  struct DdIo {
-@@ -5332,6 +5334,19 @@ static int img_dd_skip(const char *arg,
+@@ -5358,6 +5360,19 @@ static int img_dd_skip(const char *arg,
      return 0;
  }
  
@@ -91,7 +91,7 @@ index 0bed551960..0a0ca0cec7 100644
  static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
  {
      int ret = 0;
-@@ -5372,6 +5387,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5398,6 +5413,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          { "if", img_dd_if, C_IF },
          { "of", img_dd_of, C_OF },
          { "skip", img_dd_skip, C_SKIP },
@@ -99,7 +99,7 @@ index 0bed551960..0a0ca0cec7 100644
          { NULL, NULL, 0 }
      };
      const struct option long_options[] = {
-@@ -5469,91 +5485,112 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5495,91 +5511,112 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          arg = NULL;
      }
  
@@ -276,7 +276,7 @@ index 0bed551960..0a0ca0cec7 100644
      }
  
      if (dd.flags & C_SKIP && (in.offset > INT64_MAX / in.bsz ||
-@@ -5570,20 +5607,43 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5596,20 +5633,43 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      in.buf = g_new(uint8_t, in.bsz);
  
      for (out_pos = 0; in_pos < size; ) {

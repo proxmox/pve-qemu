@@ -14,7 +14,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 36 insertions(+), 7 deletions(-)
 
 diff --git a/docs/tools/qemu-img.rst b/docs/tools/qemu-img.rst
-index 6249e01da9..0ea21e061f 100644
+index c3fefaab07..9da1e526fb 100644
 --- a/docs/tools/qemu-img.rst
 +++ b/docs/tools/qemu-img.rst
 @@ -496,10 +496,10 @@ Command description:
@@ -32,7 +32,7 @@ index 6249e01da9..0ea21e061f 100644
    The data is by default read and written using blocks of 512 bytes but can be
    modified by specifying *BLOCK_SIZE*. If count=\ *BLOCKS* is specified
 diff --git a/qemu-img-cmds.hx b/qemu-img-cmds.hx
-index d584624f8e..be30905374 100644
+index f97c2fa396..206ca7381c 100644
 --- a/qemu-img-cmds.hx
 +++ b/qemu-img-cmds.hx
 @@ -60,9 +60,9 @@ SRST
@@ -48,10 +48,10 @@ index d584624f8e..be30905374 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index 6e92a70254..e38317a445 100644
+index c484479fc5..d738ea5185 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -5370,6 +5370,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5396,6 +5396,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      BlockDriver *drv = NULL, *proto_drv = NULL;
      BlockBackend *blk1 = NULL, *blk2 = NULL;
      QemuOpts *opts = NULL;
@@ -59,7 +59,7 @@ index 6e92a70254..e38317a445 100644
      QemuOptsList *create_opts = NULL;
      Error *local_err = NULL;
      bool image_opts = false;
-@@ -5379,6 +5380,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5405,6 +5406,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      int64_t size = 0, readsize = 0;
      int64_t out_pos, in_pos;
      bool force_share = false, skip_create = false;
@@ -67,7 +67,7 @@ index 6e92a70254..e38317a445 100644
      struct DdInfo dd = {
          .flags = 0,
          .count = 0,
-@@ -5418,7 +5420,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5444,7 +5446,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          { 0, 0, 0, 0 }
      };
  
@@ -76,7 +76,7 @@ index 6e92a70254..e38317a445 100644
          if (c == EOF) {
              break;
          }
-@@ -5462,6 +5464,19 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5488,6 +5490,19 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          case 'n':
              skip_create = true;
              break;
@@ -96,7 +96,7 @@ index 6e92a70254..e38317a445 100644
          case 'U':
              force_share = true;
              break;
-@@ -5520,11 +5535,24 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5546,11 +5561,24 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      if (dd.flags & C_IF) {
          blk1 = img_open(image_opts, in.filename, fmt, 0, false, false,
                          force_share);
@@ -122,7 +122,7 @@ index 6e92a70254..e38317a445 100644
      }
  
      if (dd.flags & C_OSIZE) {
-@@ -5679,6 +5707,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5705,6 +5733,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
  out:
      g_free(arg);
      qemu_opts_del(opts);

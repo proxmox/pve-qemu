@@ -22,10 +22,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 58 insertions(+), 41 deletions(-)
 
 diff --git a/include/hw/boards.h b/include/hw/boards.h
-index 7a389f6998..0595a569d2 100644
+index dfa1dc0bb7..ca5c7ed0b9 100644
 --- a/include/hw/boards.h
 +++ b/include/hw/boards.h
-@@ -636,40 +636,57 @@ struct MachineState {
+@@ -672,40 +672,57 @@ struct MachineState {
  
  
  /*
@@ -106,7 +106,7 @@ index 7a389f6998..0595a569d2 100644
  
  /*
   * - The first check applies to formal releases
-@@ -684,29 +701,29 @@ struct MachineState {
+@@ -720,29 +737,29 @@ struct MachineState {
   * and dev snapshots / release candidates are numbered with micro >= 50
   * If this ever changes the logic below will need modifying....
   */
@@ -152,7 +152,7 @@ index 7a389f6998..0595a569d2 100644
  
  /*
   * Evaluates true when a machine type with (major, minor)
-@@ -715,7 +732,7 @@ struct MachineState {
+@@ -751,7 +768,7 @@ struct MachineState {
   * lifecycle rules
   */
  #define MACHINE_VER_IS_DEPRECATED(...) \
@@ -161,7 +161,7 @@ index 7a389f6998..0595a569d2 100644
  
  /*
   * Evaluates true when a machine type with (major, minor)
-@@ -724,7 +741,7 @@ struct MachineState {
+@@ -760,7 +777,7 @@ struct MachineState {
   * lifecycle rules
   */
  #define MACHINE_VER_SHOULD_DELETE(...) \

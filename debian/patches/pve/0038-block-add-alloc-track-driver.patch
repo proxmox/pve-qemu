@@ -449,10 +449,10 @@ index d023753091..a777c8079c 100644
  
  out:
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index be6bf25219..cbefc6d0d3 100644
+index 5b3bb3c19e..1d98f0a406 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3526,7 +3526,8 @@
+@@ -3606,7 +3606,8 @@
  # Since: 2.9
  ##
  { 'enum': 'BlockdevDriver',
@@ -462,7 +462,7 @@ index be6bf25219..cbefc6d0d3 100644
              'cloop', 'compress', 'copy-before-write', 'copy-on-read', 'dmg',
              'file', 'snapshot-access', 'ftp', 'ftps',
              {'name': 'gluster', 'features': [ 'deprecated' ] },
-@@ -3627,6 +3628,21 @@
+@@ -3707,6 +3708,21 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -484,7 +484,7 @@ index be6bf25219..cbefc6d0d3 100644
  ##
  # @BlockdevOptionsPbs:
  #
-@@ -5073,6 +5089,7 @@
+@@ -5153,6 +5169,7 @@
              '*detect-zeroes': 'BlockdevDetectZeroesOptions' },
    'discriminator': 'driver',
    'data': {

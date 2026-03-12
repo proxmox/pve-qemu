@@ -229,10 +229,10 @@ index bc982cb99a..99805e7a9d 100644
                       base_read_only, errp);
      if (!job) {
 diff --git a/blockdev.c b/blockdev.c
-index b451fee6e1..5855e9cac2 100644
+index 6e86c6262f..b68dfef260 100644
 --- a/blockdev.c
 +++ b/blockdev.c
-@@ -2857,6 +2857,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2859,6 +2859,9 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
                                     BlockDriverState *target,
                                     const char *replaces,
                                     enum MirrorSyncMode sync,
@@ -242,7 +242,7 @@ index b451fee6e1..5855e9cac2 100644
                                     BlockMirrorBackingMode backing_mode,
                                     bool target_is_zero,
                                     bool has_speed, int64_t speed,
-@@ -2875,6 +2878,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2877,6 +2880,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
  {
      BlockDriverState *unfiltered_bs;
      int job_flags = JOB_DEFAULT;
@@ -250,7 +250,7 @@ index b451fee6e1..5855e9cac2 100644
  
      GLOBAL_STATE_CODE();
      GRAPH_RDLOCK_GUARD_MAINLOOP();
-@@ -2925,6 +2929,29 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2927,6 +2931,29 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
          return;
      }
  
@@ -280,7 +280,7 @@ index b451fee6e1..5855e9cac2 100644
      if (!replaces) {
          /* We want to mirror from @bs, but keep implicit filters on top */
          unfiltered_bs = bdrv_skip_implicit_filters(bs);
-@@ -2966,7 +2993,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
+@@ -2968,7 +2995,7 @@ static void blockdev_mirror_common(const char *job_id, BlockDriverState *bs,
       * and will allow to check whether the node still exist at mirror completion
       */
      mirror_start(job_id, bs, target, replaces, job_flags,
@@ -289,7 +289,7 @@ index b451fee6e1..5855e9cac2 100644
                   target_is_zero, on_source_error, on_target_error, unmap,
                   filter_node_name, copy_mode, errp);
  }
-@@ -3109,6 +3136,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
+@@ -3111,6 +3138,8 @@ void qmp_drive_mirror(DriveMirror *arg, Error **errp)
  
      blockdev_mirror_common(arg->job_id, bs, target_bs,
                             arg->replaces, arg->sync,
@@ -298,7 +298,7 @@ index b451fee6e1..5855e9cac2 100644
                             backing_mode, target_is_zero,
                             arg->has_speed, arg->speed,
                             arg->has_granularity, arg->granularity,
-@@ -3128,6 +3157,8 @@ void qmp_blockdev_mirror(const char *job_id,
+@@ -3130,6 +3159,8 @@ void qmp_blockdev_mirror(const char *job_id,
                           const char *device, const char *target,
                           const char *replaces,
                           MirrorSyncMode sync,
@@ -307,7 +307,7 @@ index b451fee6e1..5855e9cac2 100644
                           bool has_speed, int64_t speed,
                           bool has_granularity, uint32_t granularity,
                           bool has_buf_size, int64_t buf_size,
-@@ -3166,7 +3197,8 @@ void qmp_blockdev_mirror(const char *job_id,
+@@ -3168,7 +3199,8 @@ void qmp_blockdev_mirror(const char *job_id,
      }
  
      blockdev_mirror_common(job_id, bs, target_bs,
@@ -333,26 +333,26 @@ index e7c8f1a856..d5aa68caeb 100644
                    BlockdevOnError on_source_error,
                    BlockdevOnError on_target_error,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index dc6eb4ae23..7d281ab7ae 100644
+index b82af74256..64f2befdf5 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -2205,6 +2205,15 @@
+@@ -2275,6 +2275,15 @@
  #     destination (all the disk, only the sectors allocated in the
  #     topmost image, or only new I/O).
  #
-+# @bitmap: The name of a bitmap to use for sync=bitmap mode. This
++# @bitmap: The name of a bitmap to use for sync=bitmap mode.  This
 +#     argument must be present for bitmap mode and absent otherwise.
 +#     The bitmap's granularity is used instead of @granularity (Since
 +#     4.1).
 +#
 +# @bitmap-mode: Specifies the type of data the bitmap should contain
-+#     after the operation concludes. Must be present if sync is
-+#     "bitmap". Must NOT be present otherwise. (Since 4.1)
++#     after the operation concludes.  Must be present if sync is
++#     "bitmap".  Must NOT be present otherwise.  (Since 4.1)
 +#
  # @granularity: granularity of the dirty bitmap, default is 64K if the
  #     image format doesn't have clusters, 4K if the clusters are
  #     smaller than that, else the cluster size.  Must be a power of 2
-@@ -2246,7 +2255,9 @@
+@@ -2316,7 +2325,9 @@
  { 'struct': 'DriveMirror',
    'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
              '*format': 'str', '*node-name': 'str', '*replaces': 'str',
@@ -363,23 +363,23 @@ index dc6eb4ae23..7d281ab7ae 100644
              '*speed': 'int', '*granularity': 'uint32',
              '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
              '*on-target-error': 'BlockdevOnError',
-@@ -2522,6 +2533,15 @@
+@@ -2593,6 +2604,15 @@
  #     destination (all the disk, only the sectors allocated in the
  #     topmost image, or only new I/O).
  #
-+# @bitmap: The name of a bitmap to use for sync=bitmap mode. This
++# @bitmap: The name of a bitmap to use for sync=bitmap mode.  This
 +#     argument must be present for bitmap mode and absent otherwise.
 +#     The bitmap's granularity is used instead of @granularity (since
 +#     4.1).
 +#
 +# @bitmap-mode: Specifies the type of data the bitmap should contain
-+#     after the operation concludes. Must be present if sync is
-+#     "bitmap". Must NOT be present otherwise. (Since 4.1)
++#     after the operation concludes.  Must be present if sync is
++#     "bitmap".  Must NOT be present otherwise.  (Since 4.1)
 +#
  # @granularity: granularity of the dirty bitmap, default is 64K if the
  #     image format doesn't have clusters, 4K if the clusters are
  #     smaller than that, else the cluster size.  Must be a power of 2
-@@ -2574,7 +2594,8 @@
+@@ -2645,7 +2665,8 @@
  { 'command': 'blockdev-mirror',
    'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
              '*replaces': 'str',

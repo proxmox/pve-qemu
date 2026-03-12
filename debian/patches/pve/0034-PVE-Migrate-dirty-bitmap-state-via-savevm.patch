@@ -26,10 +26,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  create mode 100644 migration/pbs-state.c
 
 diff --git a/include/migration/misc.h b/include/migration/misc.h
-index a261f99d89..e8c6a87305 100644
+index e26d418a6e..551898d7bf 100644
 --- a/include/migration/misc.h
 +++ b/include/migration/misc.h
-@@ -140,4 +140,7 @@ bool multifd_device_state_save_thread_should_exit(void);
+@@ -152,4 +152,7 @@ bool multifd_device_state_save_thread_should_exit(void);
  void multifd_abort_device_state_save_threads(void);
  bool multifd_join_device_state_save_threads(void);
  
@@ -38,7 +38,7 @@ index a261f99d89..e8c6a87305 100644
 +
  #endif
 diff --git a/migration/meson.build b/migration/meson.build
-index 409b748980..ca94e7e17b 100644
+index 140264b477..23aa5b3caa 100644
 --- a/migration/meson.build
 +++ b/migration/meson.build
 @@ -8,6 +8,7 @@ migration_files = files(
@@ -49,19 +49,19 @@ index 409b748980..ca94e7e17b 100644
  
  system_ss.add(files(
    'block-dirty-bitmap.c',
-@@ -31,6 +32,7 @@ system_ss.add(files(
+@@ -32,6 +33,7 @@ system_ss.add(files(
    'multifd-zlib.c',
    'multifd-zero-page.c',
    'options.c',
 +  'pbs-state.c',
    'postcopy-ram.c',
+   'ram.c',
    'savevm.c',
-   'savevm-async.c',
 diff --git a/migration/migration.c b/migration/migration.c
-index 32b8ce5613..60464d43c3 100644
+index b316ee01ab..1eae33bc73 100644
 --- a/migration/migration.c
 +++ b/migration/migration.c
-@@ -340,6 +340,7 @@ void migration_object_init(void)
+@@ -337,6 +337,7 @@ void migration_object_init(void)
  
      /* Initialize cpu throttle timers */
      cpu_throttle_init();
@@ -192,22 +192,22 @@ index 177fb851b4..7575abab7c 100644
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index e6b8ba49b2..be6bf25219 100644
+index f998aafc49..5b3bb3c19e 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -1032,6 +1032,11 @@
- # @pbs-dirty-bitmap-savevm: True if 'dirty-bitmaps' migration capability can
- #                           safely be set for savevm-async.
+@@ -1107,6 +1107,11 @@
+ # @pbs-dirty-bitmap-savevm: True if 'dirty-bitmaps' migration
+ #     capability can safely be set for savevm-async.
  #
-+# @pbs-dirty-bitmap-migration: True if safe migration of dirty-bitmaps including
-+#                              PBS state is supported. Enabling 'dirty-bitmaps'
-+#                              migration cap if this is false/unset may lead
-+#                              to crashes on migration!
++# @pbs-dirty-bitmap-migration: True if safe migration of dirty-bitmaps
++#     including PBS state is supported.  Enabling 'dirty-bitmaps'
++#     migration cap if this is false/unset may lead to crashes on
++#     migration!
 +#
- # @pbs-masterkey: True if the QMP backup call supports the 'master_keyfile'
- #                 parameter.
+ # @pbs-masterkey: True if the QMP backup call supports the
+ #     'master_keyfile' parameter.
  #
-@@ -1045,6 +1050,7 @@
+@@ -1121,6 +1126,7 @@
    'data': { 'pbs-dirty-bitmap': 'bool',
              'query-bitmap-info': 'bool',
              'pbs-dirty-bitmap-savevm': 'bool',

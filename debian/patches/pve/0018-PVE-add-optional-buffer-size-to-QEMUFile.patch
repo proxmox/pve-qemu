@@ -10,7 +10,7 @@ Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
 [increase max IOV count in QEMUFile to actually write more data]
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[FE: adapt to removal of QEMUFileOps]
+[FE: rebase for 10.2.0]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  migration/qemu-file.c    | 48 +++++++++++++++++++++++++++-------------
@@ -19,7 +19,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 38 insertions(+), 17 deletions(-)
 
 diff --git a/migration/qemu-file.c b/migration/qemu-file.c
-index b6ac190034..46d899edb0 100644
+index 4b5a409a80..5e5e4627e9 100644
 --- a/migration/qemu-file.c
 +++ b/migration/qemu-file.c
 @@ -34,8 +34,8 @@
@@ -63,7 +63,7 @@ index b6ac190034..46d899edb0 100644
  
      return f;
  }
-@@ -129,17 +134,27 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
+@@ -128,17 +133,27 @@ static QEMUFile *qemu_file_new_impl(QIOChannel *ioc, bool is_writable)
   */
  QEMUFile *qemu_file_get_return_path(QEMUFile *f)
  {
@@ -94,16 +94,16 @@ index b6ac190034..46d899edb0 100644
  }
  
  /*
-@@ -339,7 +354,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
+@@ -338,7 +353,7 @@ static ssize_t coroutine_mixed_fn qemu_fill_buffer(QEMUFile *f)
      }
  
      do {
 -        struct iovec iov = { f->buf + pending, IO_BUF_SIZE - pending };
 +        struct iovec iov = { f->buf + pending, f->buf_allocated_size - pending };
-         len = qio_channel_readv_full(f->ioc, &iov, 1, pfds, pnfd, 0,
+         len = qio_channel_readv_full(f->ioc, &iov, 1, pfds, pnfd,
+                                      QIO_CHANNEL_READ_FLAG_FD_PRESERVE_BLOCKING,
                                       &local_error);
-         if (len == QIO_CHANNEL_ERR_BLOCK) {
-@@ -443,6 +458,9 @@ int qemu_fclose(QEMUFile *f)
+@@ -435,6 +450,9 @@ int qemu_fclose(QEMUFile *f)
          g_free(fde);
      }
      g_clear_pointer(&f->ioc, object_unref);
@@ -113,7 +113,7 @@ index b6ac190034..46d899edb0 100644
      error_free(f->last_error_obj);
      g_free(f);
      trace_qemu_file_fclose();
-@@ -491,7 +509,7 @@ static void add_buf_to_iovec(QEMUFile *f, size_t len)
+@@ -483,7 +501,7 @@ static void add_buf_to_iovec(QEMUFile *f, size_t len)
  {
      if (!add_to_iovec(f, f->buf + f->buf_index, len, false)) {
          f->buf_index += len;
@@ -122,7 +122,7 @@ index b6ac190034..46d899edb0 100644
              qemu_fflush(f);
          }
      }
-@@ -516,7 +534,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
+@@ -508,7 +526,7 @@ void qemu_put_buffer(QEMUFile *f, const uint8_t *buf, size_t size)
      }
  
      while (size > 0) {
@@ -131,7 +131,7 @@ index b6ac190034..46d899edb0 100644
          if (l > size) {
              l = size;
          }
-@@ -660,8 +678,8 @@ size_t coroutine_mixed_fn qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t si
+@@ -652,8 +670,8 @@ size_t coroutine_mixed_fn qemu_peek_buffer(QEMUFile *f, uint8_t **buf, size_t si
      size_t index;
  
      assert(!qemu_file_is_writable(f));
@@ -142,7 +142,7 @@ index b6ac190034..46d899edb0 100644
  
      /* The 1st byte to read from */
      index = f->buf_index + offset;
-@@ -711,7 +729,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
+@@ -703,7 +721,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
          size_t res;
          uint8_t *src;
  
@@ -151,7 +151,7 @@ index b6ac190034..46d899edb0 100644
          if (res == 0) {
              return done;
          }
-@@ -745,7 +763,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
+@@ -737,7 +755,7 @@ size_t coroutine_mixed_fn qemu_get_buffer(QEMUFile *f, uint8_t *buf, size_t size
   */
  size_t coroutine_mixed_fn qemu_get_buffer_in_place(QEMUFile *f, uint8_t **buf, size_t size)
  {
@@ -160,7 +160,7 @@ index b6ac190034..46d899edb0 100644
          size_t res;
          uint8_t *src = NULL;
  
-@@ -770,7 +788,7 @@ int coroutine_mixed_fn qemu_peek_byte(QEMUFile *f, int offset)
+@@ -762,7 +780,7 @@ int coroutine_mixed_fn qemu_peek_byte(QEMUFile *f, int offset)
      int index = f->buf_index + offset;
  
      assert(!qemu_file_is_writable(f));
@@ -170,7 +170,7 @@ index b6ac190034..46d899edb0 100644
      if (index >= f->buf_size) {
          qemu_fill_buffer(f);
 diff --git a/migration/qemu-file.h b/migration/qemu-file.h
-index f5b9f430e0..0179b90698 100644
+index c13c967167..4ab142034f 100644
 --- a/migration/qemu-file.h
 +++ b/migration/qemu-file.h
 @@ -30,7 +30,9 @@
@@ -184,7 +184,7 @@ index f5b9f430e0..0179b90698 100644
  
  G_DEFINE_AUTOPTR_CLEANUP_FUNC(QEMUFile, qemu_fclose)
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index 56e0fa6c69..730b815494 100644
+index 5c22c29b9a..9942557455 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
 @@ -409,7 +409,7 @@ void qmp_savevm_start(const char *statefile, Error **errp)

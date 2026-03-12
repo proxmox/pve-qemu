@@ -348,10 +348,10 @@ index 0000000000..3e41421716
 +
 +block_init(bdrv_pbs_init);
 diff --git a/meson.build b/meson.build
-index 9eba919450..4861b69412 100644
+index 73f6e2e93b..b717cad2f9 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -5011,7 +5011,7 @@ summary_info += {'Query Processing Library support': qpl}
+@@ -4986,7 +4986,7 @@ summary_info += {'Query Processing Library support': qpl}
  summary_info += {'UADK Library support': uadk}
  summary_info += {'qatzip support':    qatzip}
  summary_info += {'NUMA host support': numa}
@@ -361,10 +361,10 @@ index 9eba919450..4861b69412 100644
  summary_info += {'libdaxctl support': libdaxctl}
  summary_info += {'libcbor support':   libcbor}
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index a54390d9ad..e6b8ba49b2 100644
+index 75406f4215..f998aafc49 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
-@@ -3534,6 +3534,7 @@
+@@ -3614,6 +3614,7 @@
              'parallels', 'preallocate', 'qcow', 'qcow2', 'qed', 'quorum',
              'raw', 'rbd',
              { 'name': 'replication', 'if': 'CONFIG_REPLICATION' },
@@ -372,7 +372,7 @@ index a54390d9ad..e6b8ba49b2 100644
              'ssh', 'throttle', 'vdi', 'vhdx',
              { 'name': 'virtio-blk-vfio-pci', 'if': 'CONFIG_BLKIO' },
              { 'name': 'virtio-blk-vhost-user', 'if': 'CONFIG_BLKIO' },
-@@ -3620,6 +3621,33 @@
+@@ -3700,6 +3701,33 @@
  { 'struct': 'BlockdevOptionsNull',
    'data': { '*size': 'int', '*latency-ns': 'uint64', '*read-zeroes': 'bool' } }
  
@@ -406,7 +406,7 @@ index a54390d9ad..e6b8ba49b2 100644
  ##
  # @BlockdevOptionsNVMe:
  #
-@@ -5067,6 +5095,7 @@
+@@ -5147,6 +5175,7 @@
        'nfs':        'BlockdevOptionsNfs',
        'null-aio':   'BlockdevOptionsNull',
        'null-co':    'BlockdevOptionsNull',

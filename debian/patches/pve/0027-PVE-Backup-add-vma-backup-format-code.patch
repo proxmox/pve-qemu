@@ -40,10 +40,10 @@ index a21d9a5411..1373612c10 100644
  system_ss.add(files('block-ram-registrar.c'))
  
 diff --git a/meson.build b/meson.build
-index b7db736bbf..fe7b7a88fd 100644
+index d9293294d8..7089bfcb54 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -2199,6 +2199,8 @@ endif
+@@ -2160,6 +2160,8 @@ endif
  
  has_gettid = cc.has_function('gettid')
  
@@ -52,7 +52,7 @@ index b7db736bbf..fe7b7a88fd 100644
  # libselinux
  selinux = dependency('libselinux',
                       required: get_option('selinux'),
-@@ -4532,6 +4534,9 @@ if have_tools
+@@ -4510,6 +4512,9 @@ if have_tools
                 dependencies: [blockdev, qemuutil, selinux],
                 install: true)
  

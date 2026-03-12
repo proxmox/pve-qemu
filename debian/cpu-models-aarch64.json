@@ -7,6 +7,7 @@
    "cortex-a710" : "ARM",
    "cortex-a72" : "ARM",
    "cortex-a76" : "ARM",
+   "cortex-a78ae" : "ARM",
    "max" : "default",
    "neoverse-n1" : "ARM",
    "neoverse-n2" : "ARM",
