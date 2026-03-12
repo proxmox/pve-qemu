@@ -247,7 +247,7 @@ index 0000000000..036edb17f5
 +
 +block_init(bdrv_zeroinit_init);
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 64f2befdf5..19b60e3a96 100644
+index d4a5765dc4..476b9c011e 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -3376,7 +3376,7 @@

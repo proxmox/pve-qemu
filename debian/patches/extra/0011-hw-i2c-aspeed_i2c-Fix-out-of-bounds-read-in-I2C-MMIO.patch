@@ -1,0 +1,136 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jamin Lin <jamin_lin@aspeedtech.com>
+Date: Tue, 10 Feb 2026 02:43:32 +0000
+Subject: [PATCH] hw/i2c/aspeed_i2c: Fix out-of-bounds read in I2C MMIO
+ handlers
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The ASPEED I2C controller exposes a per-bus MMIO window of 0x80 bytes on
+AST2600/AST1030/AST2700, but the backing regs[] array was sized for only
+28 dwords (0x70 bytes). This allows guest reads in the range [0x70..0x7f]
+to index past the end of regs[].
+
+Fix this by:
+- Sizing ASPEED_I2C_NEW_NUM_REG to match the 0x80-byte window
+  (0x80 >> 2 = 32 dwords).
+- Avoiding an unconditional pre-read from regs[] in the legacy/new read
+  handlers. Initialize the return value to -1 and only read regs[] for
+  offsets that are explicitly handled/valid, leaving invalid offsets to
+  return -1 with a guest error log.
+
+Signed-off-by: Jamin Lin <jamin_lin@aspeedtech.com>
+Resolves: https://gitlab.com/qemu-project/qemu/-/issues/3290
+Reviewed-by: Cédric Le Goater <clg@redhat.com>
+Link: https://lore.kernel.org/qemu-devel/20260210024331.3984696-2-jamin_lin@aspeedtech.com
+Signed-off-by: Cédric Le Goater <clg@redhat.com>
+(cherry picked from commit c2c5beec42bf9872b37e78b9e259132df7435cb5)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/i2c/aspeed_i2c.c         | 22 ++++++++++------------
+ include/hw/i2c/aspeed_i2c.h |  3 +--
+ 2 files changed, 11 insertions(+), 14 deletions(-)
+
+diff --git a/hw/i2c/aspeed_i2c.c b/hw/i2c/aspeed_i2c.c
+index c48fa2050b..c455c3eb7c 100644
+--- a/hw/i2c/aspeed_i2c.c
++++ b/hw/i2c/aspeed_i2c.c
+@@ -94,7 +94,7 @@ static uint64_t aspeed_i2c_bus_old_read(AspeedI2CBus *bus, hwaddr offset,
+                                         unsigned size)
+ {
+     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
+-    uint64_t value = bus->regs[offset / sizeof(*bus->regs)];
++    uint64_t value = -1;
+ 
+     switch (offset) {
+     case A_I2CD_FUN_CTRL:
+@@ -105,7 +105,7 @@ static uint64_t aspeed_i2c_bus_old_read(AspeedI2CBus *bus, hwaddr offset,
+     case A_I2CD_DEV_ADDR:
+     case A_I2CD_POOL_CTRL:
+     case A_I2CD_BYTE_BUF:
+-        /* Value is already set, don't do anything. */
++        value = bus->regs[offset / sizeof(*bus->regs)];
+         break;
+     case A_I2CD_CMD:
+         value = SHARED_FIELD_DP32(value, BUS_BUSY_STS, i2c_bus_busy(bus->bus));
+@@ -113,21 +113,20 @@ static uint64_t aspeed_i2c_bus_old_read(AspeedI2CBus *bus, hwaddr offset,
+     case A_I2CD_DMA_ADDR:
+         if (!aic->has_dma) {
+             qemu_log_mask(LOG_GUEST_ERROR, "%s: No DMA support\n",  __func__);
+-            value = -1;
+             break;
+         }
++        value = bus->regs[offset / sizeof(*bus->regs)];
+         break;
+     case A_I2CD_DMA_LEN:
+         if (!aic->has_dma) {
+             qemu_log_mask(LOG_GUEST_ERROR, "%s: No DMA support\n",  __func__);
+-            value = -1;
++            break;
+         }
++        value = bus->regs[offset / sizeof(*bus->regs)];
+         break;
+-
+     default:
+         qemu_log_mask(LOG_GUEST_ERROR,
+                       "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, offset);
+-        value = -1;
+         break;
+     }
+ 
+@@ -139,7 +138,7 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
+                                         unsigned size)
+ {
+     AspeedI2CClass *aic = ASPEED_I2C_GET_CLASS(bus->controller);
+-    uint64_t value = bus->regs[offset / sizeof(*bus->regs)];
++    uint64_t value = -1;
+ 
+     switch (offset) {
+     case A_I2CC_FUN_CTRL:
+@@ -159,13 +158,12 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
+     case A_I2CS_CMD:
+     case A_I2CS_INTR_CTRL:
+     case A_I2CS_DMA_LEN_STS:
+-        /* Value is already set, don't do anything. */
++    case A_I2CS_INTR_STS:
++        value = bus->regs[offset / sizeof(*bus->regs)];
+         break;
+     case A_I2CC_DMA_ADDR:
+         value = extract64(bus->dma_dram_offset, 0, 32);
+         break;
+-    case A_I2CS_INTR_STS:
+-        break;
+     case A_I2CM_CMD:
+         value = SHARED_FIELD_DP32(value, BUS_BUSY_STS, i2c_bus_busy(bus->bus));
+         break;
+@@ -176,13 +174,13 @@ static uint64_t aspeed_i2c_bus_new_read(AspeedI2CBus *bus, hwaddr offset,
+         if (!aic->has_dma64) {
+             qemu_log_mask(LOG_GUEST_ERROR, "%s: No DMA 64 bits support\n",
+             __func__);
+-            value = -1;
++            break;
+         }
++        value = bus->regs[offset / sizeof(*bus->regs)];
+         break;
+     default:
+         qemu_log_mask(LOG_GUEST_ERROR,
+                       "%s: Bad offset 0x%" HWADDR_PRIx "\n", __func__, offset);
+-        value = -1;
+         break;
+     }
+ 
+diff --git a/include/hw/i2c/aspeed_i2c.h b/include/hw/i2c/aspeed_i2c.h
+index 2daacc10ce..efe8b1a0c5 100644
+--- a/include/hw/i2c/aspeed_i2c.h
++++ b/include/hw/i2c/aspeed_i2c.h
+@@ -36,8 +36,7 @@ OBJECT_DECLARE_TYPE(AspeedI2CState, AspeedI2CClass, ASPEED_I2C)
+ #define ASPEED_I2C_NR_BUSSES 16
+ #define ASPEED_I2C_SHARE_POOL_SIZE 0x800
+ #define ASPEED_I2C_BUS_POOL_SIZE 0x20
+-#define ASPEED_I2C_OLD_NUM_REG 11
+-#define ASPEED_I2C_NEW_NUM_REG 28
++#define ASPEED_I2C_NEW_NUM_REG (0x80 >> 2)
+ 
+ #define A_I2CD_M_STOP_CMD       BIT(5)
+ #define A_I2CD_M_RX_CMD         BIT(3)

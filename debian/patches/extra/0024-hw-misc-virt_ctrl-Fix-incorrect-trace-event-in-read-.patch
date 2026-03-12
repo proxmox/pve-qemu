@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kuan-Wei Chiu <visitorckw@gmail.com>
+Date: Sun, 11 Jan 2026 18:49:15 +0000
+Subject: [PATCH] hw/misc/virt_ctrl: Fix incorrect trace event in read
+ operation
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The virt_ctrl_read() function currently invokes trace_virt_ctrl_write()
+instead of trace_virt_ctrl_read(). This results in read operations
+appearing as write operations in the trace output, which is misleading
+during debugging and analysis.
+
+Replace the incorrect trace call with the proper read-specific trace
+event to accurately reflect the hardware behavior.
+
+Fixes: 0791bc02b8fb ("m68k: add a system controller")
+Signed-off-by: Kuan-Wei Chiu <visitorckw@gmail.com>
+Reviewed-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+Message-ID: <20260111184915.1363318-1-visitorckw@gmail.com>
+Signed-off-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+(cherry picked from commit 8608ed356ef90815cc5bcf04fcdbde987fd24bca)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/misc/virt_ctrl.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/hw/misc/virt_ctrl.c b/hw/misc/virt_ctrl.c
+index 9f16093ca2..7dc2fe4f94 100644
+--- a/hw/misc/virt_ctrl.c
++++ b/hw/misc/virt_ctrl.c
+@@ -43,7 +43,7 @@ static uint64_t virt_ctrl_read(void *opaque, hwaddr addr, unsigned size)
+         break;
+     }
+ 
+-    trace_virt_ctrl_write(s, addr, size, value);
++    trace_virt_ctrl_read(s, addr, size, value);
+ 
+     return value;
+ }

@@ -1,0 +1,114 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Hanna Czenczek <hreitz@redhat.com>
+Date: Mon, 9 Mar 2026 16:08:32 +0100
+Subject: [PATCH] fuse: Copy write buffer content before polling
+
+aio_poll() in I/O functions can lead to nested read_from_fuse_export()
+calls, overwriting the request buffer's content.  The only function
+affected by this is fuse_write(), which therefore must use a bounce
+buffer or corruption may occur.
+
+Note that in addition we do not know whether libfuse-internal structures
+can cope with this nesting, and even if we did, we probably cannot rely
+on it in the future.  This is the main reason why we want to remove
+libfuse from the I/O path.
+
+I do not have a good reproducer for this other than:
+
+$ dd if=/dev/urandom of=image bs=1M count=4096
+$ dd if=/dev/zero of=copy bs=1M count=4096
+$ touch fuse-export
+$ qemu-storage-daemon \
+    --blockdev file,node-name=file,filename=copy \
+    --export \
+    fuse,id=exp,node-name=file,mountpoint=fuse-export,writable=true \
+    &
+
+Other shell:
+$ qemu-img convert -p -n -f raw -O raw -t none image fuse-export
+$ killall -SIGINT qemu-storage-daemon
+$ qemu-img compare image copy
+Content mismatch at offset 0!
+
+(The -t none in qemu-img convert is important.)
+
+I tried reproducing this with throttle and small aio_write requests from
+another qemu-io instance, but for some reason all requests are perfectly
+serialized then.
+
+I think in theory we should get parallel writes only if we set
+fi->parallel_direct_writes in fuse_open().  In fact, I can confirm that
+if we do that, that throttle-based reproducer works (i.e. does get
+parallel (nested) write requests).  I have no idea why we still get
+parallel requests with qemu-img convert anyway.
+
+Also, a later patch in this series will set fi->parallel_direct_writes
+and note that it makes basically no difference when running fio on the
+current libfuse-based version of our code.  It does make a difference
+without libfuse.  So something quite fishy is going on.
+
+I will try to investigate further what the root cause is, but I think
+for now let's assume that calling blk_pwrite() can invalidate the buffer
+contents through nested polling.
+
+Cc: qemu-stable@nongnu.org
+Reviewed-by: Kevin Wolf <kwolf@redhat.com>
+Signed-off-by: Hanna Czenczek <hreitz@redhat.com>
+Message-ID: <20260309150856.26800-2-hreitz@redhat.com>
+Reviewed-by: Kevin Wolf <kwolf@redhat.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit a3fcbca0ef643a8aecf354bdeb08b1d81e5b33e7)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ block/export/fuse.c | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/block/export/fuse.c b/block/export/fuse.c
+index 465cc9891d..aec4d8736d 100644
+--- a/block/export/fuse.c
++++ b/block/export/fuse.c
+@@ -301,6 +301,12 @@ static void read_from_fuse_export(void *opaque)
+         goto out;
+     }
+ 
++    /*
++     * Note that aio_poll() in any request-processing function can lead to a
++     * nested read_from_fuse_export() call, which will overwrite the contents of
++     * exp->fuse_buf.  Anything that takes a buffer needs to take care that the
++     * content is copied before potentially polling via aio_poll().
++     */
+     fuse_session_process_buf(exp->fuse_session, &exp->fuse_buf);
+ 
+ out:
+@@ -624,6 +630,7 @@ static void fuse_write(fuse_req_t req, fuse_ino_t inode, const char *buf,
+                        size_t size, off_t offset, struct fuse_file_info *fi)
+ {
+     FuseExport *exp = fuse_req_userdata(req);
++    QEMU_AUTO_VFREE void *copied = NULL;
+     int64_t length;
+     int ret;
+ 
+@@ -638,6 +645,14 @@ static void fuse_write(fuse_req_t req, fuse_ino_t inode, const char *buf,
+         return;
+     }
+ 
++    /*
++     * Heed the note on read_from_fuse_export(): If we call aio_poll() (which
++     * any blk_*() I/O function may do), read_from_fuse_export() may be nested,
++     * overwriting the request buffer content.  Therefore, we must copy it here.
++     */
++    copied = blk_blockalign(exp->common.blk, size);
++    memcpy(copied, buf, size);
++
+     /**
+      * Clients will expect short writes at EOF, so we have to limit
+      * offset+size to the image length.
+@@ -660,7 +675,7 @@ static void fuse_write(fuse_req_t req, fuse_ino_t inode, const char *buf,
+         }
+     }
+ 
+-    ret = blk_pwrite(exp->common.blk, offset, size, buf, 0);
++    ret = blk_pwrite(exp->common.blk, offset, size, copied, 0);
+     if (ret >= 0) {
+         fuse_reply_write(req, size);
+     } else {

@@ -1,0 +1,47 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Maydell <peter.maydell@linaro.org>
+Date: Wed, 18 Feb 2026 18:40:13 +0000
+Subject: [PATCH] target/arm: Fix feature check in DO_SVE2_RRX, DO_SVE2_RRX_TB
+
+In the macros DO_SVE2_RRX and DO_SVE2_RRX_TB we use the
+feature check aa64_sve, thus exposing this set of instructions
+in SVE as well as SVE2. Use aa64_sve2 instead, so they UNDEF
+on an SVE1-only CPU as they should.
+
+Strictly, the condition here should be "SVE2 or SME"; but we
+will correct that in a following commit with all the other
+missing "or SME" checks.
+
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+Reviewed-by: Richard Henderson <richard.henderson@linaro.org>
+Reviewed-by: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
+Message-id: 20260202133353.2231685-4-peter.maydell@linaro.org
+(cherry picked from commit ee5bf0962ed6e0eb42d6bc9bfb3687f2408e3580)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/arm/tcg/translate-sve.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/target/arm/tcg/translate-sve.c b/target/arm/tcg/translate-sve.c
+index 07b827fa8e..d69a2f5d75 100644
+--- a/target/arm/tcg/translate-sve.c
++++ b/target/arm/tcg/translate-sve.c
+@@ -3769,7 +3769,7 @@ TRANS_FEAT(UDOT_zzxw_2s, aa64_sme2_or_sve2p1, gen_gvec_ool_arg_zzxz,
+            gen_helper_gvec_udot_idx_2h, a)
+ 
+ #define DO_SVE2_RRX(NAME, FUNC) \
+-    TRANS_FEAT(NAME, aa64_sve, gen_gvec_ool_zzz, FUNC,          \
++    TRANS_FEAT(NAME, aa64_sve2, gen_gvec_ool_zzz, FUNC,          \
+                a->rd, a->rn, a->rm, a->index)
+ 
+ DO_SVE2_RRX(MUL_zzx_h, gen_helper_gvec_mul_idx_h)
+@@ -3787,7 +3787,7 @@ DO_SVE2_RRX(SQRDMULH_zzx_d, gen_helper_sve2_sqrdmulh_idx_d)
+ #undef DO_SVE2_RRX
+ 
+ #define DO_SVE2_RRX_TB(NAME, FUNC, TOP) \
+-    TRANS_FEAT(NAME, aa64_sve, gen_gvec_ool_zzz, FUNC,          \
++    TRANS_FEAT(NAME, aa64_sve2, gen_gvec_ool_zzz, FUNC,          \
+                a->rd, a->rn, a->rm, (a->index << 1) | TOP)
+ 
+ DO_SVE2_RRX_TB(SQDMULLB_zzx_s, gen_helper_sve2_sqdmull_idx_s, false)

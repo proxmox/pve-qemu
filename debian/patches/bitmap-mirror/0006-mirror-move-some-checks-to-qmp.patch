@@ -21,10 +21,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 70 insertions(+), 59 deletions(-)
 
 diff --git a/block/mirror.c b/block/mirror.c
-index 0f96c8b5ce..5340a695b1 100644
+index ee745f8ec4..e71f8f3cdf 100644
 --- a/block/mirror.c
 +++ b/block/mirror.c
-@@ -1880,31 +1880,13 @@ static BlockJob *mirror_start_job(
+@@ -1883,31 +1883,13 @@ static BlockJob *mirror_start_job(
  
      GLOBAL_STATE_CODE();
  

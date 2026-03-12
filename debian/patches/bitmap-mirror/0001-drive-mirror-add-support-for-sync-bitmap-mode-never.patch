@@ -27,7 +27,7 @@ Signed-off-by: Ma Haocong <mahaocong@didichuxing.com>
 Signed-off-by: John Snow <jsnow@redhat.com>
 Signed-off-by: Fabian Grünbichler <f.gruenbichler@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[FE: rebased for 10.1.0]
+[FE: rebased for 10.2.1]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/mirror.c                         | 87 +++++++++++++++++++++-----
@@ -38,7 +38,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  5 files changed, 135 insertions(+), 21 deletions(-)
 
 diff --git a/block/mirror.c b/block/mirror.c
-index bc982cb99a..99805e7a9d 100644
+index fa1d975eb9..d09479789f 100644
 --- a/block/mirror.c
 +++ b/block/mirror.c
 @@ -74,6 +74,8 @@ typedef struct MirrorBlockJob {
@@ -50,7 +50,7 @@ index bc982cb99a..99805e7a9d 100644
      BdrvDirtyBitmap *dirty_bitmap;
      BdrvDirtyBitmapIter *dbi;
      uint8_t *buf;
-@@ -871,6 +873,16 @@ static void mirror_abort(Job *job)
+@@ -872,6 +874,16 @@ static void mirror_abort(Job *job)
      assert(ret == 0);
  }
  
@@ -67,7 +67,7 @@ index bc982cb99a..99805e7a9d 100644
  static void coroutine_fn mirror_throttle(MirrorBlockJob *s)
  {
      int64_t now = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
-@@ -1110,7 +1122,8 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
+@@ -1111,7 +1123,8 @@ static int coroutine_fn mirror_run(Job *job, Error **errp)
      mirror_free_init(s);
  
      s->last_pause_ns = qemu_clock_get_ns(QEMU_CLOCK_REALTIME);
@@ -77,7 +77,7 @@ index bc982cb99a..99805e7a9d 100644
          ret = mirror_dirty_init(s);
          if (ret < 0 || job_is_cancelled(&s->common.job)) {
              goto immediate_exit;
-@@ -1400,6 +1413,7 @@ static const BlockJobDriver mirror_job_driver = {
+@@ -1401,6 +1414,7 @@ static const BlockJobDriver mirror_job_driver = {
          .run                    = mirror_run,
          .prepare                = mirror_prepare,
          .abort                  = mirror_abort,
@@ -85,7 +85,7 @@ index bc982cb99a..99805e7a9d 100644
          .pause                  = mirror_pause,
          .complete               = mirror_complete,
          .cancel                 = mirror_cancel,
-@@ -1418,6 +1432,7 @@ static const BlockJobDriver commit_active_job_driver = {
+@@ -1419,6 +1433,7 @@ static const BlockJobDriver commit_active_job_driver = {
          .run                    = mirror_run,
          .prepare                = mirror_prepare,
          .abort                  = mirror_abort,
@@ -93,7 +93,7 @@ index bc982cb99a..99805e7a9d 100644
          .pause                  = mirror_pause,
          .complete               = mirror_complete,
          .cancel                 = commit_active_cancel,
-@@ -1838,6 +1853,8 @@ static BlockJob *mirror_start_job(
+@@ -1841,6 +1856,8 @@ static BlockJob *mirror_start_job(
                               BlockCompletionFunc *cb,
                               void *opaque,
                               const BlockJobDriver *driver,
@@ -102,7 +102,7 @@ index bc982cb99a..99805e7a9d 100644
                               BlockDriverState *base,
                               bool auto_complete, const char *filter_node_name,
                               bool is_mirror, MirrorCopyMode copy_mode,
-@@ -1853,10 +1870,39 @@ static BlockJob *mirror_start_job(
+@@ -1856,10 +1873,39 @@ static BlockJob *mirror_start_job(
  
      GLOBAL_STATE_CODE();
  
@@ -144,7 +144,7 @@ index bc982cb99a..99805e7a9d 100644
      assert(is_power_of_2(granularity));
  
      if (buf_size < 0) {
-@@ -1998,6 +2044,8 @@ static BlockJob *mirror_start_job(
+@@ -2023,6 +2069,8 @@ static BlockJob *mirror_start_job(
      s->on_source_error = on_source_error;
      s->on_target_error = on_target_error;
      s->sync_mode = sync_mode;
@@ -153,9 +153,9 @@ index bc982cb99a..99805e7a9d 100644
      s->backing_mode = backing_mode;
      s->target_is_zero = target_is_zero;
      qatomic_set(&s->copy_mode, copy_mode);
-@@ -2023,6 +2071,18 @@ static BlockJob *mirror_start_job(
-      */
-     bdrv_disable_dirty_bitmap(s->dirty_bitmap);
+@@ -2037,6 +2085,18 @@ static BlockJob *mirror_start_job(
+     }
+     bdrv_graph_rdunlock_main_loop();
  
 +    if (s->sync_bitmap) {
 +        bdrv_dirty_bitmap_set_busy(s->sync_bitmap, true);
@@ -172,17 +172,17 @@ index bc982cb99a..99805e7a9d 100644
      bdrv_graph_wrlock_drained();
      ret = block_job_add_bdrv(&s->common, "source", bs, 0,
                               BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE |
-@@ -2105,6 +2165,9 @@ fail:
-         if (s->dirty_bitmap) {
-             bdrv_release_dirty_bitmap(s->dirty_bitmap);
-         }
+@@ -2116,6 +2176,9 @@ fail:
+         g_free(s->replaces);
+         blk_unref(s->target);
+         bs_opaque->job = NULL;
 +        if (s->sync_bitmap) {
 +            bdrv_dirty_bitmap_set_busy(s->sync_bitmap, false);
 +        }
          job_early_fail(&s->common.job);
      }
  
-@@ -2127,7 +2190,10 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
+@@ -2139,7 +2202,10 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
                    BlockDriverState *target, const char *replaces,
                    int creation_flags, int64_t speed,
                    uint32_t granularity, int64_t buf_size,
@@ -194,7 +194,7 @@ index bc982cb99a..99805e7a9d 100644
                    bool target_is_zero,
                    BlockdevOnError on_source_error,
                    BlockdevOnError on_target_error,
-@@ -2138,13 +2204,6 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
+@@ -2150,13 +2216,6 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
  
      GLOBAL_STATE_CODE();
  
@@ -208,7 +208,7 @@ index bc982cb99a..99805e7a9d 100644
      bdrv_graph_rdlock_main_loop();
      base = mode == MIRROR_SYNC_MODE_TOP ? bdrv_backing_chain_next(bs) : NULL;
      bdrv_graph_rdunlock_main_loop();
-@@ -2152,8 +2211,8 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
+@@ -2164,8 +2223,8 @@ void mirror_start(const char *job_id, BlockDriverState *bs,
      mirror_start_job(job_id, bs, creation_flags, target, replaces,
                       speed, granularity, buf_size, mode, backing_mode,
                       target_is_zero, on_source_error, on_target_error, unmap,
@@ -219,7 +219,7 @@ index bc982cb99a..99805e7a9d 100644
  }
  
  BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
-@@ -2180,7 +2239,7 @@ BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
+@@ -2192,7 +2251,7 @@ BlockJob *commit_active_start(const char *job_id, BlockDriverState *bs,
                       job_id, bs, creation_flags, base, NULL, speed, 0, 0,
                       MIRROR_SYNC_MODE_TOP, MIRROR_LEAVE_BACKING_CHAIN, false,
                       on_error, on_error, true, cb, opaque,
@@ -333,7 +333,7 @@ index e7c8f1a856..d5aa68caeb 100644
                    BlockdevOnError on_source_error,
                    BlockdevOnError on_target_error,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index b82af74256..64f2befdf5 100644
+index 4118d884f4..d4a5765dc4 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -2275,6 +2275,15 @@

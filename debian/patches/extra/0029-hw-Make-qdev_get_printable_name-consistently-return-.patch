@@ -1,0 +1,142 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Peter Maydell <peter.maydell@linaro.org>
+Date: Sat, 7 Mar 2026 15:50:46 +0000
+Subject: [PATCH] hw: Make qdev_get_printable_name() consistently return
+ freeable string
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The current implementation of qdev_get_printable_name() sometimes
+returns a string that must not be freed (vdev->id or the fixed
+fallback string "<unknown device>" and sometimes returns a string
+that must be freed (the return value of qdev_get_dev_path()). This
+forces callers to leak the string in the "must be freed" case.
+
+Make the function consistent that it always returns a string that
+the caller must free, and make the three callsites free it.
+
+This fixes leaks like this that show up when running "make check"
+with the address sanitizer enabled:
+
+Direct leak of 13 byte(s) in 1 object(s) allocated from:
+    #0 0x5561de21f293 in malloc (/home/pm215/qemu/build/san/qemu-system-i386+0x1a2d293) (BuildId: 6d6fad7130fd5c8dbbc03401df554f68b8034936)
+    #1 0x767ad7a82ac9 in g_malloc (/lib/x86_64-linux-gnu/libglib-2.0.so.0+0x62ac9) (BuildId: 116e142b9b52c8a4dfd403e759e71ab8f95d8bb3)
+    #2 0x5561deaf34f2 in pcibus_get_dev_path /home/pm215/qemu/build/san/../../hw/pci/pci.c:2792:12
+    #3 0x5561df9d8830 in qdev_get_printable_name /home/pm215/qemu/build/san/../../hw/core/qdev.c:431:24
+    #4 0x5561deebdca2 in virtio_init_region_cache /home/pm215/qemu/build/san/../../hw/virtio/virtio.c:298:17
+    #5 0x5561df05f842 in memory_region_write_accessor /home/pm215/qemu/build/san/../../system/memory.c:491:5
+    #6 0x5561df05ed1b in access_with_adjusted_size /home/pm215/qemu/build/san/../../system/memory.c:567:18
+    #7 0x5561df05e3fa in memory_region_dispatch_write /home/pm215/qemu/build/san/../../system/memory.c
+    #8 0x5561df0aa805 in address_space_stm_internal /home/pm215/qemu/build/san/../../system/memory_ldst.c.inc:85:13
+    #9 0x5561df0bcad3 in qtest_process_command /home/pm215/qemu/build/san/../../system/qtest.c:480:13
+
+Cc: qemu-stable@nongnu.org
+Fixes: e209d4d7a31b9 ("virtio: improve virtqueue mapping error messages")
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+Reviewed-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+Message-ID: <20260307155046.3940197-3-peter.maydell@linaro.org>
+Signed-off-by: Philippe Mathieu-Daudé <philmd@linaro.org>
+(cherry picked from commit 1e3e1d51e20e8b38efa089bf54b5ee2cbbcca221)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/core/qdev.c         |  4 ++--
+ hw/virtio/virtio.c     | 12 +++++++++---
+ include/hw/qdev-core.h | 16 ++++++++++++++++
+ 3 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/hw/core/qdev.c b/hw/core/qdev.c
+index fab42a7270..ce0ee9fcef 100644
+--- a/hw/core/qdev.c
++++ b/hw/core/qdev.c
+@@ -420,7 +420,7 @@ const char *qdev_get_printable_name(DeviceState *vdev)
+      * names.
+      */
+     if (vdev->id) {
+-        return vdev->id;
++        return g_strdup(vdev->id);
+     }
+     /*
+      * Fall back to the canonical QOM device path (eg. ID for PCI
+@@ -437,7 +437,7 @@ const char *qdev_get_printable_name(DeviceState *vdev)
+      * Final fallback: if all else fails, return a placeholder string.
+      * This ensures the error message always contains a valid string.
+      */
+-    return "<unknown device>";
++    return g_strdup("<unknown device>");
+ }
+ 
+ void qdev_add_unplug_blocker(DeviceState *dev, Error *reason)
+diff --git a/hw/virtio/virtio.c b/hw/virtio/virtio.c
+index 683026adc4..deb7c6695e 100644
+--- a/hw/virtio/virtio.c
++++ b/hw/virtio/virtio.c
+@@ -258,10 +258,12 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
+     len = address_space_cache_init(&new->desc, vdev->dma_as,
+                                    addr, size, packed);
+     if (len < size) {
++        g_autofree const char *devname = qdev_get_printable_name(DEVICE(vdev));
++
+         virtio_error(vdev,
+                 "Failed to map descriptor ring for device %s: "
+                 "invalid guest physical address or corrupted queue setup",
+-                qdev_get_printable_name(DEVICE(vdev)));
++                devname);
+         goto err_desc;
+     }
+ 
+@@ -269,10 +271,12 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
+     len = address_space_cache_init(&new->used, vdev->dma_as,
+                                    vq->vring.used, size, true);
+     if (len < size) {
++        g_autofree const char *devname = qdev_get_printable_name(DEVICE(vdev));
++
+         virtio_error(vdev,
+                 "Failed to map used ring for device %s: "
+                 "possible guest misconfiguration or insufficient memory",
+-                qdev_get_printable_name(DEVICE(vdev)));
++                devname);
+         goto err_used;
+     }
+ 
+@@ -280,10 +284,12 @@ void virtio_init_region_cache(VirtIODevice *vdev, int n)
+     len = address_space_cache_init(&new->avail, vdev->dma_as,
+                                    vq->vring.avail, size, false);
+     if (len < size) {
++        g_autofree const char *devname = qdev_get_printable_name(DEVICE(vdev));
++
+         virtio_error(vdev,
+                 "Failed to map avalaible ring for device %s: "
+                 "possible queue misconfiguration or overlapping memory region",
+-                qdev_get_printable_name(DEVICE(vdev)));
++                devname);
+         goto err_avail;
+     }
+ 
+diff --git a/include/hw/qdev-core.h b/include/hw/qdev-core.h
+index 2caa0cbd26..774329bba9 100644
+--- a/include/hw/qdev-core.h
++++ b/include/hw/qdev-core.h
+@@ -1065,6 +1065,22 @@ bool qdev_set_parent_bus(DeviceState *dev, BusState *bus, Error **errp);
+ extern bool qdev_hot_removed;
+ 
+ char *qdev_get_dev_path(DeviceState *dev);
++
++/**
++ * qdev_get_printable_name: Return human readable name for device
++ * @dev: Device to get name of
++ *
++ * Returns: A newly allocated string containing some human
++ * readable name for the device, suitable for printing in
++ * user-facing error messages. The function will never return NULL,
++ * so the name can be used without further checking or fallbacks.
++ *
++ * If the device has an explicitly set ID (e.g. by the user on the
++ * command line via "-device thisdev,id=myid") this is preferred.
++ * Otherwise we try the canonical QOM device path (which will be
++ * the PCI ID for PCI devices, for example). If all else fails
++ * we will return the placeholder "<unknown device">.
++ */
+ const char *qdev_get_printable_name(DeviceState *dev);
+ 
+ void qbus_set_hotplug_handler(BusState *bus, Object *handler);

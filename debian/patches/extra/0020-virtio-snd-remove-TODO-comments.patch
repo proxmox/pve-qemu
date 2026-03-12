@@ -1,0 +1,93 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
+Date: Fri, 20 Feb 2026 11:40:13 +0200
+Subject: [PATCH] virtio-snd: remove TODO comments
+
+Replying with a VIRTIO_SND_S_BAD_MSG error does not warrant a device
+reset. Instead, a device reset happens when the driver requests it from the
+transport.
+
+Signed-off-by: Manos Pitsidianakis <manos.pitsidianakis@linaro.org>
+Reviewed-by: Michael S. Tsirkin <mst@redhat.com>
+Signed-off-by: Michael S. Tsirkin <mst@redhat.com>
+Message-Id: <20260220-virtio-snd-series-v1-2-207c4f7200a2@linaro.org>
+(cherry picked from commit 34238f078a04f24b91199249b83846ab082b4e05)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/audio/virtio-snd.c | 21 ---------------------
+ 1 file changed, 21 deletions(-)
+
+diff --git a/hw/audio/virtio-snd.c b/hw/audio/virtio-snd.c
+index 9101560f38..fd03efc120 100644
+--- a/hw/audio/virtio-snd.c
++++ b/hw/audio/virtio-snd.c
+@@ -168,9 +168,6 @@ static void virtio_snd_handle_pcm_info(VirtIOSound *s,
+                                sizeof(virtio_snd_query_info));
+ 
+     if (msg_sz != sizeof(virtio_snd_query_info)) {
+-        /*
+-         * TODO: do we need to set DEVICE_NEEDS_RESET?
+-         */
+         qemu_log_mask(LOG_GUEST_ERROR,
+                 "%s: virtio-snd command size incorrect %zu vs \
+                 %zu\n", __func__, msg_sz, sizeof(virtio_snd_query_info));
+@@ -184,9 +181,6 @@ static void virtio_snd_handle_pcm_info(VirtIOSound *s,
+ 
+     if (iov_size(cmd->elem->in_sg, cmd->elem->in_num) <
+         sizeof(virtio_snd_hdr) + size * count) {
+-        /*
+-         * TODO: do we need to set DEVICE_NEEDS_RESET?
+-         */
+         error_report("pcm info: buffer too small, got: %zu, needed: %zu",
+                 iov_size(cmd->elem->in_sg, cmd->elem->in_num),
+                 sizeof(virtio_snd_pcm_info));
+@@ -244,9 +238,6 @@ uint32_t virtio_snd_set_pcm_params(VirtIOSound *s,
+     virtio_snd_pcm_set_params *st_params;
+ 
+     if (stream_id >= s->snd_conf.streams || s->pcm->pcm_params == NULL) {
+-        /*
+-         * TODO: do we need to set DEVICE_NEEDS_RESET?
+-         */
+         virtio_error(VIRTIO_DEVICE(s), "Streams have not been initialized.\n");
+         return cpu_to_le32(VIRTIO_SND_S_BAD_MSG);
+     }
+@@ -297,9 +288,6 @@ static void virtio_snd_handle_pcm_set_params(VirtIOSound *s,
+                                sizeof(virtio_snd_pcm_set_params));
+ 
+     if (msg_sz != sizeof(virtio_snd_pcm_set_params)) {
+-        /*
+-         * TODO: do we need to set DEVICE_NEEDS_RESET?
+-         */
+         qemu_log_mask(LOG_GUEST_ERROR,
+                 "%s: virtio-snd command size incorrect %zu vs \
+                 %zu\n", __func__, msg_sz, sizeof(virtio_snd_pcm_set_params));
+@@ -609,9 +597,6 @@ static void virtio_snd_handle_pcm_release(VirtIOSound *s,
+                                sizeof(stream_id));
+ 
+     if (msg_sz != sizeof(stream_id)) {
+-        /*
+-         * TODO: do we need to set DEVICE_NEEDS_RESET?
+-         */
+         qemu_log_mask(LOG_GUEST_ERROR,
+                 "%s: virtio-snd command size incorrect %zu vs \
+                 %zu\n", __func__, msg_sz, sizeof(stream_id));
+@@ -623,9 +608,6 @@ static void virtio_snd_handle_pcm_release(VirtIOSound *s,
+     trace_virtio_snd_handle_pcm_release(stream_id);
+     stream = virtio_snd_pcm_get_stream(s, stream_id);
+     if (stream == NULL) {
+-        /*
+-         * TODO: do we need to set DEVICE_NEEDS_RESET?
+-         */
+         error_report("already released stream %"PRIu32, stream_id);
+         virtio_error(VIRTIO_DEVICE(s),
+                      "already released stream %"PRIu32,
+@@ -668,9 +650,6 @@ process_cmd(VirtIOSound *s, virtio_snd_ctrl_command *cmd)
+                                sizeof(virtio_snd_hdr));
+ 
+     if (msg_sz != sizeof(virtio_snd_hdr)) {
+-        /*
+-         * TODO: do we need to set DEVICE_NEEDS_RESET?
+-         */
+         qemu_log_mask(LOG_GUEST_ERROR,
+                 "%s: virtio-snd command size incorrect %zu vs \
+                 %zu\n", __func__, msg_sz, sizeof(virtio_snd_hdr));

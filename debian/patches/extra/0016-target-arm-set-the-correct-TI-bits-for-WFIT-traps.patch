@@ -1,0 +1,35 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Alex=20Benn=C3=A9e?= <alex.bennee@linaro.org>
+Date: Thu, 26 Feb 2026 11:27:18 +0000
+Subject: [PATCH] target/arm: set the correct TI bits for WFIT traps
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The WFIT trap should be reported as 0b10.
+
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Alex Bennée <alex.bennee@linaro.org>
+Reviewed-by: Gustavo Romero <gustavo.romero@linaro.org>
+Message-id: 20260220171945.1065102-1-alex.bennee@linaro.org
+Reviewed-by: Peter Maydell <peter.maydell@linaro.org>
+Signed-off-by: Peter Maydell <peter.maydell@linaro.org>
+(cherry picked from commit 662fd548a027c9362df71ebfc0c9cdd7b1f349fb)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/arm/tcg/op_helper.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/target/arm/tcg/op_helper.c b/target/arm/tcg/op_helper.c
+index 4fbd219555..9c0651f000 100644
+--- a/target/arm/tcg/op_helper.c
++++ b/target/arm/tcg/op_helper.c
+@@ -448,7 +448,7 @@ void HELPER(wfit)(CPUARMState *env, uint64_t timeout)
+ 
+     if (target_el) {
+         env->pc -= 4;
+-        raise_exception(env, excp, syn_wfx(1, 0xe, 0, false), target_el);
++        raise_exception(env, excp, syn_wfx(1, 0xe, 2, false), target_el);
+     }
+ 
+     if (uadd64_overflow(timeout, offset, &nexttick)) {

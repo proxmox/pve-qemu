@@ -1,0 +1,152 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Kevin Wolf <kwolf@redhat.com>
+Date: Thu, 19 Feb 2026 21:24:46 +0100
+Subject: [PATCH] mirror: Fix missed dirty bitmap writes during startup
+
+Currently, mirror disables the block layer's dirty bitmap before its own
+replacement is working. This means that during startup, there is a
+window in which the allocation status of blocks in the source has
+already been checked, but new writes coming in aren't tracked yet,
+resulting in a corrupted copy:
+
+1. Dirty bitmap is disabled in mirror_start_job()
+2. Some request are started in mirror_top_bs while s->job == NULL
+3. mirror_dirty_init() -> bdrv_co_is_allocated_above() runs and because
+   the request hasn't completed yet, the block isn't allocated
+4. The request completes, still sees s->job == NULL and skips the
+   bitmap, and nothing else will mark it dirty either
+
+One ingredient is that mirror_top_opaque->job is only set after the
+job is fully initialized. For the rationale, see commit 32125b1460
+("mirror: Fix access of uninitialised fields during start").
+
+Fix this by giving mirror_top_bs access to dirty_bitmap and enabling it
+to track writes from the beginning. Disabling the block layer's tracking
+and enabling the mirror_top_bs one happens in a drained section, so
+there is no danger of races with in-flight requests any more. All of
+this happens well before the block allocation status is checked, so we
+can be sure that no writes will be missed.
+
+Cc: qemu-stable@nongnu.org
+Closes: https://gitlab.com/qemu-project/qemu/-/issues/3273
+Fixes: 32125b14606a ('mirror: Fix access of uninitialised fields during start')
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+Message-ID: <20260219202446.312493-1-kwolf@redhat.com>
+Reviewed-by: Fiona Ebner <f.ebner@proxmox.com>
+Tested-by: Jean-Louis Dupond <jean-louis@dupond.be>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+(cherry picked from commit 167ef239fbdcc4bde126e47668bfc4839b873b19)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ block/mirror.c | 52 +++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 32 insertions(+), 20 deletions(-)
+
+diff --git a/block/mirror.c b/block/mirror.c
+index bc982cb99a..fa1d975eb9 100644
+--- a/block/mirror.c
++++ b/block/mirror.c
+@@ -99,6 +99,7 @@ typedef struct MirrorBlockJob {
+ 
+ typedef struct MirrorBDSOpaque {
+     MirrorBlockJob *job;
++    BdrvDirtyBitmap *dirty_bitmap;
+     bool stop;
+     bool is_commit;
+ } MirrorBDSOpaque;
+@@ -1675,9 +1676,11 @@ bdrv_mirror_top_do_write(BlockDriverState *bs, MirrorMethod method,
+         abort();
+     }
+ 
+-    if (!copy_to_target && s->job && s->job->dirty_bitmap) {
+-        qatomic_set(&s->job->actively_synced, false);
+-        bdrv_set_dirty_bitmap(s->job->dirty_bitmap, offset, bytes);
++    if (!copy_to_target) {
++        if (s->job) {
++            qatomic_set(&s->job->actively_synced, false);
++        }
++        bdrv_set_dirty_bitmap(s->dirty_bitmap, offset, bytes);
+     }
+ 
+     if (ret < 0) {
+@@ -1904,13 +1907,35 @@ static BlockJob *mirror_start_job(
+ 
+     bdrv_drained_begin(bs);
+     ret = bdrv_append(mirror_top_bs, bs, errp);
+-    bdrv_drained_end(bs);
+-
+     if (ret < 0) {
++        bdrv_drained_end(bs);
++        bdrv_unref(mirror_top_bs);
++        return NULL;
++    }
++
++    bs_opaque->dirty_bitmap = bdrv_create_dirty_bitmap(mirror_top_bs,
++                                                       granularity,
++                                                       NULL, errp);
++    if (!bs_opaque->dirty_bitmap) {
++        bdrv_drained_end(bs);
+         bdrv_unref(mirror_top_bs);
+         return NULL;
+     }
+ 
++    /*
++     * The mirror job doesn't use the block layer's dirty tracking because it
++     * needs to be able to switch seemlessly between background copy mode (which
++     * does need dirty tracking) and write blocking mode (which doesn't) and
++     * doing that would require draining the node. Instead, mirror_top_bs takes
++     * care of updating the dirty bitmap as appropriate.
++     *
++     * Note that write blocking mode only becomes effective after mirror_run()
++     * sets mirror_top_opaque->job (see should_copy_to_target()). Until then,
++     * we're still in background copy mode irrespective of @copy_mode.
++     */
++    bdrv_disable_dirty_bitmap(bs_opaque->dirty_bitmap);
++    bdrv_drained_end(bs);
++
+     /* Make sure that the source is not resized while the job is running */
+     s = block_job_create(job_id, driver, NULL, mirror_top_bs,
+                          BLK_PERM_CONSISTENT_READ,
+@@ -2005,24 +2030,13 @@ static BlockJob *mirror_start_job(
+     s->base_overlay = bdrv_find_overlay(bs, base);
+     s->granularity = granularity;
+     s->buf_size = ROUND_UP(buf_size, granularity);
++    s->dirty_bitmap = bs_opaque->dirty_bitmap;
+     s->unmap = unmap;
+     if (auto_complete) {
+         s->should_complete = true;
+     }
+     bdrv_graph_rdunlock_main_loop();
+ 
+-    s->dirty_bitmap = bdrv_create_dirty_bitmap(s->mirror_top_bs, granularity,
+-                                               NULL, errp);
+-    if (!s->dirty_bitmap) {
+-        goto fail;
+-    }
+-
+-    /*
+-     * The dirty bitmap is set by bdrv_mirror_top_do_write() when not in active
+-     * mode.
+-     */
+-    bdrv_disable_dirty_bitmap(s->dirty_bitmap);
+-
+     bdrv_graph_wrlock_drained();
+     ret = block_job_add_bdrv(&s->common, "source", bs, 0,
+                              BLK_PERM_WRITE_UNCHANGED | BLK_PERM_WRITE |
+@@ -2102,9 +2116,6 @@ fail:
+         g_free(s->replaces);
+         blk_unref(s->target);
+         bs_opaque->job = NULL;
+-        if (s->dirty_bitmap) {
+-            bdrv_release_dirty_bitmap(s->dirty_bitmap);
+-        }
+         job_early_fail(&s->common.job);
+     }
+ 
+@@ -2118,6 +2129,7 @@ fail:
+     bdrv_graph_wrunlock();
+     bdrv_drained_end(bs);
+ 
++    bdrv_release_dirty_bitmap(bs_opaque->dirty_bitmap);
+     bdrv_unref(mirror_top_bs);
+ 
+     return NULL;

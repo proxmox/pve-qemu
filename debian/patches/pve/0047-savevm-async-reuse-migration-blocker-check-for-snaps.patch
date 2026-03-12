@@ -61,7 +61,7 @@ Message-ID: <20250618102531.57444-1-f.ebner@proxmox.com>
  5 files changed, 29 insertions(+), 4 deletions(-)
 
 diff --git a/block/vmdk.c b/block/vmdk.c
-index 89e89cd10e..06df10a799 100644
+index cd8b4ec7c8..1f64ab1766 100644
 --- a/block/vmdk.c
 +++ b/block/vmdk.c
 @@ -1404,9 +1404,7 @@ static int vmdk_open(BlockDriverState *bs, QDict *options, int flags,

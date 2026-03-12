@@ -1,0 +1,52 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Bernhard Beschow <shentey@gmail.com>
+Date: Tue, 24 Feb 2026 00:39:25 +0100
+Subject: [PATCH] target/i386/emulate/x86_decode: Actually use stream in
+ decode_instruction_stream()
+
+Compared to decode_instruction(), decode_instruction_stream() has an additional
+stream parameter which avoids some guest memory accesses during instruction
+decoding. Both functions defer the actual work to decode_opcode() which would
+set the stream pointer to zero such that decode_instruction_stream() essentially
+behaved like decode_instruction(). Given that all callers of
+decode_instruction_stream() properly zero-initialize the decode parameter, the
+memset() call can be moved into decode_instruction() which is the only other
+user of decode_opcode(). This preserves the non-zero stream pointer which
+avoids extra guest memory accesses.
+
+Fixes: 1e25327b244a ("target/i386/emulate: Allow instruction decoding from stream")
+cc: qemu-stable
+Signed-off-by: Bernhard Beschow <shentey@gmail.com>
+Reviewed-by: Mohamed Mediouni <mohamed@unpredictable.fr>
+Reviewed-by: Wei Liu (Microsoft) <wei.liu@kernel.org>
+Tested-by: Magnus Kulke <magnuskulke@linux.microsoft.com>
+Link: https://lore.kernel.org/r/20260223233950.96076-4-mohamed@unpredictable.fr
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 1b93832f55927b1b76a6587ca75a5a35676188de)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ target/i386/emulate/x86_decode.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/target/i386/emulate/x86_decode.c b/target/i386/emulate/x86_decode.c
+index d037ed1142..a1122d2b27 100644
+--- a/target/i386/emulate/x86_decode.c
++++ b/target/i386/emulate/x86_decode.c
+@@ -2088,8 +2088,6 @@ static void decode_opcodes(CPUX86State *env, struct x86_decode *decode)
+ 
+ static uint32_t decode_opcode(CPUX86State *env, struct x86_decode *decode)
+ {
+-    memset(decode, 0, sizeof(*decode));
+-
+     decode_prefix(env, decode);
+     set_addressing_size(env, decode);
+     set_operand_size(env, decode);
+@@ -2101,6 +2099,8 @@ static uint32_t decode_opcode(CPUX86State *env, struct x86_decode *decode)
+ 
+ uint32_t decode_instruction(CPUX86State *env, struct x86_decode *decode)
+ {
++    memset(decode, 0, sizeof(*decode));
++
+     return decode_opcode(env, decode);
+ }
+ 

@@ -1,0 +1,133 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dmitry Guryanov <dmitry.guryanov@gmail.com>
+Date: Mon, 8 Dec 2025 11:55:28 +0300
+Subject: [PATCH] block/throttle-groups: fix deadlock with iolimits and muliple
+ iothreads
+
+Details: https://gitlab.com/qemu-project/qemu/-/issues/3144
+
+The function schedule_next_request is called with tg->lock held and
+it may call throttle_group_co_restart_queue, which takes
+tgm->throttled_reqs_lock, qemu_co_mutex_lock may leave current
+coroutine if other iothread has taken the lock. If the next
+coroutine will call throttle_group_co_io_limits_intercept - it
+will try to take the mutex tg->lock which will never be released.
+
+Here is the backtrace of the iothread:
+Thread 30 (Thread 0x7f8aad1fd6c0 (LWP 24240) "IO iothread2"):
+ #0  futex_wait (futex_word=0x5611adb7d828, expected=2, private=0) at ../sysdeps/nptl/futex-internal.h:146
+ #1  __GI___lll_lock_wait (futex=futex@entry=0x5611adb7d828, private=0) at lowlevellock.c:49
+ #2  0x00007f8ab5a97501 in lll_mutex_lock_optimized (mutex=0x5611adb7d828) at pthread_mutex_lock.c:48
+ #3  ___pthread_mutex_lock (mutex=0x5611adb7d828) at pthread_mutex_lock.c:93
+ #4  0x00005611823f5482 in qemu_mutex_lock_impl (mutex=0x5611adb7d828, file=0x56118289daca "../block/throttle-groups.c", line=372) at ../util/qemu-thread-posix.c:94
+ #5  0x00005611822b0b39 in throttle_group_co_io_limits_intercept (tgm=0x5611af1bb4d8, bytes=4096, direction=THROTTLE_READ) at ../block/throttle-groups.c:372
+ #6  0x00005611822473b1 in blk_co_do_preadv_part (blk=0x5611af1bb490, offset=15972311040, bytes=4096, qiov=0x7f8aa4000f98, qiov_offset=0, flags=BDRV_REQ_REGISTERED_BUF) at ../block/block-backend.c:1354
+ #7  0x0000561182247fa0 in blk_aio_read_entry (opaque=0x7f8aa4005910) at ../block/block-backend.c:1619
+ #8  0x000056118241952e in coroutine_trampoline (i0=-1543497424, i1=32650) at ../util/coroutine-ucontext.c:175
+ #9  0x00007f8ab5a56f70 in ?? () at ../sysdeps/unix/sysv/linux/x86_64/__start_context.S:66 from target:/lib64/libc.so.6
+ #10 0x00007f8aad1ef190 in ?? ()
+ #11 0x0000000000000000 in ?? ()
+
+The lock is taken in line 386:
+(gdb) p tg.lock
+$1 = {lock = {__data = {__lock = 2, __count = 0, __owner = 24240, __nusers = 1, __kind = 0, __spins = 0, __elision = 0, __list = {__prev = 0x0, __next = 0x0}},
+    __size = "\002\000\000\000\000\000\000\000\260^\000\000\001", '\000' <repeats 26 times>, __align = 2}, file = 0x56118289daca "../block/throttle-groups.c",
+  line = 386, initialized = true}
+
+The solution is to use tg->lock to protect both ThreadGroup fields and
+ThrottleGroupMember.throttled_reqs. It doesn't seem to be possible
+to use separate locks because we need to first manipulate ThrottleGroup
+fields, then schedule next coroutine using throttled_reqs and after than
+update token field from ThrottleGroup depending on the throttled_reqs
+state.
+
+Signed-off-by: Dmitry Guryanov <dmitry.guryanov@gmail.com>
+Message-ID: <20251208085528.890098-1-dmitry.guryanov@gmail.com>
+Reviewed-by: Hanna Czenczek <hreitz@redhat.com>
+Signed-off-by: Kevin Wolf <kwolf@redhat.com>
+---
+ block/throttle-groups.c         | 21 ++++++---------------
+ include/block/throttle-groups.h |  3 +--
+ 2 files changed, 7 insertions(+), 17 deletions(-)
+
+diff --git a/block/throttle-groups.c b/block/throttle-groups.c
+index 66fdce9a90..5329ff1fdb 100644
+--- a/block/throttle-groups.c
++++ b/block/throttle-groups.c
+@@ -295,19 +295,15 @@ static bool throttle_group_schedule_timer(ThrottleGroupMember *tgm,
+ /* Start the next pending I/O request for a ThrottleGroupMember. Return whether
+  * any request was actually pending.
+  *
++ * This assumes that tg->lock is held.
++ *
+  * @tgm:       the current ThrottleGroupMember
+  * @direction: the ThrottleDirection
+  */
+ static bool coroutine_fn throttle_group_co_restart_queue(ThrottleGroupMember *tgm,
+                                                          ThrottleDirection direction)
+ {
+-    bool ret;
+-
+-    qemu_co_mutex_lock(&tgm->throttled_reqs_lock);
+-    ret = qemu_co_queue_next(&tgm->throttled_reqs[direction]);
+-    qemu_co_mutex_unlock(&tgm->throttled_reqs_lock);
+-
+-    return ret;
++    return qemu_co_queue_next(&tgm->throttled_reqs[direction]);
+ }
+ 
+ /* Look for the next pending I/O request and schedule it.
+@@ -378,12 +374,8 @@ void coroutine_fn throttle_group_co_io_limits_intercept(ThrottleGroupMember *tgm
+     /* Wait if there's a timer set or queued requests of this type */
+     if (must_wait || tgm->pending_reqs[direction]) {
+         tgm->pending_reqs[direction]++;
+-        qemu_mutex_unlock(&tg->lock);
+-        qemu_co_mutex_lock(&tgm->throttled_reqs_lock);
+         qemu_co_queue_wait(&tgm->throttled_reqs[direction],
+-                           &tgm->throttled_reqs_lock);
+-        qemu_co_mutex_unlock(&tgm->throttled_reqs_lock);
+-        qemu_mutex_lock(&tg->lock);
++                           &tg->lock);
+         tgm->pending_reqs[direction]--;
+     }
+ 
+@@ -410,15 +402,15 @@ static void coroutine_fn throttle_group_restart_queue_entry(void *opaque)
+     ThrottleDirection direction = data->direction;
+     bool empty_queue;
+ 
++    qemu_mutex_lock(&tg->lock);
+     empty_queue = !throttle_group_co_restart_queue(tgm, direction);
+ 
+     /* If the request queue was empty then we have to take care of
+      * scheduling the next one */
+     if (empty_queue) {
+-        qemu_mutex_lock(&tg->lock);
+         schedule_next_request(tgm, direction);
+-        qemu_mutex_unlock(&tg->lock);
+     }
++    qemu_mutex_unlock(&tg->lock);
+ 
+     g_free(data);
+ 
+@@ -569,7 +561,6 @@ void throttle_group_register_tgm(ThrottleGroupMember *tgm,
+                          read_timer_cb,
+                          write_timer_cb,
+                          tgm);
+-    qemu_co_mutex_init(&tgm->throttled_reqs_lock);
+ }
+ 
+ /* Unregister a ThrottleGroupMember from its group, removing it from the list,
+diff --git a/include/block/throttle-groups.h b/include/block/throttle-groups.h
+index 2355e8d9de..7dfc81f7b5 100644
+--- a/include/block/throttle-groups.h
++++ b/include/block/throttle-groups.h
+@@ -35,8 +35,7 @@
+ 
+ typedef struct ThrottleGroupMember {
+     AioContext   *aio_context;
+-    /* throttled_reqs_lock protects the CoQueues for throttled requests.  */
+-    CoMutex      throttled_reqs_lock;
++    /* Protected by ThrottleGroup.lock */
+     CoQueue      throttled_reqs[THROTTLE_MAX];
+ 
+     /* Nonzero if the I/O limits are currently being ignored; generally

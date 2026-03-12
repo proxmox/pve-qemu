@@ -1,0 +1,49 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Jens Axboe <axboe@kernel.dk>
+Date: Fri, 13 Feb 2026 07:26:37 -0700
+Subject: [PATCH] fdmon-io_uring: check CQ ring directly in gsource_check
+
+gsource_check() only looks at the ppoll revents for the io_uring fd,
+but CQEs can be posted during gsource_prepare()'s io_uring_submit()
+call via kernel task_work processing on syscall exit. These completions
+are already sitting in the CQ ring but the ring fd may not be signaled
+yet, causing gsource_check() to return false.
+
+Add a fallback io_uring_cq_ready() check so completions that arrive
+during submission are dispatched immediately rather than waiting for
+the next ppoll() cycle.
+
+Signed-off-by: Jens Axboe <axboe@kernel.dk>
+Message-ID: <20260213143225.161043-3-axboe@kernel.dk>
+Signed-off-by: Stefan Hajnoczi <stefanha@redhat.com>
+(cherry picked from commit 961fcc0f22768e7c3432fc645b93dc7cd4932fae)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ util/fdmon-io_uring.c | 14 +++++++++++++-
+ 1 file changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/util/fdmon-io_uring.c b/util/fdmon-io_uring.c
+index d0b56127c6..b81e412402 100644
+--- a/util/fdmon-io_uring.c
++++ b/util/fdmon-io_uring.c
+@@ -344,7 +344,19 @@ static void fdmon_io_uring_gsource_prepare(AioContext *ctx)
+ static bool fdmon_io_uring_gsource_check(AioContext *ctx)
+ {
+     gpointer tag = ctx->io_uring_fd_tag;
+-    return g_source_query_unix_fd(&ctx->source, tag) & G_IO_IN;
++
++    /* Check ppoll revents (normal path) */
++    if (g_source_query_unix_fd(&ctx->source, tag) & G_IO_IN) {
++        return true;
++    }
++
++    /*
++     * Also check for CQEs that may have been posted during prepare's
++     * io_uring_submit() via task_work on syscall exit.  Without this,
++     * the main loop can miss completions and sleep in ppoll() until the
++     * next timer fires.
++     */
++    return io_uring_cq_ready(&ctx->fdmon_io_uring);
+ }
+ 
+ /* Dispatch CQE handlers that are ready */

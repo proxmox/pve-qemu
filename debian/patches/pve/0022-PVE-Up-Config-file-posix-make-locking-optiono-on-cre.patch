@@ -119,7 +119,7 @@ index 41ac3f222f..612942a222 100644
      };
      return raw_co_create(&options, errp);
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 19b60e3a96..029b8f2b51 100644
+index 476b9c011e..bddc97d494 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -5153,6 +5153,10 @@

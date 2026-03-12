@@ -1,6 +1,6 @@
 From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Fiona Ebner <f.ebner@proxmox.com>
-Date: Mon, 12 Jan 2026 15:32:52 +0100
+Date: Mon, 12 Jan 2026 16:23:51 +0100
 Subject: [PATCH] block/mirror: check range when setting zero bitmap for sync
  write
 
@@ -31,6 +31,11 @@ bitmap too, which uses the same narrower range.
 
 Cc: qemu-stable@nongnu.org
 Fixes: 7e277545b9 ("mirror: Skip writing zeroes when target is already zero")
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Message-ID: <20260112152544.261923-1-f.ebner@proxmox.com>
+Reviewed-by: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
+Signed-off-by: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
+(cherry picked from commit 4a7b1bd18d2e1a6b3796e177ae5df9b198264a0b)
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  block/mirror.c | 9 ++++++---
