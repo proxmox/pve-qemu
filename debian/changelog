@@ -1,3 +1,11 @@
+pve-qemu-kvm (10.2.1-1) trixie; urgency=medium
+
+  * update QEMU and downstream patches for 10.2.1 release.
+
+  * cherry-pick various stable fixes to improve 10.2 experience.
+
+ -- Proxmox Support Team <support@proxmox.com>  Mon, 16 Mar 2026 23:05:33 +0100
+
 pve-qemu-kvm (10.1.2-7) trixie; urgency=medium
 
   * fix #7222: add fix for crash caused by zero write during sync drive
