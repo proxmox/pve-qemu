@@ -9,8 +9,8 @@ ORIG_SRC_TAR=$(PACKAGE)_$(DEB_VERSION_UPSTREAM).orig.tar.gz
 GITVERSION := $(shell git rev-parse HEAD)
 
 DSC=$(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION).dsc
-DEB = $(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_BUILD_ARCH).deb
-DEB_DBG = $(PACKAGE)-dbgsym_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_BUILD_ARCH).deb
+DEB = $(PACKAGE)_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_HOST_ARCH).deb
+DEB_DBG = $(PACKAGE)-dbgsym_$(DEB_VERSION_UPSTREAM_REVISION)_$(DEB_HOST_ARCH).deb
 DEBS = $(DEB) $(DEB_DBG)
 
 all: $(DEBS)
@@ -78,7 +78,7 @@ $(DSC): $(ORIG_SRC_TAR) $(BUILDDIR)
 .PHONY: upload
 upload: UPLOAD_DIST ?= $(DEB_DISTRIBUTION)
 upload: $(DEBS)
-	tar cf - $(DEBS) | ssh repoman@repo.proxmox.com upload --product pve --dist $(UPLOAD_DIST)
+	tar cf - $(DEBS) | ssh repoman@repo.proxmox.com upload --product pve --dist $(UPLOAD_DIST) --arch $(DEB_HOST_ARCH)
 
 .PHONY: distclean clean
 distclean: clean
