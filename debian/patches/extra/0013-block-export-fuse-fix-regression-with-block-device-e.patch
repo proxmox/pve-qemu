@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Tue, 12 May 2026 17:16:23 +0200
+Subject: [PATCH] block/export/fuse: fix regression with block device export or
+ growable=off and O_TRUNC
+
+Before commit a94a1d7699 ("fuse: Manually process requests (without
+libfuse)"), libfuse was used which set the FUSE_ATOMIC_O_TRUNC flag.
+After the commit, the flag is not set anymore cause a regression where
+opening a block-based export with O_TRUNC fails with EOPNOTSUPP. And
+it also causes a regression with file-based exports, since they would
+be truncated upon opening with O_TRUNC, but then subsequent writes to
+the file would not be possible, since it's not growable.
+
+A proper upstream submission might want to conditionalize on having
+growable=off and/or a block device based export for setting the flag.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ block/export/fuse.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/block/export/fuse.c b/block/export/fuse.c
+index ef381fd844..7a7386c904 100644
+--- a/block/export/fuse.c
++++ b/block/export/fuse.c
+@@ -816,7 +816,8 @@ static ssize_t coroutine_fn GRAPH_RDLOCK
+ fuse_co_init(FuseExport *exp, struct fuse_init_out *out,
+              const struct fuse_init_in *in)
+ {
+-    const uint32_t supported_flags = FUSE_ASYNC_READ | FUSE_ASYNC_DIO | FUSE_INIT_EXT;
++    const uint32_t supported_flags = FUSE_ASYNC_READ | FUSE_ASYNC_DIO
++        | FUSE_INIT_EXT | FUSE_ATOMIC_O_TRUNC;
+     const uint32_t supported_flags2 = (FUSE_DIRECT_IO_ALLOW_MMAP >> 32);
+ 
+     if (in->major != 7) {

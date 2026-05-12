@@ -10,6 +10,7 @@ extra/0009-target-i386-fix-strList-leak-in-x86_cpu_get_unavaila.patch
 extra/0010-target-i386-fix-missing-PF_INSTR-in-SIGSEGV-context.patch
 extra/0011-migration-vmstate_save_state_v-fix-double-error_setg.patch
 extra/0012-block-export-fuse-fix-regression-when-mmap-ing-expor.patch
+extra/0013-block-export-fuse-fix-regression-with-block-device-e.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
