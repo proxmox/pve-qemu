@@ -1,3 +1,9 @@
+pve-qemu-kvm (11.0.0-2) trixie; urgency=medium
+
+  * fix regression when using fuse export for EFI enroll.
+
+ -- Proxmox Support Team <support@proxmox.com>  Tue, 12 May 2026 23:40:18 +0200
+
 pve-qemu-kvm (11.0.0-1) trixie; urgency=medium
 
   * update submodule and patches to QEMU 11.0.0.
