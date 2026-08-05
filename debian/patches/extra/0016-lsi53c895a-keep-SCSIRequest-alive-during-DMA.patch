@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Fri, 27 Mar 2026 18:42:45 +0100
+Subject: [PATCH] lsi53c895a: keep SCSIRequest alive during DMA
+
+Reentrant MMIO can cause the SCSIRequest to be completed, at which
+point lsi_request_orphan would drop the last reference.  Anything
+that happens afterwards would access freed data.  Keep a reference
+to the SCSIRequest and, through req->hba_private, to the lsi_request*
+for as long as DMA runs.
+
+Reported-by: Jihe Wang <wangjihe.mail@gmail.com>
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit d459131ff590c517bc89fa5867d4878b5eacbc30)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/scsi/lsi53c895a.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/hw/scsi/lsi53c895a.c b/hw/scsi/lsi53c895a.c
+index 4e825a76bf..c46efe127a 100644
+--- a/hw/scsi/lsi53c895a.c
++++ b/hw/scsi/lsi53c895a.c
+@@ -637,7 +637,7 @@ static void lsi_do_dma(LSIState *s, int out)
+     }
+ 
+     p = s->current;
+-    req = s->current->req;
++    req = scsi_req_ref(s->current->req);
+     dev = req->dev;
+     assert(dev);
+ 
+@@ -667,6 +667,11 @@ static void lsi_do_dma(LSIState *s, int out)
+     } else {
+         lsi_mem_write(s, addr, p->dma_buf, count);
+     }
++    if (p->orphan) {
++        scsi_req_unref(req);
++        return;
++    }
++    scsi_req_unref(req);
+ 
+     p->dma_len -= count;
+     if (p->dma_len == 0) {

@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Fri, 27 Mar 2026 17:39:15 +0100
+Subject: [PATCH] lsi53c895a: do not do anything else if a reset is requested
+ by writing ISTAT0
+
+If the device is reset, anything that is done before will not really
+be visible.  So do the reset and exit immediately if that is one
+of the requests in the value written to ISTAT0.
+
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 64807c84e83f767c135aa9ba4b5f61162bb177ef)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/scsi/lsi53c895a.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/hw/scsi/lsi53c895a.c b/hw/scsi/lsi53c895a.c
+index d1b21862b7..f33b36637b 100644
+--- a/hw/scsi/lsi53c895a.c
++++ b/hw/scsi/lsi53c895a.c
+@@ -1949,6 +1949,10 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
+     CASE_SET_REG32(dsa, 0x10)
+     case 0x14: /* ISTAT0 */
+         s->istat0 = (s->istat0 & 0x0f) | (val & 0xf0);
++        if (val & LSI_ISTAT0_SRST) {
++            device_cold_reset(DEVICE(s));
++            return;
++        }
+         if (val & LSI_ISTAT0_ABRT) {
+             lsi_script_dma_interrupt(s, LSI_DSTAT_ABRT);
+         }
+@@ -1962,9 +1966,6 @@ static void lsi_reg_writeb(LSIState *s, int offset, uint8_t val)
+             s->dsp = s->dnad;
+             lsi_execute_script(s);
+         }
+-        if (val & LSI_ISTAT0_SRST) {
+-            device_cold_reset(DEVICE(s));
+-        }
+         break;
+     case 0x16: /* MBOX0 */
+         s->mbox0 = val;

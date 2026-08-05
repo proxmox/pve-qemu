@@ -1,0 +1,82 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Fri, 15 May 2026 11:01:00 +0200
+Subject: [PATCH] lsi53c895a: fix use-after-free of cancelled request
+
+When processing the Message Out phase, the lsi53c895a controller
+can cancel a request and the continue by processing more messages.
+When this happens, it is important that a cancelled request is not
+processed further, because scsi_req_cancel can cause the request
+to be freed.
+
+Right now this is happening in two cases, but not when cancelling
+the entire queue of requests after an ABORT, CLEAR QUEUE or
+BUS DEVICE RESET message.  In that case, a subsequent ABORT TAG
+message can use a dangling current_req.
+
+There are three possible fixes:
+
+- add a missing check inside the loop, clearing current_req
+  if p->req == current_req.  This is obvious but complicates the
+  code inside the foreach loop.
+
+- change the conditional prior to the loop from "if (s->current)"
+  to "if (current_req)".  This would work, because s->current != NULL
+  implies current_req != NULL, and would clear current_req correctly.
+  However it is less obvious because the point of the code
+  is to clear the entire queue, which consists of s->current
+  and s->queue; current_req is not special here.
+
+- delay the retrieval of current_req until an ABORT TAG message
+  is seen.  This is the most correct option, because the SCSI
+  protocol only deals with tags; requests are a QEMU concept
+  that only makes sense for the purpose of calling into the
+  SCSI layer.
+
+Reported-by: Wei Che Kao <skps96g313.cs10@gmail.com>
+Cc: qemu-stable@nongnu.org
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit 5297a0fc65317ba7f79ef44ce7a44e41d15fdb27)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/scsi/lsi53c895a.c | 9 +++++----
+ 1 file changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/hw/scsi/lsi53c895a.c b/hw/scsi/lsi53c895a.c
+index c46efe127a..0cae0fc662 100644
+--- a/hw/scsi/lsi53c895a.c
++++ b/hw/scsi/lsi53c895a.c
+@@ -1000,10 +1000,8 @@ static void lsi_do_msgout(LSIState *s)
+ 
+     if (s->current) {
+         current_tag = s->current->tag;
+-        current_req = s->current;
+     } else {
+         current_tag = s->select_tag;
+-        current_req = lsi_find_by_tag(s, current_tag);
+     }
+ 
+     trace_lsi_do_msgout(s->dbc);
+@@ -1058,9 +1056,13 @@ static void lsi_do_msgout(LSIState *s)
+         case 0x0d:
+             /* The ABORT TAG message clears the current I/O process only. */
+             trace_lsi_do_msgout_abort(current_tag);
++            if (s->current) {
++                current_req = s->current;
++            } else {
++                current_req = lsi_find_by_tag(s, current_tag);
++            }
+             if (current_req && current_req->req) {
+                 scsi_req_cancel(current_req->req);
+-                current_req = NULL;
+             }
+             lsi_disconnect(s);
+             break;
+@@ -1086,7 +1088,6 @@ static void lsi_do_msgout(LSIState *s)
+             /* clear the current I/O process */
+             if (s->current) {
+                 scsi_req_cancel(s->current->req);
+-                current_req = NULL;
+             }
+ 
+             /* As the current implemented devices scsi_disk and scsi_generic

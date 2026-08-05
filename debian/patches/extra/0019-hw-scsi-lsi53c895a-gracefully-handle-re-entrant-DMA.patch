@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Wed, 29 Jul 2026 16:12:24 +0200
+Subject: [PATCH] hw/scsi/lsi53c895a: gracefully handle re-entrant DMA
+
+A re-entrant lsi_do_dma() call might lead to the current request
+having residual state, i.e. smaller dma_len than before. While not
+clear if this is a reachable scenario in practice, it does not seem
+impossible for the current request to be swapped out for a different
+one by nested frames. The case where a nested frame would
+synchronously complete or cancel a request, was already fixed by
+d459131ff5 ("lsi53c895a: keep SCSIRequest alive during DMA"). To fix
+the remaining issues, check that the current request is still the same
+and skip if not, and shrink the count according to the changed
+dma_len.
+
+For details see the Buglink below.
+
+Buglink: https://gitlab.com/qemu-project/qemu/-/work_items/4088
+Originally-by: TaeD <kty0730wq@yonsei.ac.kr>
+[FE: always re-calculate count if dma_len changes]
+Co-developed-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/scsi/lsi53c895a.c | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/hw/scsi/lsi53c895a.c b/hw/scsi/lsi53c895a.c
+index 3c82dbd9da..19b59c028d 100644
+--- a/hw/scsi/lsi53c895a.c
++++ b/hw/scsi/lsi53c895a.c
+@@ -625,6 +625,7 @@ static void lsi_bad_selection(LSIState *s, uint32_t id)
+ static void lsi_do_dma(LSIState *s, int out)
+ {
+     uint32_t count;
++    uint32_t dma_len;
+     dma_addr_t addr;
+     SCSIDevice *dev;
+     SCSIRequest *req;
+@@ -645,6 +646,8 @@ static void lsi_do_dma(LSIState *s, int out)
+     if (count > p->dma_len)
+         count = p->dma_len;
+ 
++    dma_len = p->dma_len;
++
+     addr = s->dnad;
+     /* both 40 and Table Indirect 64-bit DMAs store upper bits in dnad64 */
+     if (lsi_dma_40bit(s) || lsi_dma_ti64bit(s))
+@@ -671,6 +674,27 @@ static void lsi_do_dma(LSIState *s, int out)
+         scsi_req_unref(req);
+         return;
+     }
++
++    /*
++     * The transfer above can re-enter this device through its own MMIO BAR.
++     * Do not apply a pre-transfer snapshot to a different current request,
++     * and re-calculate against residual state consumed by a nested DMA frame.
++     * It's not clear if there is a reachable call sequence that swaps out the
++     * current request in practice, so the first check might just be
++     * defense-in-depth.
++     */
++    if (p != s->current) {
++        scsi_req_unref(req);
++        return;
++    }
++    if (dma_len > p->dma_len) {
++        if (p->dma_len == 0) {
++            /* the nested frame already continued the request */
++            scsi_req_unref(req);
++            return;
++        }
++        count -= MIN(count, dma_len - p->dma_len);
++    }
+     scsi_req_unref(req);
+ 
+     p->dma_len -= count;
