@@ -47,6 +47,7 @@ $(BUILDDIR): submodule
 	test ! -f $(SRCDIR)/build/config.status
 	rm -rf $@.tmp $@
 	cp -a $(SRCDIR) $@.tmp
+	git -C $@.tmp clean -xdfi
 	cp -a debian $@.tmp/debian
 	rm -rf $@.tmp/roms/edk2 # packaged separately
 	find $@.tmp/pc-bios -type f | grep $(BLOB_PURGE_FILTER) | xargs rm -f
