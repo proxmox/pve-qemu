@@ -7,6 +7,8 @@ Subject: [PATCH] PVE-Backup: pbs-restore - new command to restore from proxmox
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [WB: add namespace support]
 Signed-off-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+[EF: keep callback data on the stack]
+Signed-off-by: Erik Fastermann <e.fastermann@proxmox.com>
 ---
  meson.build   |   4 +
  pbs-restore.c | 236 ++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -30,7 +32,7 @@ index 1eee80f7d8..b7a8702711 100644
    foreach exe: [ 'qemu-img', 'qemu-io', 'qemu-nbd', 'qemu-storage-daemon']
 diff --git a/pbs-restore.c b/pbs-restore.c
 new file mode 100644
-index 0000000000..f165f418af
+index 0000000000..f5e3552193
 --- /dev/null
 +++ b/pbs-restore.c
 @@ -0,0 +1,236 @@
@@ -240,11 +242,11 @@ index 0000000000..f165f418af
 +        return -1;
 +    }
 +
-+    CallbackData *callback_data = calloc(sizeof(CallbackData), 1);
-+
-+    callback_data->target = blk;
-+    callback_data->skip_zero = skip_zero;
-+    callback_data->last_offset = 0;
++    CallbackData callback_data = {
++        .target = blk,
++        .skip_zero = skip_zero,
++        .last_offset = 0,
++    };
 +
 +    // blk_set_enable_write_cache(blk, !writethrough);
 +
@@ -256,7 +258,7 @@ index 0000000000..f165f418af
 +        conn,
 +        archive_name,
 +        write_callback,
-+        callback_data,
++        &callback_data,
 +        &pbs_error,
 +        verbose);
 +

@@ -25,7 +25,7 @@ Signed-off-by: Christian Ebner <c.ebner@proxmox.com>
  1 file changed, 11 insertions(+)
 
 diff --git a/pbs-restore.c b/pbs-restore.c
-index f165f418af..55a3cb235d 100644
+index f5e3552193..592b20f7ad 100644
 --- a/pbs-restore.c
 +++ b/pbs-restore.c
 @@ -81,6 +81,7 @@ int main(int argc, char **argv)
