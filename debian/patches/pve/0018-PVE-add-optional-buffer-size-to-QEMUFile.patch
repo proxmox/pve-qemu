@@ -12,6 +12,8 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: rebase for 10.2.0]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+[EF: allocate buffer with g_malloc]
+Signed-off-by: Erik Fastermann <e.fastermann@proxmox.com>
 ---
  migration/qemu-file.c    | 48 +++++++++++++++++++++++++++-------------
  migration/qemu-file.h    |  2 ++
@@ -19,7 +21,7 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  3 files changed, 38 insertions(+), 17 deletions(-)
 
 diff --git a/migration/qemu-file.c b/migration/qemu-file.c
-index 9cf7dc3bd5..4a4de51fd9 100644
+index 9cf7dc3bd5..b1b7aa453e 100644
 --- a/migration/qemu-file.c
 +++ b/migration/qemu-file.c
 @@ -34,8 +34,8 @@
@@ -59,7 +61,7 @@ index 9cf7dc3bd5..4a4de51fd9 100644
      f->can_pass_fd = qio_channel_has_feature(ioc, QIO_CHANNEL_FEATURE_FD_PASS);
      QTAILQ_INIT(&f->fds);
 +    f->buf_allocated_size = buffer_size;
-+    f->buf = malloc(buffer_size);
++    f->buf = g_malloc(buffer_size);
  
      return f;
  }
@@ -108,7 +110,7 @@ index 9cf7dc3bd5..4a4de51fd9 100644
      }
      g_clear_pointer(&f->ioc, object_unref);
 +
-+    free(f->buf);
++    g_free(f->buf);
 +
      error_free(f->last_error_obj);
      g_free(f);
