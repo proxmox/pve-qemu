@@ -37,19 +37,21 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
      add parameter to skip vm start to be used for hibernation
      rebase for 11.0.0]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+[EF: drop QIOChannel reference]
+Signed-off-by: Erik Fastermann <e.fastermann@proxmox.com>
 ---
  hmp-commands-info.hx         |  13 +
  hmp-commands.hx              |  17 +
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 597 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 600 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  38 +++
  qapi/migration.json          |  34 ++
  qapi/misc.json               |  25 ++
  qemu-options.hx              |  12 +
  system/vl.c                  |  10 +
- 11 files changed, 752 insertions(+)
+ 11 files changed, 755 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -147,10 +149,10 @@ index 0222d5ea6e..90d62d5723 100644
  ), gnutls, zlib)
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..2a860f11a1
+index 0000000000..cab08643ad
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,597 @@
+@@ -0,0 +1,600 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -572,6 +574,7 @@ index 0000000000..2a860f11a1
 +    QIOChannel *ioc = QIO_CHANNEL(qio_channel_savevm_async_new(snap_state.target,
 +                                                               &snap_state.bs_pos));
 +    snap_state.file = qemu_file_new_output(ioc);
++    object_unref(ioc);
 +
 +    if (!snap_state.file) {
 +        error_setg(errp, "failed to open '%s'", statefile);
@@ -708,7 +711,9 @@ index 0000000000..2a860f11a1
 +    bdrv_op_block_all(bs, blocker);
 +
 +    /* restore the VM state */
-+    f = qemu_file_new_input(QIO_CHANNEL(qio_channel_savevm_async_new(be, &bs_pos)));
++    QIOChannel *ioc = QIO_CHANNEL(qio_channel_savevm_async_new(be, &bs_pos));
++    f = qemu_file_new_input(ioc);
++    object_unref(ioc);
 +    if (!f) {
 +        error_setg(errp, "Could not open VM state file");
 +        goto the_end;

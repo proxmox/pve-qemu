@@ -17,8 +17,8 @@ Signed-off-by: Erik Fastermann <e.fastermann@proxmox.com>
 ---
  migration/qemu-file.c    | 48 +++++++++++++++++++++++++++-------------
  migration/qemu-file.h    |  2 ++
- migration/savevm-async.c |  5 +++--
- 3 files changed, 38 insertions(+), 17 deletions(-)
+ migration/savevm-async.c |  4 ++--
+ 3 files changed, 37 insertions(+), 17 deletions(-)
 
 diff --git a/migration/qemu-file.c b/migration/qemu-file.c
 index 9cf7dc3bd5..b1b7aa453e 100644
@@ -186,7 +186,7 @@ index a390554208..eda093b16a 100644
  
  G_DEFINE_AUTOPTR_CLEANUP_FUNC(QEMUFile, qemu_fclose)
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index 2a860f11a1..f5a4819e27 100644
+index cab08643ad..f9eaf3b8e6 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
 @@ -418,7 +418,7 @@ void qmp_savevm_start(const char *statefile, bool has_skip_vm_start,
@@ -195,16 +195,15 @@ index 2a860f11a1..f5a4819e27 100644
                                                                 &snap_state.bs_pos));
 -    snap_state.file = qemu_file_new_output(ioc);
 +    snap_state.file = qemu_file_new_output_sized(ioc, 4 * 1024 * 1024);
+     object_unref(ioc);
  
      if (!snap_state.file) {
-         error_setg(errp, "failed to open '%s'", statefile);
-@@ -555,7 +555,8 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
-     bdrv_op_block_all(bs, blocker);
+@@ -557,7 +557,7 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
  
      /* restore the VM state */
--    f = qemu_file_new_input(QIO_CHANNEL(qio_channel_savevm_async_new(be, &bs_pos)));
-+    f = qemu_file_new_input_sized(QIO_CHANNEL(qio_channel_savevm_async_new(be, &bs_pos)),
-+                                  4 * 1024 * 1024);
+     QIOChannel *ioc = QIO_CHANNEL(qio_channel_savevm_async_new(be, &bs_pos));
+-    f = qemu_file_new_input(ioc);
++    f = qemu_file_new_input_sized(ioc, 4 * 1024 * 1024);
+     object_unref(ioc);
      if (!f) {
          error_setg(errp, "Could not open VM state file");
-         goto the_end;

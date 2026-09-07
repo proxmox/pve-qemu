@@ -136,7 +136,7 @@ index b6888daced..80eb0dcd1f 100644
  bool migration_in_postcopy(void);
  bool migration_postcopy_is_alive(MigrationStatus state);
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index f5a4819e27..41376406eb 100644
+index f9eaf3b8e6..51340c5dcd 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
 @@ -384,7 +384,7 @@ void qmp_savevm_start(const char *statefile, bool has_skip_vm_start,
