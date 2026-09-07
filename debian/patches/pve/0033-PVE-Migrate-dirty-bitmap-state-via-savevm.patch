@@ -15,14 +15,16 @@ Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
 [FE: split up state_pending for 8.0]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+[EF: check allocation of incoming state buffer]
+Signed-off-by: Erik Fastermann <e.fastermann@proxmox.com>
 ---
  include/migration/misc.h |   3 ++
  migration/meson.build    |   2 +
  migration/migration.c    |   1 +
- migration/pbs-state.c    | 104 +++++++++++++++++++++++++++++++++++++++
+ migration/pbs-state.c    | 111 +++++++++++++++++++++++++++++++++++++++
  pve-backup.c             |   1 +
  qapi/block-core.json     |   6 +++
- 6 files changed, 117 insertions(+)
+ 6 files changed, 124 insertions(+)
  create mode 100644 migration/pbs-state.c
 
 diff --git a/include/migration/misc.h b/include/migration/misc.h
@@ -71,10 +73,10 @@ index dfc60372cf..f415448689 100644
  typedef struct {
 diff --git a/migration/pbs-state.c b/migration/pbs-state.c
 new file mode 100644
-index 0000000000..a97187e4d7
+index 0000000000..c0c7f2ff6f
 --- /dev/null
 +++ b/migration/pbs-state.c
-@@ -0,0 +1,104 @@
+@@ -0,0 +1,111 @@
 +/*
 + * PBS (dirty-bitmap) state migration
 + */
@@ -104,18 +106,25 @@ index 0000000000..a97187e4d7
 +{
 +    /* safe cast, we cannot migrate to target with less bits than source */
 +    size_t buf_size = (size_t)qemu_get_be64(f);
++    if (buf_size == 0) {
++        return 0;
++    }
 +
-+    uint8_t *buf = (uint8_t *)malloc(buf_size);
++    g_autofree uint8_t *buf = g_try_malloc(buf_size);
++    if (!buf) {
++        fprintf(stderr,
++                "error receiving PBS state: cannot allocate %zu bytes\n",
++                buf_size);
++        return -ENOMEM;
++    }
++
 +    size_t read = qemu_get_buffer(f, buf, buf_size);
-+
 +    if (read < buf_size) {
 +        fprintf(stderr, "error receiving PBS state: not enough data\n");
 +        return -EIO;
 +    }
 +
 +    proxmox_import_state(buf, buf_size);
-+
-+    free(buf);
 +    return 0;
 +}
 +
