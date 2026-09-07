@@ -1,4 +1,4 @@
-From d7ca855d826bb20cd896fe95e1cc2154ce32980d Mon Sep 17 00:00:00 2001
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
 From: Christian Ebner <c.ebner@proxmox.com>
 Date: Mon, 17 Aug 2026 10:21:58 +0200
 Subject: [PATCH] pbs-restore: add no-cache flag to skip host page cache on
@@ -67,6 +67,3 @@ index f165f418af..55a3cb235d 100644
      BlockBackend *blk = blk_new_open(target, NULL, options, flags, &local_err);
      if (!blk) {
          fprintf(stderr, "%s\n", error_get_pretty(local_err));
--- 
-2.47.3
-
