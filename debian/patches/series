@@ -54,3 +54,4 @@ pve/0042-PVE-backup-implement-backup-access-setup-and-teardow.patch
 pve/0043-PVE-backup-prepare-for-the-switch-to-using-blockdev-.patch
 pve/0044-savevm-async-reuse-migration-blocker-check-for-snaps.patch
 pve/0045-pbs-restore-add-no-cache-flag-to-skip-host-page-cach.patch
+pve/0046-ui-spice-core-work-around-broken-input-cleanup-in-li.patch

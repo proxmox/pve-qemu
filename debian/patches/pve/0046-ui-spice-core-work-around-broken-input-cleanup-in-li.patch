@@ -1,0 +1,37 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Thu, 13 Aug 2026 17:24:32 +0200
+Subject: [PATCH] ui/spice-core: work around broken input cleanup in
+ libspice-server1 <= 0.16.0
+
+Removing the inputs requires libspice-server1 with commit c3efe69e
+("inputs: Fix keyboard and mouse state leaks on interface removal"),
+which is not part of any released version at the time of this writing.
+Cleanup for spice during QEMU shutdown was newly added in QEMU 11.1
+and did not happen at all in the past. Continue skipping the broken
+part for now.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ ui/spice-core.c | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/ui/spice-core.c b/ui/spice-core.c
+index a0393e4ba8..182c4d0485 100644
+--- a/ui/spice-core.c
++++ b/ui/spice-core.c
+@@ -1023,7 +1023,13 @@ static void qemu_spice_cleanup(void)
+     }
+ 
+     qemu_spice_display_cleanup();
+-    qemu_spice_input_cleanup();
++    /*
++     * Removing the inputs requires libspice-server1 with commit c3efe69e ("inputs: Fix keyboard and
++     * mouse state leaks on interface removal"), which is not part of any released version at the
++     * time of this writing. Cleanup here was newly added in QEMU 11.1 and did not happen at all in
++     * the past. Continue skipping the broken part for now.
++     */
++    //qemu_spice_input_cleanup();
+     migration_remove_notifier(&migration_state);
+     g_clear_pointer(&spice_consoles, g_slist_free);
+     g_clear_pointer(&auth_passwd, g_free);
