@@ -333,7 +333,7 @@ index e7c8f1a856..d5aa68caeb 100644
                    BlockdevOnError on_source_error,
                    BlockdevOnError on_target_error,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 0efd51787b..50a0af3569 100644
+index 1f87b07850..c2f6139dea 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -2280,6 +2280,15 @@

@@ -1,0 +1,225 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Stefan Reiter <s.reiter@proxmox.com>
+Date: Thu, 22 Oct 2020 17:34:18 +0200
+Subject: [PATCH] PVE: Migrate dirty bitmap state via savevm
+
+QEMU provides 'savevm' registrations as a mechanism for arbitrary state
+to be migrated along with a VM. Use this to send a serialized version of
+dirty bitmap state data from proxmox-backup-qemu, and restore it on the
+target node.
+
+Also add a flag to query-proxmox-support so qemu-server can determine if
+safe migration is possible and makes sense.
+
+Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[FE: rebase for 11.1.0]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+[EF: check allocation of incoming state buffer]
+Signed-off-by: Erik Fastermann <e.fastermann@proxmox.com>
+---
+ include/migration/misc.h |   3 ++
+ migration/meson.build    |   2 +
+ migration/migration.c    |   1 +
+ migration/pbs-state.c    | 110 +++++++++++++++++++++++++++++++++++++++
+ pve-backup.c             |   1 +
+ qapi/block-core.json     |   6 +++
+ 6 files changed, 123 insertions(+)
+ create mode 100644 migration/pbs-state.c
+
+diff --git a/include/migration/misc.h b/include/migration/misc.h
+index 2b2fbb59a4..ce1e724c20 100644
+--- a/include/migration/misc.h
++++ b/include/migration/misc.h
+@@ -161,4 +161,7 @@ bool multifd_join_device_state_save_threads(void);
+ 
+ void migration_request_switchover_ack_legacy(const char *requester);
+ 
++/* migration/pbs-state.c */
++void pbs_state_mig_init(void);
++
+ #endif
+diff --git a/migration/meson.build b/migration/meson.build
+index 1ae3779e39..a9997f52bf 100644
+--- a/migration/meson.build
++++ b/migration/meson.build
+@@ -8,6 +8,7 @@ migration_files = files(
+   'qemu-file.c',
+   'yank_functions.c',
+ )
++system_ss.add(libproxmox_backup_qemu)
+ 
+ system_ss.add(files(
+   'block-dirty-bitmap.c',
+@@ -31,6 +32,7 @@ system_ss.add(files(
+   'multifd-zlib.c',
+   'multifd-zero-page.c',
+   'options.c',
++  'pbs-state.c',
+   'postcopy-ram.c',
+   'ram.c',
+   'savevm.c',
+diff --git a/migration/migration.c b/migration/migration.c
+index 9df6da131c..2d8149e651 100644
+--- a/migration/migration.c
++++ b/migration/migration.c
+@@ -330,6 +330,7 @@ void migration_object_init(void)
+ 
+     /* Initialize cpu throttle timers */
+     cpu_throttle_init();
++    pbs_state_mig_init();
+ }
+ 
+ typedef struct {
+diff --git a/migration/pbs-state.c b/migration/pbs-state.c
+new file mode 100644
+index 0000000000..da83bd26f2
+--- /dev/null
++++ b/migration/pbs-state.c
+@@ -0,0 +1,110 @@
++/*
++ * PBS (dirty-bitmap) state migration
++ */
++
++#include "qemu/osdep.h"
++#include "migration/misc.h"
++#include "qemu-file.h"
++#include "migration/vmstate.h"
++#include "migration/register.h"
++#include "proxmox-backup-qemu.h"
++
++typedef struct PBSState {
++    bool active;
++} PBSState;
++
++/* state is accessed via this static variable directly, 'opaque' is NULL */
++static PBSState pbs_state;
++
++static void pbs_state_pending(void *opaque, MigPendingData *data, bool exact,
++                              bool final)
++{
++    /* we send everything in save_setup, so nothing is ever pending */
++}
++
++/* receive PBS state via f and deserialize, called on target */
++static int pbs_state_load(QEMUFile *f, void *opaque, int version_id)
++{
++    /* safe cast, we cannot migrate to target with less bits than source */
++    size_t buf_size = (size_t)qemu_get_be64(f);
++    if (buf_size == 0) {
++        return 0;
++    }
++
++    g_autofree uint8_t *buf = g_try_malloc(buf_size);
++    if (!buf) {
++        fprintf(stderr,
++                "error receiving PBS state: cannot allocate %zu bytes\n",
++                buf_size);
++        return -ENOMEM;
++    }
++
++    size_t read = qemu_get_buffer(f, buf, buf_size);
++    if (read < buf_size) {
++        fprintf(stderr, "error receiving PBS state: not enough data\n");
++        return -EIO;
++    }
++
++    proxmox_import_state(buf, buf_size);
++    return 0;
++}
++
++/* serialize PBS state and send to target via f, called on source */
++static int pbs_state_save_setup(QEMUFile *f, void *opaque, Error **errp)
++{
++    size_t buf_size;
++    uint8_t *buf = proxmox_export_state(&buf_size);
++
++    /* LV encoding */
++    qemu_put_be64(f, buf_size);
++    qemu_put_buffer(f, buf, buf_size);
++
++    proxmox_free_state_buf(buf);
++    pbs_state.active = false;
++    return 0;
++}
++
++static bool pbs_state_is_active(void *opaque)
++{
++    /* we need to return active exactly once, else .save_setup is never called,
++     * but if we'd just return true the migration doesn't make progress since
++     * it'd be waiting for us */
++    return pbs_state.active;
++}
++
++static bool pbs_state_is_active_iterate(void *opaque)
++{
++    /* we don't iterate, everything is sent in save_setup */
++    return pbs_state_is_active(opaque);
++}
++
++static bool pbs_state_has_postcopy(void *opaque)
++{
++    /* PBS state can't change during a migration (since that's blocking any
++     * potential backups), so we can copy everything before the VM is stopped */
++    return false;
++}
++
++static void pbs_state_save_cleanup(void *opaque)
++{
++    /* reset active after migration succeeds or fails */
++    pbs_state.active = false;
++}
++
++static SaveVMHandlers savevm_pbs_state_handlers = {
++    .save_setup = pbs_state_save_setup,
++    .has_postcopy = pbs_state_has_postcopy,
++    .save_query_pending = pbs_state_pending,
++    .is_active_iterate = pbs_state_is_active_iterate,
++    .load_state = pbs_state_load,
++    .is_active = pbs_state_is_active,
++    .save_cleanup = pbs_state_save_cleanup,
++};
++
++void pbs_state_mig_init(void)
++{
++    pbs_state.active = true;
++    register_savevm_live("pbs-state", 0, 1,
++                         &savevm_pbs_state_handlers,
++                         NULL);
++}
+diff --git a/pve-backup.c b/pve-backup.c
+index 177fb851b4..7575abab7c 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -1089,6 +1089,7 @@ ProxmoxSupportStatus *qmp_query_proxmox_support(Error **errp)
+     ret->pbs_library_version = g_strdup(proxmox_backup_qemu_version());
+     ret->pbs_dirty_bitmap = true;
+     ret->pbs_dirty_bitmap_savevm = true;
++    ret->pbs_dirty_bitmap_migration = true;
+     ret->query_bitmap_info = true;
+     ret->pbs_masterkey = true;
+     ret->backup_max_workers = true;
+diff --git a/qapi/block-core.json b/qapi/block-core.json
+index d3349661ba..5965a3c1f3 100644
+--- a/qapi/block-core.json
++++ b/qapi/block-core.json
+@@ -1112,6 +1112,11 @@
+ # @pbs-dirty-bitmap-savevm: True if 'dirty-bitmaps' migration
+ #     capability can safely be set for savevm-async.
+ #
++# @pbs-dirty-bitmap-migration: True if safe migration of dirty-bitmaps
++#     including PBS state is supported.  Enabling 'dirty-bitmaps'
++#     migration cap if this is false/unset may lead to crashes on
++#     migration!
++#
+ # @pbs-masterkey: True if the QMP backup call supports the
+ #     'master_keyfile' parameter.
+ #
+@@ -1126,6 +1131,7 @@
+   'data': { 'pbs-dirty-bitmap': 'bool',
+             'query-bitmap-info': 'bool',
+             'pbs-dirty-bitmap-savevm': 'bool',
++            'pbs-dirty-bitmap-migration': 'bool',
+             'pbs-masterkey': 'bool',
+             'pbs-library-version': 'str',
+             'backup-max-workers': 'bool' } }

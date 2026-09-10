@@ -38,34 +38,44 @@ crashes other, normally behaving clients with unrelated responses.
 
 Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
 Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
-[FE: rebase for QEMU 11.0.0]
+[FE: rebase for QEMU 11.1.0]
 Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
 ---
  include/monitor/monitor.h  |  1 +
- monitor/monitor-internal.h |  7 +++++++
- monitor/monitor.c          | 15 +++++++++++++++
- monitor/qmp.c              | 15 ++++++++++++++-
+ monitor/monitor-internal.h |  9 +++++++++
+ monitor/monitor.c          | 14 ++++++++++++++
+ monitor/qmp.c              | 24 +++++++++++++++++++++++-
  qapi/qmp-dispatch.c        | 21 +++++++++++++++++----
  stubs/monitor-core.c       |  5 +++++
- 6 files changed, 59 insertions(+), 5 deletions(-)
+ tools/qemu-vnc/stubs.c     |  5 +++++
+ 7 files changed, 74 insertions(+), 5 deletions(-)
 
 diff --git a/include/monitor/monitor.h b/include/monitor/monitor.h
-index 296690e1f1..3a45b4e04d 100644
+index 890497b0d2..795cbfd9e5 100644
 --- a/include/monitor/monitor.h
 +++ b/include/monitor/monitor.h
-@@ -16,6 +16,7 @@ extern QemuOptsList qemu_mon_opts;
+@@ -25,6 +25,7 @@ extern QemuOptsList qemu_mon_opts;
+ 
  Monitor *monitor_cur(void);
  Monitor *monitor_set_cur(Coroutine *co, Monitor *mon);
- bool monitor_cur_is_qmp(void);
 +int monitor_get_connection_nr(const Monitor *mon);
  
  void monitor_init_globals(void);
  void monitor_init_globals_core(void);
 diff --git a/monitor/monitor-internal.h b/monitor/monitor-internal.h
-index feca111ae3..05243b2e5f 100644
+index 23829f32f9..350ab2a2b7 100644
 --- a/monitor/monitor-internal.h
 +++ b/monitor/monitor-internal.h
-@@ -151,6 +151,13 @@ typedef struct {
+@@ -128,6 +128,8 @@ struct MonitorClass {
+      * is required for processing the monitor
+      */
+     bool (*requires_iothread)(const Monitor *mon);
++
++    int (*get_connection_nr)(const Monitor *mon);
+ };
+ 
+ struct Monitor {
+@@ -198,6 +200,13 @@ struct MonitorQMP {
      QemuMutex qmp_queue_lock;
      /* Input queue that holds all the parsed QMP requests */
      GQueue *qmp_requests;
@@ -76,15 +86,15 @@ index feca111ae3..05243b2e5f 100644
 +     * client. Access with atomics.
 +     */
 +    int connection_nr;
- } MonitorQMP;
+ };
  
- /**
+ typedef QTAILQ_HEAD(MonitorList, Monitor) MonitorList;
 diff --git a/monitor/monitor.c b/monitor/monitor.c
-index 00b93ed612..c8cea7ce52 100644
+index ed195fd97b..9bb8746430 100644
 --- a/monitor/monitor.c
 +++ b/monitor/monitor.c
-@@ -116,6 +116,21 @@ bool monitor_cur_is_qmp(void)
-     return cur_mon && monitor_is_qmp(cur_mon);
+@@ -168,6 +168,20 @@ bool monitor_requires_iothread(const Monitor *mon)
+     return cls->requires_iothread && cls->requires_iothread(mon);
  }
  
 +/**
@@ -92,33 +102,48 @@ index 00b93ed612..c8cea7ce52 100644
 + */
 +int monitor_get_connection_nr(const Monitor *mon)
 +{
-+    MonitorQMP *qmp_mon;
++    MonitorClass *cls = MONITOR_GET_CLASS(mon);
 +
-+    if (!monitor_is_qmp(mon)) {
++    if (!cls->get_connection_nr) {
 +        return -1;
 +    }
 +
-+    qmp_mon = container_of(mon, MonitorQMP, common);
-+    return qatomic_read(&qmp_mon->connection_nr);
++    return cls->get_connection_nr(mon);
 +}
 +
- /**
-  * Is @mon is using readline?
-  * Note: not all HMP monitors use readline, e.g., gdbserver has a
+ static gboolean monitor_unblocked(void *do_not_use, GIOCondition cond,
+                                   void *opaque)
+ {
 diff --git a/monitor/qmp.c b/monitor/qmp.c
-index 687019811f..e2ab70de77 100644
+index 338d37cb7e..681533715f 100644
 --- a/monitor/qmp.c
 +++ b/monitor/qmp.c
-@@ -165,6 +165,8 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
+@@ -123,6 +123,7 @@ static bool monitor_qmp_requires_iothread(const Monitor *mon);
+ static void monitor_qmp_complete(UserCreatable *uc, Error **errp);
+ static bool monitor_qmp_prepare_delete(UserCreatable *uc, Error **errp);
+ static void monitor_qmp_accept_input(Monitor *mon);
++static int monitor_qmp_get_connection_nr(const Monitor *mon);
+ 
+ static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
+ {
+@@ -141,6 +142,7 @@ static void monitor_qmp_class_init(ObjectClass *cls, const void *data)
+     moncls->emit_event = monitor_qmp_emit_event;
+     moncls->requires_iothread = monitor_qmp_requires_iothread;
+     moncls->accept_input = monitor_qmp_accept_input;
++    moncls->get_connection_nr = monitor_qmp_get_connection_nr;
+ 
+     ucc->complete = monitor_qmp_complete;
+     ucc->prepare_delete = monitor_qmp_prepare_delete;
+@@ -277,6 +279,8 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
      QDict *rsp;
      QDict *error;
  
 +    int conn_nr_before = qatomic_read(&mon->connection_nr);
 +
      rsp = qmp_dispatch(mon->commands, req, qmp_oob_enabled(mon),
-                        &mon->common);
+                        &mon->parent_obj);
  
-@@ -180,7 +182,17 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
+@@ -292,7 +296,17 @@ static void monitor_qmp_dispatch(MonitorQMP *mon, QObject *req)
          }
      }
  
@@ -137,14 +162,25 @@ index 687019811f..e2ab70de77 100644
      qobject_unref(rsp);
  }
  
-@@ -462,6 +474,7 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
+@@ -616,6 +630,7 @@ static void monitor_qmp_event(void *opaque, QEMUChrEvent event)
  
      switch (event) {
      case CHR_EVENT_OPENED:
 +        qatomic_inc_fetch(&mon->connection_nr);
-         WITH_QEMU_LOCK_GUARD(&mon->common.mon_lock) {
+         WITH_QEMU_LOCK_GUARD(&mon->parent_obj.mon_lock) {
              mon->commands = &qmp_cap_negotiation_commands;
              monitor_qmp_caps_reset(mon);
+@@ -805,3 +820,10 @@ static void monitor_qmp_accept_input(Monitor *mon)
+         qemu_chr_fe_accept_input(&mon->chr);
+     }
+ }
++
++static int monitor_qmp_get_connection_nr(const Monitor *mon)
++{
++    MonitorQMP *qmp = MONITOR_QMP(mon);
++
++    return qatomic_read(&qmp->connection_nr);
++}
 diff --git a/qapi/qmp-dispatch.c b/qapi/qmp-dispatch.c
 index e3897d5197..90ff0990e7 100644
 --- a/qapi/qmp-dispatch.c
@@ -191,10 +227,10 @@ index e3897d5197..90ff0990e7 100644
          aio_bh_schedule_oneshot(iohandler_get_aio_context(), do_qmp_dispatch_bh,
                                  &data);
 diff --git a/stubs/monitor-core.c b/stubs/monitor-core.c
-index 078a5012e9..748b209e14 100644
+index a7c32297c9..8a83866425 100644
 --- a/stubs/monitor-core.c
 +++ b/stubs/monitor-core.c
-@@ -17,6 +17,11 @@ Monitor *monitor_set_cur(Coroutine *co, Monitor *mon)
+@@ -12,6 +12,11 @@ Monitor *monitor_set_cur(Coroutine *co, Monitor *mon)
      return NULL;
  }
  
@@ -206,3 +242,19 @@ index 078a5012e9..748b209e14 100644
  void qapi_event_emit(QAPIEvent event, QDict *qdict)
  {
  }
+diff --git a/tools/qemu-vnc/stubs.c b/tools/qemu-vnc/stubs.c
+index 1c82d8cff4..01f84fc32e 100644
+--- a/tools/qemu-vnc/stubs.c
++++ b/tools/qemu-vnc/stubs.c
+@@ -41,6 +41,11 @@ Monitor *monitor_set_cur(Coroutine *co, Monitor *mon)
+     return NULL;
+ }
+ 
++int monitor_get_connection_nr(const Monitor *mon)
++{
++    return -1;
++}
++
+ int monitor_vprintf(Monitor *mon, const char *fmt, va_list ap)
+ {
+     return -1;

@@ -1,0 +1,128 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dietmar Maurer <dietmar@proxmox.com>
+Date: Mon, 6 Apr 2020 12:16:55 +0200
+Subject: [PATCH] PVE: Allow version code in machine type
+
+E.g. pc-i440fx-4.0+pve3 would print 'pve3' as version code while
+selecting pc-i440fx-4.0 as machine type.
+
+Version is made available as 'pve-version' in query-machines (same as,
+and only if 'is-current').
+
+Signed-off-by: Stefan Reiter <s.reiter@proxmox.com>
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+[FE: rebase for 10.2.0]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/core/machine-qmp-cmds.c |  5 +++++
+ include/hw/core/boards.h   |  2 ++
+ qapi/machine.json          |  3 +++
+ system/vl.c                | 24 ++++++++++++++++++++++++
+ 4 files changed, 34 insertions(+)
+
+diff --git a/hw/core/machine-qmp-cmds.c b/hw/core/machine-qmp-cmds.c
+index f4bd0f1616..47cbe16d46 100644
+--- a/hw/core/machine-qmp-cmds.c
++++ b/hw/core/machine-qmp-cmds.c
+@@ -124,6 +124,11 @@ MachineInfoList *qmp_query_machines(bool has_compat_props, bool compat_props,
+         if (strcmp(mc->name, MACHINE_GET_CLASS(current_machine)->name) == 0) {
+             info->has_is_current = true;
+             info->is_current = true;
++
++            // PVE version string only exists for current machine
++            if (mc->pve_version) {
++                info->pve_version = g_strdup(mc->pve_version);
++            }
+         }
+ 
+         if (default_cpu_type) {
+diff --git a/include/hw/core/boards.h b/include/hw/core/boards.h
+index 29c68931d8..b5b3844562 100644
+--- a/include/hw/core/boards.h
++++ b/include/hw/core/boards.h
+@@ -274,6 +274,8 @@ struct MachineClass {
+     const char *desc;
+     const char *deprecation_reason;
+ 
++    const char *pve_version;
++
+     void (*init)(MachineState *state);
+     void (*reset)(MachineState *state, ResetType type);
+     void (*wakeup)(MachineState *state);
+diff --git a/qapi/machine.json b/qapi/machine.json
+index 63536462bd..d17f841a5a 100644
+--- a/qapi/machine.json
++++ b/qapi/machine.json
+@@ -194,6 +194,8 @@
+ #
+ # @acpi: machine type supports ACPI (since 8.0)
+ #
++# @pve-version: custom PVE version suffix specified as 'machine+pveN'
++#
+ # @compat-props: The machine type's compatibility properties.  Only
+ #     present when `query-machines` argument @compat-props is true.
+ #     (since 9.1)
+@@ -210,6 +212,7 @@
+             'hotpluggable-cpus': 'bool',  'numa-mem-supported': 'bool',
+             'deprecated': 'bool', '*default-cpu-type': 'str',
+             '*default-ram-id': 'str', 'acpi': 'bool',
++            '*pve-version': 'str',
+             '*compat-props': { 'type': ['CompatProperty'],
+                                'features': ['unstable'] } } }
+ 
+diff --git a/system/vl.c b/system/vl.c
+index 6994dcc9f0..5a9ac766ce 100644
+--- a/system/vl.c
++++ b/system/vl.c
+@@ -1683,6 +1683,7 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+ {
+     ERRP_GUARD();
+     const char *machine_type = qdict_get_try_str(qdict, "type");
++    const char *pvever = qdict_get_try_str(qdict, "pvever");
+     g_autoptr(GSList) machines = object_class_get_list(target_machine_typename(),
+                                                        false);
+     MachineClass *machine_class = NULL;
+@@ -1703,7 +1704,11 @@ static MachineClass *select_machine(QDict *qdict, Error **errp)
+     if (!machine_class) {
+         error_append_hint(errp,
+                           "Use -machine help to list supported machines\n");
++    } else {
++        machine_class->pve_version = g_strdup(pvever);
++        qdict_del(qdict, "pvever");
+     }
++
+     return machine_class;
+ }
+ 
+@@ -3429,12 +3434,31 @@ void qemu_init(int argc, char **argv)
+             case QEMU_OPTION_machine:
+                 {
+                     bool help;
++                    size_t pvever_index, name_len;
++                    const gchar *name;
++                    gchar *name_clean, *pvever;
+ 
+                     keyval_parse_into(machine_opts_dict, optarg, "type", &help, &error_fatal);
+                     if (help) {
+                         machine_help_func(machine_opts_dict);
+                         exit(EXIT_SUCCESS);
+                     }
++
++                    // PVE version is specified with '+' as seperator, e.g. pc-i440fx+pvever
++                    name = qdict_get_try_str(machine_opts_dict, "type");
++                    if (name != NULL) {
++                        name_len = strlen(name);
++                        pvever_index = strcspn(name, "+");
++                        if (pvever_index < name_len) {
++                            name_clean = g_strndup(name, pvever_index);
++                            pvever = g_strndup(name + pvever_index + 1, name_len - pvever_index - 1);
++                            qdict_put_str(machine_opts_dict, "pvever", pvever);
++                            qdict_put_str(machine_opts_dict, "type", name_clean);
++                            g_free(name_clean);
++                            g_free(pvever);
++                        }
++                    }
++
+                     break;
+                 }
+             case QEMU_OPTION_accel:

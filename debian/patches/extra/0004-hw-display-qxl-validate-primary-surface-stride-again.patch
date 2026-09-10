@@ -1,0 +1,81 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Marc-Andr=C3=A9=20Lureau?= <marcandre.lureau@redhat.com>
+Date: Mon, 20 Jul 2026 15:45:13 +0400
+Subject: [PATCH] hw/display/qxl: validate primary surface stride against width
+
+The existing validation in qxl_create_guest_primary() checks that
+abs(stride) * height fits in vgamem_size and that stride is 4-byte
+aligned, but never checks that abs(stride) is large enough to hold one
+row of pixels for the declared width and format.
+
+A malicious guest can create a primary surface with a stride much
+smaller than width * bytes_per_pixel (e.g. stride=4 for a 64-wide 32bpp
+surface). The spice server rejects this via red_validate_surface(), but
+the return is void and QEMU unconditionally proceeds to set up the local
+rendering state. On the next display refresh, VNC or SDL reads width *
+byptes_pp per scanline from a region backed by only stride bytes per
+row, causing a host-side out-of-bounds read.
+
+Add three checks before creating the surface:
+ - reject unknown surface formats
+ - reject zero width or height
+ - reject surfaces where abs(stride) < width * bytes_per_pixel
+
+Fixes: CVE-2026-16271
+Fixes: 3761abb16784 ("hw/display/qxl: fix signed to unsigned comparison")
+Resolves: https://gitlab.com/qemu-project/qemu/-/work_items/3637
+Signed-off-by: Marc-Andre Lureau <marcandre.lureau@redhat.com>
+Link: https://lore.kernel.org/qemu-devel/20260720114513.2500370-1-marcandre.lureau@redhat.com
+(picked from qemu-devel)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/display/qxl.c | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+diff --git a/hw/display/qxl.c b/hw/display/qxl.c
+index b7d871b9ee..41673c369b 100644
+--- a/hw/display/qxl.c
++++ b/hw/display/qxl.c
+@@ -1496,6 +1496,7 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm,
+     QXLSurfaceCreate *sc = &qxl->guest_primary.surface;
+     uint32_t requested_height = le32_to_cpu(sc->height);
+     int requested_stride = le32_to_cpu(sc->stride);
++    uint32_t bytes_pp;
+ 
+     if (requested_stride == INT32_MIN ||
+         abs(requested_stride) * (uint64_t)requested_height
+@@ -1532,6 +1533,34 @@ static void qxl_create_guest_primary(PCIQXLDevice *qxl, int loadvm,
+         return;
+     }
+ 
++    switch (surface.format) {
++    case SPICE_SURFACE_FMT_16_555:
++    case SPICE_SURFACE_FMT_16_565:
++        bytes_pp = 2;
++        break;
++    case SPICE_SURFACE_FMT_32_xRGB:
++    case SPICE_SURFACE_FMT_32_ARGB:
++        bytes_pp = 4;
++        break;
++    default:
++        qxl_set_guest_bug(qxl, "%s: unhandled format %d",
++                          __func__, surface.format);
++        return;
++    }
++
++    if (surface.width == 0 || surface.height == 0) {
++        qxl_set_guest_bug(qxl, "%s: zero dimension %ux%u",
++                          __func__, surface.width, surface.height);
++        return;
++    }
++
++    if ((uint64_t)surface.width * bytes_pp > abs(surface.stride)) {
++        qxl_set_guest_bug(qxl, "%s: stride too small for width:"
++                          " stride %d width %u bpp %u",
++                          __func__, surface.stride, surface.width, bytes_pp);
++        return;
++    }
++
+     surface.mouse_mode = true;
+     surface.group_id   = MEMSLOT_GROUP_GUEST;
+     if (loadvm) {
