@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: "Denis V. Lunev" <den@openvz.org>
+Date: Mon, 31 Aug 2026 12:01:46 +0200
+Subject: [PATCH] io/channel-socket: do not treat a zero length write as an
+ error
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+qio_channel_socket_writev() checks "ret <= 0" after sendmsg(). A zero
+length iovec is written successfully and returns 0, so the success
+falls into the errno switch, which acts on whatever the last failing
+syscall left in errno. A stale EAGAIN turns it into
+QIO_CHANNEL_ERR_BLOCK with errp untouched, and a caller which treats
+every negative return as fatal then passes a NULL Error to
+error_get_pretty(). The websocket handshake does exactly that, so an
+unauthenticated client crashes QEMU during the greeting.
+
+Returning 0 is safe for callers which loop until everything is
+written. qio_channel_writev_full_all() has no zero progress guard, but
+iov_copy() yields no entries for a zero length write, so that loop is
+never entered. A connected stream socket returns 0 only when there is
+nothing to send.
+
+The WIN32 implementation in the same file uses "ret < 0".
+
+Fixes: CVE-2026-84788
+Fixes: 559607ea173a ("io: add QIOChannelSocket class")
+Cc: qemu-stable@nongnu.org
+Cc: Daniel P. Berrangé <berrange@redhat.com>
+Cc: Marc-André Lureau <marcandre.lureau@redhat.com>
+Reviewed-by: Daniel P. Berrangé <berrange@redhat.com>
+Reviewed-by: Marc-André Lureau <marcandre.lureau@redhat.com>
+Signed-off-by: Denis V. Lunev <den@openvz.org>
+Signed-off-by: Daniel P. Berrangé <berrange@redhat.com>
+(cherry picked from commit a3de21bfa5d0c33110942d407ff5c7903965d3ad)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ io/channel-socket.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/io/channel-socket.c b/io/channel-socket.c
+index 12773b832c..7920cee639 100644
+--- a/io/channel-socket.c
++++ b/io/channel-socket.c
+@@ -667,7 +667,7 @@ static ssize_t qio_channel_socket_writev(QIOChannel *ioc,
+ 
+  retry:
+     ret = sendmsg(sioc->fd, &msg, sflags);
+-    if (ret <= 0) {
++    if (ret < 0) {
+         switch (errno) {
+         case EAGAIN:
+             return QIO_CHANNEL_ERR_BLOCK;

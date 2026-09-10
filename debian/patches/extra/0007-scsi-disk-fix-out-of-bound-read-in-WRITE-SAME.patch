@@ -1,0 +1,71 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Paolo Bonzini <pbonzini@redhat.com>
+Date: Wed, 26 Aug 2026 19:22:41 +0200
+Subject: [PATCH] scsi-disk: fix out-of-bound read in WRITE SAME
+
+A guest with an attached scsi-hd can force QEMU's SCSI disk emulation
+to read roughly 60 KiB past the end of a heap buffer, copying that out
+of bounds host memory into the guest's own disk image.
+
+WRITE SAME computes the request transfer length at dev->blocksize
+when the request is prepared and sets cmd->xfer from dev->blocksize.
+scsi_disk_emulate_command() then uses cmd->xfer as the size of the
+request buffer.
+
+However, MODE SELECT can race with the WRITE SAME command and guest raise
+the logical block size to any value whose low bits fit 0xfe00, up to 65024.
+In the presence of this race, scsi_disk_emulate_write_same() will read
+from memory as many bytes as indicated by the *new* dev->blocksize,
+and write it to disk.
+
+The read length in WRITE SAME must be bounded by the buffer that was
+actually allocated, not by the mutable s->qdev.blocksize, so clamp the
+length used against inbuf to r->buflen.  Re-validating req->cmd.xfer
+against the current block size would not work because the race is
+intrinsic in the SCSI protocol.
+
+I am not sure if this is exploitable with virtio-scsi and other SG-capable
+HBAs, because it should process the WRITE SAME input immediately,
+without letting the MODE SELECT command race with it.
+
+Fixes: 356c4c441ec ("scsi-disk: allow MODE SELECT block descriptor to set the block size", 2022-07-13)
+Resolves: https://gitlab.com/qemu-project/qemu/-/work_items/4365
+Cc: qemu-stable@nongnu.org
+Reviewed-by: Stefan Hajnoczi <stefanha@redhat.com>
+Signed-off-by: Paolo Bonzini <pbonzini@redhat.com>
+(cherry picked from commit d30254aec93141d6b89262986a62764b2ae07177)
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/scsi/scsi-disk.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/hw/scsi/scsi-disk.c b/hw/scsi/scsi-disk.c
+index 1b0cce128c..5bb7a974d6 100644
+--- a/hw/scsi/scsi-disk.c
++++ b/hw/scsi/scsi-disk.c
+@@ -1911,6 +1911,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
+     SCSIRequest *req = &r->req;
+     SCSIDiskState *s = DO_UPCAST(SCSIDiskState, qdev, req->dev);
+     uint32_t nb_sectors = scsi_data_cdb_xfer(r->req.cmd.buf);
++    uint32_t buflen = MIN(s->qdev.blocksize, r->buflen);
+     WriteSameCBData *data;
+     uint8_t *buf;
+     int i, l;
+@@ -1930,7 +1931,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
+         return;
+     }
+ 
+-    if ((req->cmd.buf[1] & 0x1) || buffer_is_zero(inbuf, s->qdev.blocksize)) {
++    if ((req->cmd.buf[1] & 0x1) || buffer_is_zero(inbuf, buflen)) {
+         int flags = (req->cmd.buf[1] & 0x8) ? BDRV_REQ_MAY_UNMAP : 0;
+ 
+         /* The request is used as the AIO opaque value, so add a ref.  */
+@@ -1956,7 +1957,7 @@ static void scsi_disk_emulate_write_same(SCSIDiskReq *r, uint8_t *inbuf)
+     qemu_iovec_init_external(&data->qiov, &data->iov, 1);
+ 
+     for (i = 0; i < data->iov.iov_len; i += l) {
+-        l = MIN(s->qdev.blocksize, data->iov.iov_len - i);
++        l = MIN(buflen, data->iov.iov_len - i);
+         memcpy(&buf[i], inbuf, l);
+     }
+ 

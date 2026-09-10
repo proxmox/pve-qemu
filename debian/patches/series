@@ -3,6 +3,12 @@ extra/0002-fdmon-io_uring-avoid-idle-event-loop-being-accounted.patch
 extra/0003-block-vmdk-tolerate-known-seSparse-reserved1-bit.patch
 extra/0004-hw-display-qxl-validate-primary-surface-stride-again.patch
 extra/0005-hw-scsi-lsi53c895a-gracefully-handle-re-entrant-DMA.patch
+extra/0006-hw-display-vga-fix-text-mode-OOB-write-after-a-graph.patch
+extra/0007-scsi-disk-fix-out-of-bound-read-in-WRITE-SAME.patch
+extra/0008-scsi-hide-MODE-SELECT-block-size-change-behind-a-qui.patch
+extra/0009-vapic-confine-the-VAPIC-region-to-0xc0000.0xe0000.patch
+extra/0010-i386-vapic-unref-MemoryRegion-if-vapic_map_rom_writa.patch
+extra/0011-io-channel-socket-do-not-treat-a-zero-length-write-a.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
