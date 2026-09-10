@@ -1,3 +1,18 @@
+pve-qemu-kvm (11.1.1-1) trixie; urgency=medium
+
+  * update submodule and patches to QEMU 11.1.1.
+
+  * the glusterfs block driver is fully dropped from this QEMU version. The
+    Proxmox VE storage plugin was already removed with the release of Proxmox
+    VE 9.0.
+
+  * update supported CPU models for amd64/x86_64 adding new versions for some
+    AMD and Intel models, which add GMET/MBEC support.
+
+  * add patch to work around broken input cleanup feature in libspice-server1.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 09 Sep 2026 12:14:25 +0200
+
 pve-qemu-kvm (11.0.3-3) trixie; urgency=medium
 
   * pbs-restore: add an optional flag to skip the host page cache when
