@@ -1,0 +1,44 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Date: Wed, 30 Sep 2026 23:07:46 +0200
+Subject: [PATCH] PVE backup: vma reader: fix blob buffer bounds check wrapping
+ around
+
+The bounds check for the blob buffer adds its offset and size, both
+32-bit values taken from the archive header. A crafted header can make
+that sum wrap around, for example with an offset just below 4 GiB and a
+small size, so the check passes and parsing the blob buffer reads far
+outside of the header data. That crashes vma already with 'vma list'.
+
+Check the offset and the size against the header size separately, so
+no sum can wrap around. Archives created by vma always place the blob
+buffer directly after the fixed header part, which passes the stricter
+checks.
+
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+---
+ vma-reader.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/vma-reader.c b/vma-reader.c
+index ebd17c907c..ab0fe6f3b7 100644
+--- a/vma-reader.c
++++ b/vma-reader.c
+@@ -286,13 +286,15 @@ static int vma_reader_read_head(VmaReader *vmar, Error **errp)
+     uint32_t bstart = h->blob_buffer_offset + 1;
+     uint32_t bend = h->blob_buffer_offset + h->blob_buffer_size;
+ 
+-    if (bstart <= sizeof(VmaHeader)) {
++    if (h->blob_buffer_offset < sizeof(VmaHeader) ||
++        h->blob_buffer_offset >= header_size) {
+         error_setg(errp, "wrong vma blob buffer offset %d",
+                    h->blob_buffer_offset);
+         return -1;
+     }
+ 
+-    if (bend > header_size) {
++    /* compare with the remaining size, the end offset could wrap around */
++    if (h->blob_buffer_size > header_size - h->blob_buffer_offset) {
+         error_setg(errp, "wrong vma blob buffer size %d/%d",
+                    h->blob_buffer_offset, h->blob_buffer_size);
+         return -1;

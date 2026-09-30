@@ -77,3 +77,6 @@ pve/0044-PVE-backup-implement-backup-access-setup-and-teardow.patch
 pve/0045-PVE-backup-prepare-for-the-switch-to-using-blockdev-.patch
 pve/0046-savevm-async-reuse-migration-blocker-check-for-snaps.patch
 pve/0047-pbs-restore-add-no-cache-flag-to-skip-host-page-cach.patch
+pve/0048-PVE-backup-vma-reader-reject-zero-length-name-blobs.patch
+pve/0049-PVE-backup-vma-reader-fix-blob-buffer-bounds-check-w.patch
+pve/0050-PVE-backup-vma-reader-restrict-allowed-archive-membe.patch

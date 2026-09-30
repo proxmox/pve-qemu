@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Date: Wed, 30 Sep 2026 22:29:02 +0200
+Subject: [PATCH] PVE backup: vma reader: reject zero-length name blobs
+
+The check for the terminating NUL byte of a name indexes the blob data
+with its length minus one. As the length is unsigned, a zero-length
+blob wraps that index to almost 4 GiB past the blob data. A crafted
+archive that references such a blob as a device or config name thus
+crashes vma, or makes it read unrelated memory, already while parsing
+the header, for example with 'vma list'.
+
+Treat a zero-length blob like a name without a terminating NUL byte,
+which is already considered invalid. Empty names, stored as a single
+NUL byte, are not affected.
+
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+---
+ vma-reader.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/vma-reader.c b/vma-reader.c
+index 1888b21851..ebd17c907c 100644
+--- a/vma-reader.c
++++ b/vma-reader.c
+@@ -123,7 +123,7 @@ static const VmaBlob *get_header_blob(VmaReader *vmar, uint32_t pos)
+ static const char *get_header_str(VmaReader *vmar, uint32_t pos)
+ {
+     const VmaBlob *blob = get_header_blob(vmar, pos);
+-    if (!blob) {
++    if (!blob || !blob->len) {
+         return NULL;
+     }
+     const char *res = (char *)blob->data;
