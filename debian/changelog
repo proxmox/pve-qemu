@@ -1,3 +1,21 @@
+pve-qemu-kvm (11.1.1-2) trixie; urgency=medium
+
+  * vma: reject archive member names that are not a single path component
+    when reading an archive. Previously, extracting a crafted backup archive,
+    as done on restore, could write configuration files outside of the
+    extraction directory. Creating an archive now rejects such names too, to
+    avoid producing archives that cannot be restored.
+
+  * vma: fix out-of-bounds reads and resulting crashes when reading an
+    archive with a crafted header, for example one containing a zero-length
+    name or an invalid blob buffer location.
+
+  * backup: report the reason when adding a configuration file or disk to a
+    VMA archive fails, for example for configuration files larger than the
+    65535 bytes a VMA archive can hold per file.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 30 Sep 2026 23:14:36 +0200
+
 pve-qemu-kvm (11.1.1-1) trixie; urgency=medium
 
   * update submodule and patches to QEMU 11.1.1.
