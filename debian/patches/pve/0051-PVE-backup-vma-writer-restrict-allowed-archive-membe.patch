@@ -1,0 +1,142 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Wed, 30 Sep 2026 15:43:56 +0200
+Subject: [PATCH] PVE backup: vma writer: restrict allowed archive member names
+ for creation
+
+Restore rejects certain member names since commit "PVE backup: vma
+reader: restrict allowed archive member names for restore". Do the
+same checks already for creation to avoid creating an archive that
+cannot be restored later.
+
+The vma_check_member_name() implementation needs to move to the
+vma-writer.c source file, because the corresponding object file is
+linked into both, the vma binary and the QEMU system binaries, while
+the vma-reader.o object file is only linked into the vma binary.
+
+To ensure the basename string is freed also in the error branch,
+declare its pointer with g_autofree.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ vma-reader.c | 15 ---------------
+ vma-writer.c | 38 +++++++++++++++++++++++++++++++++++---
+ vma.h        |  2 ++
+ 3 files changed, 37 insertions(+), 18 deletions(-)
+
+diff --git a/vma-reader.c b/vma-reader.c
+index 98951e6f95..2bce1b9d70 100644
+--- a/vma-reader.c
++++ b/vma-reader.c
+@@ -51,21 +51,6 @@ struct VmaReader {
+     int clusters_read_per;
+ };
+ 
+-static bool vma_check_member_name(const char *member_name, Error **errp)
+-{
+-    if (strchr(member_name, '/')) {
+-        error_setg(errp, "must not contain '/' - ('%s')", member_name);
+-        return false;
+-    } else if (strcmp(member_name, "..") == 0) {
+-        error_setg(errp, "must not equal '..'");
+-        return false;
+-    } else if (strcmp(member_name, ".") == 0) {
+-        error_setg(errp, "must not equal '.'");
+-        return false;
+-    }
+-    return true;
+-}
+-
+ static guint
+ g_int32_hash(gconstpointer v)
+ {
+diff --git a/vma-writer.c b/vma-writer.c
+index a85a1267a7..6c1498beb1 100644
+--- a/vma-writer.c
++++ b/vma-writer.c
+@@ -74,6 +74,21 @@ struct VmaWriter {
+     uint32_t config_count;
+ };
+ 
++bool vma_check_member_name(const char *member_name, Error **errp)
++{
++    if (strchr(member_name, '/')) {
++        error_setg(errp, "must not contain '/' - ('%s')", member_name);
++        return false;
++    } else if (strcmp(member_name, "..") == 0) {
++        error_setg(errp, "must not equal '..'");
++        return false;
++    } else if (strcmp(member_name, ".") == 0) {
++        error_setg(errp, "must not equal '.'");
++        return false;
++    }
++    return true;
++}
++
+ void vma_writer_set_error(VmaWriter *vmaw, const char *fmt, ...)
+ {
+     va_list ap;
+@@ -129,16 +144,23 @@ static uint32_t allocate_header_string(VmaWriter *vmaw, const char *str)
+ int vma_writer_add_config(VmaWriter *vmaw, const char *name, gpointer data,
+                           gsize len)
+ {
++    Error *local_err = NULL;
++
+     assert(vmaw);
+     assert(!vmaw->header_written);
+     assert(vmaw->config_count < VMA_MAX_CONFIGS);
+     assert(name);
+     assert(data);
+ 
+-    gchar *basename = g_path_get_basename(name);
+-    uint32_t name_ptr = allocate_header_string(vmaw, basename);
+-    g_free(basename);
++    g_autofree gchar *basename = g_path_get_basename(name);
++    if (!vma_check_member_name(basename, &local_err)) {
++        vma_writer_set_error(vmaw, "vma_writer_add_config: invalid config name:"
++                             " %s", error_get_pretty(local_err));
++        error_free(local_err);
++        return -1;
++    }
+ 
++    uint32_t name_ptr = allocate_header_string(vmaw, basename);
+     if (!name_ptr) {
+         vma_writer_set_error(vmaw, "vma_writer_add_config: unable to allocate"
+                              " name_ptr");
+@@ -163,6 +185,8 @@ int vma_writer_add_config(VmaWriter *vmaw, const char *name, gpointer data,
+ int vma_writer_register_stream(VmaWriter *vmaw, const char *devname,
+                                size_t size)
+ {
++    Error *local_err = NULL;
++
+     assert(vmaw);
+     assert(devname);
+     assert(!vmaw->status);
+@@ -190,6 +214,14 @@ int vma_writer_register_stream(VmaWriter *vmaw, const char *devname,
+         return -1;
+     }
+ 
++    if (!vma_check_member_name(devname, &local_err)) {
++        vma_writer_set_error(vmaw, "vma_writer_register_stream: "
++                             "invalid device name: %s",
++                             error_get_pretty(local_err));
++        error_free(local_err);
++        return -1;
++    }
++
+     DPRINTF("vma_writer_register_stream %s %zu %d\n", devname, size, n);
+ 
+     vmaw->stream_info[n].devname = g_strdup(devname);
+diff --git a/vma.h b/vma.h
+index 86d2873aa5..55ceba6b98 100644
+--- a/vma.h
++++ b/vma.h
+@@ -114,6 +114,8 @@ typedef struct VmaDeviceInfo {
+     const char *devname;
+ } VmaDeviceInfo;
+ 
++bool vma_check_member_name(const char *member_name, Error **errp);
++
+ VmaWriter *vma_writer_create(const char *filename, uuid_t uuid, Error **errp);
+ int vma_writer_close(VmaWriter *vmaw, Error **errp);
+ void vma_writer_error_propagate(VmaWriter *vmaw, Error **errp);

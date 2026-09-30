@@ -1,0 +1,30 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Wed, 30 Sep 2026 15:43:58 +0200
+Subject: [PATCH] PVE backup: vma: report errors from writer at cleanup time in
+ QMP backup handler
+
+Do not quietly ignore the error and ensure it is freed by calling
+error_report_err() (which includes a call to error_free()).
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Reviewed-by: Jakob Klocker <j.klocker@proxmox.com>
+Tested-by: Jakob Klocker <j.klocker@proxmox.com>
+---
+ pve-backup.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index 0987011ffe..9dccdf37fe 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -1655,6 +1655,9 @@ err:
+     if (vmaw) {
+         Error *err = NULL;
+         vma_writer_close(vmaw, &err);
++        if (err) {
++            error_report_err(err);
++        }
+         unlink(backup_file);
+     }
+ 

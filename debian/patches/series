@@ -61,3 +61,11 @@ pve/0043-PVE-backup-prepare-for-the-switch-to-using-blockdev-.patch
 pve/0044-savevm-async-reuse-migration-blocker-check-for-snaps.patch
 pve/0045-pbs-restore-add-no-cache-flag-to-skip-host-page-cach.patch
 pve/0046-ui-spice-core-work-around-broken-input-cleanup-in-li.patch
+pve/0047-PVE-backup-vma-reader-reject-zero-length-name-blobs.patch
+pve/0048-PVE-backup-vma-reader-fix-blob-buffer-bounds-check-w.patch
+pve/0049-PVE-backup-vma-reader-restrict-allowed-archive-membe.patch
+pve/0050-PVE-backup-vma-writer-add-config-set-error-when-allo.patch
+pve/0051-PVE-backup-vma-writer-restrict-allowed-archive-membe.patch
+pve/0052-PVE-backup-vma-fix-checking-for-error-from-registeri.patch
+pve/0053-PVE-backup-vma-report-errors-from-writer-at-cleanup-.patch
+pve/0054-PVE-backup-vma-report-why-adding-a-config-or-device-.patch

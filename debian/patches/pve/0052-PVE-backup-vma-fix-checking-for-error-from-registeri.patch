@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Fiona Ebner <f.ebner@proxmox.com>
+Date: Wed, 30 Sep 2026 15:43:57 +0200
+Subject: [PATCH] PVE backup: vma: fix checking for error from registering
+ stream
+
+The condition di->dev_id <= 0 could only trigger for 0 itself, because
+di->dev_id is a uint8_t. Use an int variable to store the return value
+from vma_writer_register_stream() and properly check for errors.
+
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+Reviewed-by: Jakob Klocker <j.klocker@proxmox.com>
+Tested-by: Jakob Klocker <j.klocker@proxmox.com>
+---
+ pve-backup.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index ad0f8668fd..0987011ffe 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -1552,12 +1552,14 @@ UuidInfo coroutine_fn *qmp_backup(
+                 goto err_mutex;
+             }
+ 
+-            di->dev_id = vma_writer_register_stream(vmaw, di->device_name, di->size);
+-            if (di->dev_id <= 0) {
++            int dev_id = vma_writer_register_stream(vmaw, di->device_name, di->size);
++            if (dev_id <= 0) {
+                 error_set(errp, ERROR_CLASS_GENERIC_ERROR,
+                           "register_stream failed");
+                 goto err_mutex;
+             }
++            assert(dev_id < 256);
++            di->dev_id = dev_id;
+         }
+     } else {
+         error_set(errp, ERROR_CLASS_GENERIC_ERROR, "unknown backup format");
