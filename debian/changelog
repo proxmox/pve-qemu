@@ -1,3 +1,24 @@
+pve-qemu-kvm (11.0.3-4) trixie; urgency=medium
+
+  * vma: reject archive member names that are not a single path component
+    when reading an archive. Previously, extracting a crafted backup archive,
+    as done on restore, could write configuration files outside of the
+    extraction directory.
+
+  * vma: fix out-of-bounds reads and resulting crashes when reading an
+    archive with a crafted header, for example one containing a zero-length
+    name or an invalid blob buffer location.
+
+  * savevm-async: fix leaking the state file channel and a reference to its
+    block backend each time the VM state is saved or loaded, for example for
+    snapshots including RAM or for hibernation.
+
+  * migration: fail with an error instead of possibly crashing when the
+    Proxmox Backup Server dirty bitmap state in an incoming migration stream
+    or saved VM state is corrupt.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 30 Sep 2026 22:53:48 +0200
+
 pve-qemu-kvm (11.0.3-3) trixie; urgency=medium
 
   * pbs-restore: add an optional flag to skip the host page cache when
