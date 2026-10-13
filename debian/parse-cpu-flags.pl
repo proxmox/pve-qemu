@@ -66,7 +66,6 @@ my $filtered_props = {
         'legacy-multi-node' => 1,
         lmce => 1,
         migratable => 1,
-        pmu => 1,
         realized => 1,
         'start-powered-off' => 1,
         'tcg-cpuid' => 1,
