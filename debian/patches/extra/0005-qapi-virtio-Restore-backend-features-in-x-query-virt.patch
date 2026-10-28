@@ -1,0 +1,41 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
+Date: Wed, 23 Sep 2026 00:32:09 +0300
+Subject: [PATCH] qapi/virtio: Restore backend features in
+ x-query-virtio-status
+
+Commit 1ee0bc0c9bf0 removed vhost_dev.backend_features and its
+representation in VhostStatus. It also removed the assignment to
+VirtioStatus.backend_features, although both that field and its source,
+VirtIODevice.backend_features_ex, still exist.
+
+The resulting NULL pointer causes HMP info virtio-status and QMP
+x-query-virtio-status to crash. This affects virtio devices even without
+an active vhost backend.
+
+Restore the assignment from VirtIODevice.backend_features_ex and
+enable corresponding test, which becomes fixed.
+
+Fixes: 1ee0bc0c9bf0 ("vhost: drop backend_features field")
+Signed-off-by: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
+Link: https://lore.kernel.org/qemu-devel/20260922213210.1429435-3-vsementsov@yandex-team.ru
+(pick from qemu-devel)
+[FE: drop test that would require multiple prerequisite cherry-picks]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/virtio/virtio-qmp.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/hw/virtio/virtio-qmp.c b/hw/virtio/virtio-qmp.c
+index 57cc03828c..36907180f7 100644
+--- a/hw/virtio/virtio-qmp.c
++++ b/hw/virtio/virtio-qmp.c
+@@ -713,6 +713,8 @@ VirtioStatus *qmp_x_query_virtio_status(const char *path, Error **errp)
+                                                  vdev->guest_features_ex);
+     status->host_features = qmp_decode_features(vdev->device_id,
+                                                 vdev->host_features_ex);
++    status->backend_features = qmp_decode_features(vdev->device_id,
++                                                   vdev->backend_features_ex);
+ 
+     switch (vdev->device_endian) {
+     case VIRTIO_DEVICE_ENDIAN_LITTLE:

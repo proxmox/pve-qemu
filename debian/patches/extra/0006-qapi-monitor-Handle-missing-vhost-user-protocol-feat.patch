@@ -1,0 +1,74 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
+Date: Wed, 23 Sep 2026 00:32:10 +0300
+Subject: [PATCH] qapi/monitor: Handle missing vhost-user protocol features
+
+Commit f9a8f5812607 moved protocol_features to the vhost-user backend.
+As a result, VhostStatus.protocol_features is only populated for
+vhost-user devices.
+
+For an active kernel vhost device, HMP info virtio-status and QMP
+x-query-virtio-status crashes now because of unset protocol-features.
+
+Make protocol-features optional in VhostStatus and skip dumping a
+missing object in HMP.
+
+For QMP we can change the x-query-virtio-status command semantics
+because it is unstable.
+
+Enable corresponding test, it works now.
+
+Fixes: f9a8f5812607 ("vhost: move protocol_features to vhost_user")
+Co-authored-by: Nikolay Kuratov <kniv@yandex-team.ru>
+Signed-off-by: Vladimir Sementsov-Ogievskiy <vsementsov@yandex-team.ru>
+Reviewed-by: Markus Armbruster <armbru@redhat.com>
+Link: https://lore.kernel.org/qemu-devel/20260922213210.1429435-4-vsementsov@yandex-team.ru
+(pick from qemu-devel)
+[FE: backport adapting to missing monitor_hmp_printf refactor
+     drop test would require multiple prerequisite cherry-picks]
+Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
+---
+ hw/virtio/virtio-hmp-cmds.c | 6 ++++--
+ qapi/virtio.json            | 5 +++--
+ 2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/hw/virtio/virtio-hmp-cmds.c b/hw/virtio/virtio-hmp-cmds.c
+index a91bb7dbed..c4adb6eb7b 100644
+--- a/hw/virtio/virtio-hmp-cmds.c
++++ b/hw/virtio/virtio-hmp-cmds.c
+@@ -176,8 +176,10 @@ void hmp_virtio_status(Monitor *mon, const QDict *qdict)
+         hmp_virtio_dump_features(mon, s->vhost_dev->features);
+         monitor_printf(mon, "    Acked features:\n");
+         hmp_virtio_dump_features(mon, s->vhost_dev->acked_features);
+-        monitor_printf(mon, "    Protocol features:\n");
+-        hmp_virtio_dump_protocols(mon, s->vhost_dev->protocol_features);
++        if (s->vhost_dev->protocol_features) {
++            monitor_printf(mon, "    Protocol features:\n");
++            hmp_virtio_dump_protocols(mon, s->vhost_dev->protocol_features);
++        }
+     }
+ 
+     qapi_free_VirtioStatus(s);
+diff --git a/qapi/virtio.json b/qapi/virtio.json
+index 1fc4e38a44..f8e699a0e4 100644
+--- a/qapi/virtio.json
++++ b/qapi/virtio.json
+@@ -85,7 +85,8 @@
+ #
+ # @acked-features: vhost_dev acked_features
+ #
+-# @protocol-features: vhost_dev protocol_features
++# @protocol-features: vhost-user protocol features.  Present only for
++#     vhost-user devices.
+ #
+ # @max-queues: vhost_dev max_queues
+ #
+@@ -104,7 +105,7 @@
+             'vq-index': 'int',
+             'features': 'VirtioDeviceFeatures',
+             'acked-features': 'VirtioDeviceFeatures',
+-            'protocol-features': 'VhostDeviceProtocols',
++            '*protocol-features': 'VhostDeviceProtocols',
+             'max-queues': 'uint64',
+             'backend-cap': 'uint64',
+             'log-enabled': 'bool',
