@@ -21,7 +21,7 @@ Signed-off-by: Erik Fastermann <e.fastermann@proxmox.com>
  3 files changed, 37 insertions(+), 17 deletions(-)
 
 diff --git a/migration/qemu-file.c b/migration/qemu-file.c
-index f30e13c66d..98acebce80 100644
+index eb0d63d54b..6a65f40bd6 100644
 --- a/migration/qemu-file.c
 +++ b/migration/qemu-file.c
 @@ -34,8 +34,8 @@

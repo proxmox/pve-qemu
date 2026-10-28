@@ -259,7 +259,7 @@ index 83f858669f..d7ab3cb78f 100644
    'blklogwrites.c',
    'blkverify.c',
 diff --git a/include/block/block_int-common.h b/include/block/block_int-common.h
-index 147c08155f..41c82fc1ab 100644
+index 46428b034d..94b1dd347d 100644
 --- a/include/block/block_int-common.h
 +++ b/include/block/block_int-common.h
 @@ -25,6 +25,7 @@
@@ -312,7 +312,7 @@ index 147c08155f..41c82fc1ab 100644
      BDRV_TRACKED_READ,
      BDRV_TRACKED_WRITE,
 diff --git a/job.c b/job.c
-index e747908472..5120a01265 100644
+index d7220aaf30..40dd820fba 100644
 --- a/job.c
 +++ b/job.c
 @@ -337,7 +337,8 @@ static bool job_started_locked(Job *job)

@@ -333,7 +333,7 @@ index e7c8f1a856..d5aa68caeb 100644
                    BlockdevOnError on_source_error,
                    BlockdevOnError on_target_error,
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index 1f87b07850..c2f6139dea 100644
+index 199efc1e00..28d9c1e98e 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -2280,6 +2280,15 @@
@@ -363,7 +363,7 @@ index 1f87b07850..c2f6139dea 100644
              '*speed': 'int', '*granularity': 'uint32',
              '*buf-size': 'int', '*on-source-error': 'BlockdevOnError',
              '*on-target-error': 'BlockdevOnError',
-@@ -2598,6 +2609,15 @@
+@@ -2600,6 +2611,15 @@
  #     destination (all the disk, only the sectors allocated in the
  #     topmost image, or only new I/O).
  #
@@ -379,7 +379,7 @@ index 1f87b07850..c2f6139dea 100644
  # @granularity: granularity of the dirty bitmap, default is 64K if the
  #     image format doesn't have clusters, 4K if the clusters are
  #     smaller than that, else the cluster size.  Must be a power of 2
-@@ -2650,7 +2670,8 @@
+@@ -2652,7 +2672,8 @@
  { 'command': 'blockdev-mirror',
    'data': { '*job-id': 'str', 'device': 'str', 'target': 'str',
              '*replaces': 'str',

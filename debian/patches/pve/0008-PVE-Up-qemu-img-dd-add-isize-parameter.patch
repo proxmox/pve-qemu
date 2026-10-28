@@ -17,10 +17,10 @@ Signed-off-by: Fiona Ebner <f.ebner@proxmox.com>
  1 file changed, 25 insertions(+), 3 deletions(-)
 
 diff --git a/qemu-img.c b/qemu-img.c
-index dad04c865e..f64a8cb3d3 100644
+index 82856a38a8..eaa143fe48 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -5321,11 +5321,13 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5327,11 +5327,13 @@ static int img_bitmap(const img_cmd_t *ccmd, int argc, char **argv)
  #define C_OF      010
  #define C_SKIP    020
  #define C_OSIZE   040
@@ -34,7 +34,7 @@ index dad04c865e..f64a8cb3d3 100644
  };
  
  struct DdIo {
-@@ -5414,6 +5416,19 @@ static int img_dd_osize(const char *arg,
+@@ -5420,6 +5422,19 @@ static int img_dd_osize(const char *arg,
      return 0;
  }
  
@@ -54,7 +54,7 @@ index dad04c865e..f64a8cb3d3 100644
  static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
  {
      int ret = 0;
-@@ -5428,12 +5443,14 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5434,12 +5449,14 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      int c, i;
      const char *out_fmt = "raw";
      const char *fmt = NULL;
@@ -70,7 +70,7 @@ index dad04c865e..f64a8cb3d3 100644
      };
      struct DdIo in = {
          .bsz = 512, /* Block size is by default 512 bytes */
-@@ -5455,6 +5472,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5461,6 +5478,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          { "of", img_dd_of, C_OF },
          { "skip", img_dd_skip, C_SKIP },
          { "osize", img_dd_osize, C_OSIZE },
@@ -78,7 +78,7 @@ index dad04c865e..f64a8cb3d3 100644
          { NULL, NULL, 0 }
      };
      const struct option long_options[] = {
-@@ -5673,9 +5691,10 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5679,9 +5697,10 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
  
      in.buf = g_new(uint8_t, in.bsz);
  
@@ -91,7 +91,7 @@ index dad04c865e..f64a8cb3d3 100644
          if (blk1) {
              in_ret = blk_pread(blk1, in_pos, bytes, in.buf, 0);
              if (in_ret == 0) {
-@@ -5684,6 +5703,9 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5690,6 +5709,9 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          } else {
              in_ret = read(STDIN_FILENO, in.buf, bytes);
              if (in_ret == 0) {

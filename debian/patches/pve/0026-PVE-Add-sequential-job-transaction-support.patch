@@ -34,7 +34,7 @@ index 0e40e8b457..f4fff5fa0d 100644
   * Release a reference that was previously acquired with job_txn_add_job or
   * job_txn_new. If it's the last reference to the object, it will be freed.
 diff --git a/job.c b/job.c
-index 5120a01265..353a0216cd 100644
+index 40dd820fba..6de4c7cfdb 100644
 --- a/job.c
 +++ b/job.c
 @@ -94,6 +94,8 @@ struct JobTxn {
@@ -72,7 +72,7 @@ index 5120a01265..353a0216cd 100644
  /* Called with job_mutex held. */
  static void job_txn_ref_locked(JobTxn *txn)
  {
-@@ -1048,6 +1069,12 @@ static void job_completed_txn_success_locked(Job *job)
+@@ -1055,6 +1076,12 @@ static void job_completed_txn_success_locked(Job *job)
       */
      QLIST_FOREACH(other_job, &txn->jobs, txn_list) {
          if (!job_is_completed_locked(other_job)) {
@@ -85,7 +85,7 @@ index 5120a01265..353a0216cd 100644
              return;
          }
          assert(other_job->ret == 0);
-@@ -1259,6 +1286,13 @@ int job_finish_sync_locked(Job *job,
+@@ -1266,6 +1293,13 @@ int job_finish_sync_locked(Job *job,
          return -EBUSY;
      }
  

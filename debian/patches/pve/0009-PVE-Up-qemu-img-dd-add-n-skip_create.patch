@@ -66,10 +66,10 @@ index 85458ea2d8..f97c2fa396 100644
  
  DEF("info", img_info,
 diff --git a/qemu-img.c b/qemu-img.c
-index f64a8cb3d3..e8e2b0eb68 100644
+index eaa143fe48..25cf0babe4 100644
 --- a/qemu-img.c
 +++ b/qemu-img.c
-@@ -5445,7 +5445,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5451,7 +5451,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
      const char *fmt = NULL;
      int64_t size = 0, readsize = 0;
      int64_t out_pos, in_pos;
@@ -78,7 +78,7 @@ index f64a8cb3d3..e8e2b0eb68 100644
      struct DdInfo dd = {
          .flags = 0,
          .count = 0,
-@@ -5485,7 +5485,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5491,7 +5491,7 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          { 0, 0, 0, 0 }
      };
  
@@ -87,7 +87,7 @@ index f64a8cb3d3..e8e2b0eb68 100644
          if (c == EOF) {
              break;
          }
-@@ -5526,6 +5526,9 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5532,6 +5532,9 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
          case 'O':
              out_fmt = optarg;
              break;
@@ -97,7 +97,7 @@ index f64a8cb3d3..e8e2b0eb68 100644
          case 'U':
              force_share = true;
              break;
-@@ -5655,13 +5658,15 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
+@@ -5661,13 +5664,15 @@ static int img_dd(const img_cmd_t *ccmd, int argc, char **argv)
                                  size - in.bsz * in.offset, &error_abort);
          }
  

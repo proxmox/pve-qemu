@@ -200,7 +200,7 @@ index 177fb851b4..7575abab7c 100644
      ret->pbs_masterkey = true;
      ret->backup_max_workers = true;
 diff --git a/qapi/block-core.json b/qapi/block-core.json
-index d3349661ba..5965a3c1f3 100644
+index ca18144902..91efb9922e 100644
 --- a/qapi/block-core.json
 +++ b/qapi/block-core.json
 @@ -1112,6 +1112,11 @@

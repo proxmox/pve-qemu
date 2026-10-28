@@ -883,10 +883,10 @@ index b1eaf7b054..0794a3a7a3 100644
  # @query-migrate:
  #
 diff --git a/qapi/misc.json b/qapi/misc.json
-index 22b7afed9f..786aeb4d3c 100644
+index c71a5fe657..48359a8992 100644
 --- a/qapi/misc.json
 +++ b/qapi/misc.json
-@@ -455,6 +455,31 @@
+@@ -463,6 +463,31 @@
  ##
  { 'command': 'query-fdsets', 'returns': ['FdsetInfo'] }
  
