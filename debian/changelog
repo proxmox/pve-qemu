@@ -1,3 +1,19 @@
+pve-qemu-kvm (11.1.3-1) trixie; urgency=medium
+
+  * update to QEMU 11.1.3, including fixes for KVM, CPU and device emulation,
+    networking and storage. Fix block-layer data corruption and improve
+    reporting of flush errors when closing disks and converting images with
+    qemu-img.
+
+  * cpu flags: expose the pmu flag in the custom CPU flag dialog, allowing the
+    virtual performance monitoring unit required by Windows VBS to be enabled
+    for named CPU models.
+
+  * virtio: fix QEMU crashes when querying device status via QMP
+    x-query-virtio-status or HMP info virtio-status.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 28 Oct 2026 16:28:16 +0100
+
 pve-qemu-kvm (11.1.1-2) trixie; urgency=medium
 
   * vma: reject archive member names that are not a single path component
