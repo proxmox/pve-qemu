@@ -71,3 +71,4 @@ pve/0058-PVE-backup-vma-reader-detect-missing-clusters-on-ver.patch
 pve/0059-PVE-backup-vma-reader-reject-invalid-block-info-inst.patch
 pve/0060-PVE-backup-vma-reader-fix-verbose-restore-of-disks-b.patch
 pve/0061-PVE-backup-vma-reader-keep-vmstate-data-at-its-offse.patch
+pve/0062-PVE-backup-pbs-process-chunks-in-parallel.patch

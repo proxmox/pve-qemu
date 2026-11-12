@@ -1,0 +1,77 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Date: Tue, 10 Nov 2026 21:51:40 +0100
+Subject: [PATCH] PVE backup: pbs: process chunks in parallel
+
+For each chunk of data it reads, the backup job calls a dump callback,
+which writes the chunk either to a VMA archive or, through the
+proxmox-backup-qemu library, to a Proxmox Backup Server. The job can
+have up to max-workers such writes in flight at once, 16 by default.
+
+The VMA writer is not thread safe, so the VMA callback holds the dump
+callback mutex while writing. But the PBS callback took that mutex as
+well and held it while the library hashes, compresses and encrypts a
+chunk and hands it to the HTTP/2 stream. So only one chunk got
+processed at a time, independent of max-workers and of the four
+threads of the library's runtime.
+
+Stop taking the mutex in the PBS callback, as the library supports
+concurrent writes: the index records each chunk at its offset, its
+shared state has its own locks, and pending writes fail once the
+backup gets aborted. The check for a failed or canceled backup stays,
+so that callbacks after that still skip the write.
+
+Backing up 12 GiB of /usr content in stop mode to a PBS on the same
+host, an EPYC 9135 with the datastore on NVMe, two runs each with and
+without encryption (which made no significant difference):
+
+                       before      after
+  time                 26-27 s     8-9 s
+  library CPU usage    1 core      3.5-4 cores
+  QEMU peak RSS        140 MiB     190-300 MiB
+
+With max-workers set to 1, both took 30 s, with the library using less
+than one core and QEMU peaking at about 80 MiB. So that setting can
+limit the impact on the host where a faster backup is not worth it.
+
+Against a remote PBS over 10G, the disk got read at 870-930 MiB/s
+instead of 530-560 MiB/s, but the total time stayed the same, as that
+PBS datastore could not take more.
+
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Link: https://lore.proxmox.com/pve-devel/20261111003918.452105-1-t.lamprecht@proxmox.com/
+---
+ pve-backup.c | 6 ------
+ 1 file changed, 6 deletions(-)
+
+diff --git a/pve-backup.c b/pve-backup.c
+index d20c8e39d0..bbe98e045a 100644
+--- a/pve-backup.c
++++ b/pve-backup.c
+@@ -156,11 +156,7 @@ pvebackup_co_dump_pbs_cb(
+ 
+     bool is_zero_block = size == di->block_size && buffer_is_zero(buf, size);
+ 
+-    qemu_co_mutex_lock(&backup_state.dump_callback_mutex);
+-
+-    // avoid deadlock if job is cancelled
+     if (pvebackup_error_or_canceled()) {
+-        qemu_co_mutex_unlock(&backup_state.dump_callback_mutex);
+         return -1;
+     }
+ 
+@@ -177,14 +173,12 @@ pvebackup_co_dump_pbs_cb(
+ 
+         if (pbs_res < 0) {
+             pvebackup_propagate_error(local_err);
+-            qemu_co_mutex_unlock(&backup_state.dump_callback_mutex);
+             return pbs_res;
+         }
+ 
+         reused += pbs_res == 0 ? to_transfer : 0;
+     }
+ 
+-    qemu_co_mutex_unlock(&backup_state.dump_callback_mutex);
+     pvebackup_add_transferred_bytes(size, is_zero_block ? size : 0, reused);
+ 
+     return size;
