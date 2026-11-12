@@ -1,3 +1,33 @@
+pve-qemu-kvm (11.1.3-2) trixie; urgency=medium
+
+  * vma: speed up restores by merging contiguous writes into one request and
+    by avoiding an extra copy of each write when the page cache is bypassed,
+    as for restores to ZFS pools. For example, restoring an 8 GiB disk to a
+    ZFS volume on NVMe took about half the time.
+
+  * vma: name the disk and the reason when a write or flush fails on restore,
+    for example "blk_pwrite to drive-scsi0 failed - No space left on device",
+    instead of only showing a negative error number.
+
+  * vma: handle broken or unusual archives better:
+    - 'vma verify' now also detects an archive that ends early at an extent
+      boundary, which restoring already rejected.
+    - reject invalid block information in an archive with an error instead
+      of aborting.
+    - fix restoring and verifying archives where all disks are smaller than
+      64 KiB.
+    - restore a vmstate stream, which only 'vma create' can add, with its
+      data at the correct offsets even if it contains zero blocks.
+
+  * backup: process chunks for Proxmox Backup Server in parallel instead of
+    one at a time. This can make backups considerably faster if the server
+    keeps up, for example a third of the time with a local datastore on NVMe,
+    at the cost of using up to four CPU cores instead of one. Setting the
+    'max-workers' performance option of the backup job to 1 gives about the
+    previous throughput and CPU usage.
+
+ -- Proxmox Support Team <support@proxmox.com>  Thu, 12 Nov 2026 22:11:56 +0100
+
 pve-qemu-kvm (11.1.3-1) trixie; urgency=medium
 
   * update to QEMU 11.1.3, including fixes for KVM, CPU and device emulation,
