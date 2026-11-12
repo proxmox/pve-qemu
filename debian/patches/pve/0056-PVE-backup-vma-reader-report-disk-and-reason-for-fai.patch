@@ -1,0 +1,157 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Date: Tue, 10 Nov 2026 14:51:32 +0100
+Subject: [PATCH] PVE backup: vma reader: report disk and reason for failed
+ writes
+
+A failed write on restore got reported like "blk_pwrite to  failed
+(-28)". The name came from the block layer, but the targets that vma
+opens have no device name there, and the reason was only shown as a
+negative errno. Admins had to guess which disk of a multi-disk restore
+hit the problem, for example a full storage, and what it was.
+
+Use the device name from the archive and the error string instead,
+which results in, for example, "blk_pwrite to drive-scsi0 failed - No
+space left on device". Add the error string to failed flushes too.
+
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Acked-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ vma-reader.c | 42 ++++++++++++++++++++----------------------
+ 1 file changed, 20 insertions(+), 22 deletions(-)
+
+diff --git a/vma-reader.c b/vma-reader.c
+index 4209d6dc45..92f48ee0cd 100644
+--- a/vma-reader.c
++++ b/vma-reader.c
+@@ -19,7 +19,6 @@
+ #include "qemu/ratelimit.h"
+ #include "vma.h"
+ #include "block/block.h"
+-#include "block/graph-lock.h"
+ #include "system/block-backend.h"
+ 
+ static unsigned char zero_vma_block[VMA_BLOCK_SIZE];
+@@ -50,7 +49,7 @@ struct VmaReader {
+     int64_t partial_zero_cluster_data;
+     int clusters_read_per;
+     /* queued writes, covering one contiguous range of a single target */
+-    BlockBackend *batch_target;
++    guint8 batch_dev_id;
+     int64_t batch_offset;
+     QEMUIOVector batch_qiov;
+ };
+@@ -533,19 +532,18 @@ static size_t full_write(int fd, void *buf, size_t len)
+ static int restore_flush_writes(VmaReader *vmar, Error **errp)
+ {
+     QEMUIOVector *qiov = &vmar->batch_qiov;
+-    BlockBackend *target = vmar->batch_target;
++    guint8 dev_id = vmar->batch_dev_id;
+ 
+     if (!qiov->size) {
+         return 0;
+     }
+ 
+-    int res = blk_pwritev(target, vmar->batch_offset, qiov->size, qiov, 0);
++    int res = blk_pwritev(vmar->rstate[dev_id].target, vmar->batch_offset,
++                          qiov->size, qiov, 0);
+     qemu_iovec_reset(qiov);
+     if (res < 0) {
+-        bdrv_graph_rdlock_main_loop();
+-        error_setg(errp, "blk_pwrite to %s failed (%d)",
+-                   bdrv_get_device_name(blk_bs(target)), res);
+-        bdrv_graph_rdunlock_main_loop();
++        error_setg(errp, "blk_pwrite to %s failed - %s",
++                   vmar->devinfo[dev_id].devname, g_strerror(-res));
+         return -1;
+     }
+ 
+@@ -557,13 +555,14 @@ static int restore_flush_writes(VmaReader *vmar, Error **errp)
+  * own is slow without the host page cache, which otherwise merges them. So
+  * extend the queued write as long as the data continues it on the same target.
+  */
+-static int restore_queue_write(VmaReader *vmar, BlockBackend *target,
++static int restore_queue_write(VmaReader *vmar, guint8 dev_id,
+                                unsigned char *buf, int64_t offset,
+                                size_t bytes, Error **errp)
+ {
+     QEMUIOVector *qiov = &vmar->batch_qiov;
++    BlockBackend *target = vmar->rstate[dev_id].target;
+ 
+-    if (qiov->size && (target != vmar->batch_target ||
++    if (qiov->size && (dev_id != vmar->batch_dev_id ||
+                        offset != vmar->batch_offset + (int64_t)qiov->size ||
+                        qiov->niov >= blk_get_max_iov(target))) {
+         if (restore_flush_writes(vmar, errp) < 0) {
+@@ -572,7 +571,7 @@ static int restore_queue_write(VmaReader *vmar, BlockBackend *target,
+     }
+ 
+     if (!qiov->size) {
+-        vmar->batch_target = target;
++        vmar->batch_dev_id = dev_id;
+         vmar->batch_offset = offset;
+     }
+ 
+@@ -588,8 +587,7 @@ static int restore_queue_write(VmaReader *vmar, BlockBackend *target,
+     return 0;
+ }
+ 
+-static int restore_write_data(VmaReader *vmar, guint8 dev_id,
+-                              BlockBackend *target, int vmstate_fd,
++static int restore_write_data(VmaReader *vmar, guint8 dev_id, int vmstate_fd,
+                               unsigned char *buf, int64_t sector_num,
+                               int nb_sectors, Error **errp)
+ {
+@@ -605,7 +603,7 @@ static int restore_write_data(VmaReader *vmar, guint8 dev_id,
+             }
+         }
+     } else {
+-        if (restore_queue_write(vmar, target, buf,
++        if (restore_queue_write(vmar, dev_id, buf,
+                                 sector_num * BDRV_SECTOR_SIZE,
+                                 nb_sectors * BDRV_SECTOR_SIZE, errp) < 0) {
+             return -1;
+@@ -703,9 +701,8 @@ static int restore_extent(VmaReader *vmar, unsigned char *buf,
+ 
+             if (!verify && !skip) {
+                 int nb_sectors = end_sector - sector_num;
+-                if (restore_write_data(vmar, dev_id, target, vmstate_fd,
+-                                       buf + start, sector_num, nb_sectors,
+-                                       errp) < 0) {
++                if (restore_write_data(vmar, dev_id, vmstate_fd, buf + start,
++                                       sector_num, nb_sectors, errp) < 0) {
+                     return -1;
+                 }
+             }
+@@ -739,7 +736,7 @@ static int restore_extent(VmaReader *vmar, unsigned char *buf,
+ 
+                     if (!verify && !skip) {
+                         int nb_sectors = end_sector - sector_num;
+-                        if (restore_write_data(vmar, dev_id, target, vmstate_fd,
++                        if (restore_write_data(vmar, dev_id, vmstate_fd,
+                                                buf + start, sector_num,
+                                                nb_sectors, errp) < 0) {
+                             return -1;
+@@ -763,7 +760,7 @@ static int restore_extent(VmaReader *vmar, unsigned char *buf,
+                         }
+ 
+                         if (rstate->write_zeroes && !verify && !skip) {
+-                            if (restore_write_data(vmar, dev_id, target, vmstate_fd,
++                            if (restore_write_data(vmar, dev_id, vmstate_fd,
+                                                    zero_vma_block, sector_num,
+                                                    nb_sectors, errp) < 0) {
+                                 return -1;
+@@ -876,9 +873,10 @@ static int vma_reader_restore_full(VmaReader *vmar, int vmstate_fd,
+             continue;
+         }
+ 
+-        if (blk_flush(rstate->target) < 0) {
+-            error_setg(errp, "vma blk_flush %s failed",
+-                       vmar->devinfo[i].devname);
++        int res = blk_flush(rstate->target);
++        if (res < 0) {
++            error_setg(errp, "vma blk_flush %s failed - %s",
++                       vmar->devinfo[i].devname, g_strerror(-res));
+             return -1;
+         }
+ 

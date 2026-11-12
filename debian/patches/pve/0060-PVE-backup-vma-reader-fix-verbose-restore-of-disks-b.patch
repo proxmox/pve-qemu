@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Date: Tue, 10 Nov 2026 15:05:46 +0100
+Subject: [PATCH] PVE backup: vma reader: fix verbose restore of disks below 64
+ KiB
+
+The progress output divides by the number of clusters in the archive,
+which was rounded down per device. If all devices are smaller than one
+64 KiB cluster, that is zero and vma died with SIGFPE on restore and
+verify. qemu-server always restores with verbose output.
+
+Round the count up per device, and skip the progress output if there
+is nothing to count, as for a restore of only a vmstate stream.
+
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Acked-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ vma-reader.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/vma-reader.c b/vma-reader.c
+index 8350fe89cb..1d80eed043 100644
+--- a/vma-reader.c
++++ b/vma-reader.c
+@@ -461,7 +461,7 @@ static void allocate_rstate(VmaReader *vmar,  guint8 dev_id,
+     vmar->rstate[dev_id].bitmap_size = bitmap_size;
+     vmar->rstate[dev_id].bitmap = g_new0(unsigned long, bitmap_size);
+ 
+-    vmar->cluster_count += size/VMA_CLUSTER_SIZE;
++    vmar->cluster_count += DIV_ROUND_UP(size, VMA_CLUSTER_SIZE);
+ }
+ 
+ int vma_reader_register_bs(VmaReader *vmar, guint8 dev_id, BlockBackend *target,
+@@ -673,7 +673,8 @@ static int restore_extent(VmaReader *vmar, unsigned char *buf,
+ 
+         vmar->clusters_read++;
+ 
+-        if (verbose) {
++        /* on restore, the count leaves out a vmstate stream, which can be all */
++        if (verbose && vmar->cluster_count) {
+             time_t duration = time(NULL) - vmar->start_time;
+             int percent = (vmar->clusters_read*100)/vmar->cluster_count;
+             if (percent != vmar->clusters_read_per) {

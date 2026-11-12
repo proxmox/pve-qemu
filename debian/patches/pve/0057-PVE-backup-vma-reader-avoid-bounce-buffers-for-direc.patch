@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Date: Tue, 10 Nov 2026 14:55:03 +0100
+Subject: [PATCH] PVE backup: vma reader: avoid bounce buffers for direct I/O
+ restores
+
+With cache=none, as qemu-server uses for restores to ZFS pools, QEMU
+opens the target with O_DIRECT. Zvols and device-mapper volumes, like
+LVM-thin ones, need memory aligned to 512 bytes for that. The extent
+buffer holding the restore data had no such alignment, so QEMU copied
+every write into an aligned bounce buffer first.
+
+Align the buffer, and the block used for writing zeroes, so that the
+data can be written directly.
+
+Restoring an 8 GiB disk from a zstd-compressed archive like qemu-server
+does, onto a zvol on NVMe with cache=none, took on average 4.5s instead
+of 5.9s. For an LVM-thin volume, where the disk was the limit, the
+difference stayed within the noise.
+
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Acked-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ vma-reader.c | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/vma-reader.c b/vma-reader.c
+index 92f48ee0cd..1fb6223a5c 100644
+--- a/vma-reader.c
++++ b/vma-reader.c
+@@ -21,7 +21,8 @@
+ #include "block/block.h"
+ #include "system/block-backend.h"
+ 
+-static unsigned char zero_vma_block[VMA_BLOCK_SIZE];
++/* aligned like the extent buffer in vma_reader_restore_full */
++static unsigned char zero_vma_block[VMA_BLOCK_SIZE] QEMU_ALIGNED(512);
+ 
+ typedef struct VmaRestoreState {
+     BlockBackend *target;
+@@ -791,7 +792,12 @@ static int vma_reader_restore_full(VmaReader *vmar, int vmstate_fd,
+     assert(vmar->head_data);
+ 
+     int ret = 0;
+-    unsigned char buf[VMA_MAX_EXTENT_SIZE];
++    /*
++     * Direct I/O to targets like zvols or device-mapper volumes needs memory
++     * aligned to 512 bytes, otherwise QEMU copies every write to a bounce
++     * buffer first. As the extent header is 512 bytes, this aligns the data.
++     */
++    unsigned char buf[VMA_MAX_EXTENT_SIZE] QEMU_ALIGNED(512);
+     int buf_pos = 0;
+     unsigned char md5sum[16];
+     VmaHeader *h = (VmaHeader *)vmar->head_data;

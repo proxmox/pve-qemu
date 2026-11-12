@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Date: Tue, 10 Nov 2026 15:02:12 +0100
+Subject: [PATCH] PVE backup: vma reader: reject invalid block info instead of
+ aborting
+
+An extent header naming a device that the archive does not have, or a
+cluster past the end of the device, triggered an assertion in the
+bitmap lookup on verify, and for the cluster also on restore, instead
+of an error. The same happened for the last cluster of a device whose
+size is not a multiple of 512 bytes, as the bitmap was sized by whole
+sectors.
+
+The archive writer never produces any of these and the header checksum
+catches random corruption, so only a crafted or broken archive could
+trigger it. Still, check the device and cluster before the lookup and
+size the bitmap by clusters, so such archives get rejected with an
+error like any other malformed one.
+
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Acked-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ vma-reader.c | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/vma-reader.c b/vma-reader.c
+index d31107a8ca..8350fe89cb 100644
+--- a/vma-reader.c
++++ b/vma-reader.c
+@@ -455,9 +455,8 @@ static void allocate_rstate(VmaReader *vmar,  guint8 dev_id,
+ 
+     int64_t size = vmar->devinfo[dev_id].size;
+ 
+-    int64_t bitmap_size = (size/BDRV_SECTOR_SIZE) +
+-        (VMA_CLUSTER_SIZE/BDRV_SECTOR_SIZE) * BITS_PER_LONG - 1;
+-    bitmap_size /= (VMA_CLUSTER_SIZE/BDRV_SECTOR_SIZE) * BITS_PER_LONG;
++    int64_t bitmap_size = DIV_ROUND_UP(DIV_ROUND_UP(size, VMA_CLUSTER_SIZE),
++                                       BITS_PER_LONG);
+ 
+     vmar->rstate[dev_id].bitmap_size = bitmap_size;
+     vmar->rstate[dev_id].bitmap = g_new0(unsigned long, bitmap_size);
+@@ -642,11 +641,17 @@ static int restore_extent(VmaReader *vmar, unsigned char *buf,
+ 
+         if (dev_id != vmar->vmstate_stream) {
+             target = rstate->target;
+-            if (!verify && !target && !skip) {
++            if (!rstate->bitmap || (!verify && !target && !skip)) {
+                 error_setg(errp, "got wrong dev id %d", dev_id);
+                 return -1;
+             }
+ 
++            if (cluster_num >= DIV_ROUND_UP(vmar->devinfo[dev_id].size,
++                                            VMA_CLUSTER_SIZE)) {
++                error_setg(errp, "got wrong block address - write beyond end");
++                return -1;
++            }
++
+             if (!skip) {
+                 if (vma_reader_get_bitmap(rstate, cluster_num)) {
+                     error_setg(errp, "found duplicated cluster %zd for stream %s",

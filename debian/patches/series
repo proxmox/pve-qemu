@@ -65,3 +65,9 @@ pve/0052-PVE-backup-vma-fix-checking-for-error-from-registeri.patch
 pve/0053-PVE-backup-vma-report-errors-from-writer-at-cleanup-.patch
 pve/0054-PVE-backup-vma-report-why-adding-a-config-or-device-.patch
 pve/0055-PVE-backup-vma-reader-merge-contiguous-writes-on-res.patch
+pve/0056-PVE-backup-vma-reader-report-disk-and-reason-for-fai.patch
+pve/0057-PVE-backup-vma-reader-avoid-bounce-buffers-for-direc.patch
+pve/0058-PVE-backup-vma-reader-detect-missing-clusters-on-ver.patch
+pve/0059-PVE-backup-vma-reader-reject-invalid-block-info-inst.patch
+pve/0060-PVE-backup-vma-reader-fix-verbose-restore-of-disks-b.patch
+pve/0061-PVE-backup-vma-reader-keep-vmstate-data-at-its-offse.patch

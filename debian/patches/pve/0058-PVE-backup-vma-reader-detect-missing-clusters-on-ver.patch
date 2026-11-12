@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Date: Tue, 10 Nov 2026 14:58:03 +0100
+Subject: [PATCH] PVE backup: vma reader: detect missing clusters on verify too
+
+The check for clusters that never showed up in the archive only ran
+for streams restored to a target, and verify has no targets. So an
+archive that ends right at an extent boundary, missing all following
+extents, passed verification, while restoring it failed.
+
+Run the check for every stream that is not skipped, on verify too.
+
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Acked-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ vma-reader.c | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/vma-reader.c b/vma-reader.c
+index 1fb6223a5c..d31107a8ca 100644
+--- a/vma-reader.c
++++ b/vma-reader.c
+@@ -875,21 +875,23 @@ static int vma_reader_restore_full(VmaReader *vmar, int vmstate_fd,
+     int i;
+     for (i = 1; i < 256; i++) {
+         VmaRestoreState *rstate = &vmar->rstate[i];
+-        if (!rstate->target) {
+-            continue;
++
++        if (rstate->target) {
++            int res = blk_flush(rstate->target);
++            if (res < 0) {
++                error_setg(errp, "vma blk_flush %s failed - %s",
++                           vmar->devinfo[i].devname, g_strerror(-res));
++                return -1;
++            }
+         }
+ 
+-        int res = blk_flush(rstate->target);
+-        if (res < 0) {
+-            error_setg(errp, "vma blk_flush %s failed - %s",
+-                       vmar->devinfo[i].devname, g_strerror(-res));
+-            return -1;
++        /* verify has no targets, but needs to detect missing clusters too */
++        if (!rstate->bitmap || rstate->skip) {
++            continue;
+         }
+ 
+         if (vmar->devinfo[i].size &&
+             (strcmp(vmar->devinfo[i].devname, "vmstate") != 0)) {
+-            assert(rstate->bitmap);
+-
+             int64_t cluster_num, end;
+ 
+             end = DIV_ROUND_UP(vmar->devinfo[i].size, VMA_CLUSTER_SIZE);

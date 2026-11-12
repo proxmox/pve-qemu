@@ -1,0 +1,92 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Date: Tue, 10 Nov 2026 15:07:16 +0100
+Subject: [PATCH] PVE backup: vma reader: keep vmstate data at its offset on
+ restore
+
+The archive leaves out zero blocks, and the reader only writes zeroes
+for them if the target asks for it, which a vmstate stream never does.
+As its data got appended to the file, every block after a zero block
+ended up at a wrong offset, silently corrupting the saved state.
+
+Write each block at its offset in the stream instead, so zero blocks
+become holes in the file.
+
+Nothing in Proxmox VE writes or reads vmstate streams in VMA archives,
+only 'vma create' can add one, so this avoids running into it later.
+
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Acked-by: Wolfgang Bumiller <w.bumiller@proxmox.com>
+---
+ vma-reader.c | 42 +++++++++++++-----------------------------
+ 1 file changed, 13 insertions(+), 29 deletions(-)
+
+diff --git a/vma-reader.c b/vma-reader.c
+index 1d80eed043..59424bb5ec 100644
+--- a/vma-reader.c
++++ b/vma-reader.c
+@@ -493,40 +493,23 @@ int vma_reader_register_bs(VmaReader *vmar, guint8 dev_id, BlockBackend *target,
+     return 0;
+ }
+ 
+-static ssize_t safe_write(int fd, void *buf, size_t count)
++static int full_pwrite(int fd, const unsigned char *buf, size_t len,
++                       off_t offset)
+ {
+-    ssize_t n;
+-
+-    do {
+-        n = write(fd, buf, count);
+-    } while (n < 0 && errno == EINTR);
+-
+-    return n;
+-}
+-
+-static size_t full_write(int fd, void *buf, size_t len)
+-{
+-    ssize_t n;
+-    size_t total;
+-
+-    total = 0;
+-
+     while (len > 0) {
+-        n = safe_write(fd, buf, len);
++        ssize_t n = pwrite(fd, buf, len, offset);
+         if (n < 0) {
+-            return n;
++            if (errno == EINTR) {
++                continue;
++            }
++            return -errno;
+         }
+         buf += n;
+-        total += n;
++        offset += n;
+         len -= n;
+     }
+ 
+-    if (len) {
+-        /* incomplete write ? */
+-        return -1;
+-    }
+-
+-    return total;
++    return 0;
+ }
+ 
+ static int restore_flush_writes(VmaReader *vmar, Error **errp)
+@@ -595,10 +578,11 @@ static int restore_write_data(VmaReader *vmar, guint8 dev_id, int vmstate_fd,
+ 
+     if (dev_id == vmar->vmstate_stream) {
+         if (vmstate_fd >= 0) {
+-            int len = nb_sectors * BDRV_SECTOR_SIZE;
+-            int res = full_write(vmstate_fd, buf, len);
++            /* zero blocks are skipped, so only the offset keeps data in place */
++            int res = full_pwrite(vmstate_fd, buf, nb_sectors * BDRV_SECTOR_SIZE,
++                                  sector_num * BDRV_SECTOR_SIZE);
+             if (res < 0) {
+-                error_setg(errp, "write vmstate failed %d", res);
++                error_setg(errp, "write vmstate failed - %s", g_strerror(-res));
+                 return -1;
+             }
+         }
