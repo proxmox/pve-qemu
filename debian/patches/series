@@ -64,3 +64,4 @@ pve/0051-PVE-backup-vma-writer-restrict-allowed-archive-membe.patch
 pve/0052-PVE-backup-vma-fix-checking-for-error-from-registeri.patch
 pve/0053-PVE-backup-vma-report-errors-from-writer-at-cleanup-.patch
 pve/0054-PVE-backup-vma-report-why-adding-a-config-or-device-.patch
+pve/0055-PVE-backup-vma-reader-merge-contiguous-writes-on-res.patch
