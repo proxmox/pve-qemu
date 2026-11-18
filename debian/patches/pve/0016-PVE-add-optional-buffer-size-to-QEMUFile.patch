@@ -186,10 +186,10 @@ index 8f824c124d..0ffcb13921 100644
  
  G_DEFINE_AUTOPTR_CLEANUP_FUNC(QEMUFile, qemu_fclose)
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
-index de69350763..67b69bf3ac 100644
+index 44362daca5..cbac3a3c25 100644
 --- a/migration/savevm-async.c
 +++ b/migration/savevm-async.c
-@@ -433,7 +433,7 @@ void qmp_savevm_start(const char *statefile, bool has_skip_vm_start,
+@@ -436,7 +436,7 @@ void qmp_savevm_start(const char *statefile, bool has_skip_vm_start,
  
      QIOChannel *ioc = QIO_CHANNEL(qio_channel_savevm_async_new(snap_state.target,
                                                                 &snap_state.bs_pos));
@@ -198,7 +198,7 @@ index de69350763..67b69bf3ac 100644
      object_unref(ioc);
  
      if (!snap_state.file) {
-@@ -572,7 +572,7 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
+@@ -585,7 +585,7 @@ int load_snapshot_from_blockdev(const char *filename, Error **errp)
  
      /* restore the VM state */
      QIOChannel *ioc = QIO_CHANNEL(qio_channel_savevm_async_new(be, &bs_pos));

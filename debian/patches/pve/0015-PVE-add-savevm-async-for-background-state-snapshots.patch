@@ -45,13 +45,13 @@ Signed-off-by: Erik Fastermann <e.fastermann@proxmox.com>
  include/migration/snapshot.h |   2 +
  include/monitor/hmp.h        |   3 +
  migration/meson.build        |   1 +
- migration/savevm-async.c     | 615 +++++++++++++++++++++++++++++++++++
+ migration/savevm-async.c     | 628 +++++++++++++++++++++++++++++++++++
  monitor/hmp-cmds.c           |  38 +++
- qapi/migration.json          |  34 ++
+ qapi/migration.json          |  38 +++
  qapi/misc.json               |  25 ++
  qemu-options.hx              |  12 +
  system/vl.c                  |  10 +
- 11 files changed, 780 insertions(+)
+ 11 files changed, 797 insertions(+)
  create mode 100644 migration/savevm-async.c
 
 diff --git a/hmp-commands-info.hx b/hmp-commands-info.hx
@@ -162,10 +162,10 @@ index a9d0c9cc36..1ae3779e39 100644
  ), gnutls, zlib)
 diff --git a/migration/savevm-async.c b/migration/savevm-async.c
 new file mode 100644
-index 0000000000..de69350763
+index 0000000000..44362daca5
 --- /dev/null
 +++ b/migration/savevm-async.c
-@@ -0,0 +1,615 @@
+@@ -0,0 +1,628 @@
 +#include "qemu/osdep.h"
 +#include "migration/channel-savevm-async.h"
 +#include "migration/migration.h"
@@ -228,6 +228,7 @@ index 0000000000..de69350763
 +    Coroutine *co;
 +    QemuCoSleep target_close_wait;
 +    IOThread *iothread;
++    bool savevm_end_active;
 +} snap_state;
 +
 +static bool savevm_aborted(void)
@@ -244,6 +245,8 @@ index 0000000000..de69350763
 +{
 +    SaveVMInfo *info = g_malloc0(sizeof(*info));
 +    struct SnapshotState *s = &snap_state;
++
++    info->savevm_end_active = s->savevm_end_active;
 +
 +    if (s->state != SAVE_STATE_DONE) {
 +        info->has_bytes = true;
@@ -666,6 +669,7 @@ index 0000000000..de69350763
 +                                "qmp_savevm_end");
 +            /* we cannot assume the snapshot finished in this case, so leave the
 +             * state alone - caller has to figure something out */
++            snap_state.savevm_end_active = false;
 +            return;
 +        }
 +    } else {
@@ -679,6 +683,8 @@ index 0000000000..de69350763
 +        snap_state.state = SAVE_STATE_DONE;
 +    }
 +
++    snap_state.savevm_end_active = false;
++
 +    DPRINTF("savevm-end: cleanup done\n");
 +}
 +
@@ -688,6 +694,13 @@ index 0000000000..de69350763
 +        error_setg(errp, "VM snapshot not started\n");
 +        return;
 +    }
++
++    if (snap_state.savevm_end_active) {
++        error_setg(errp, "savevm-end handler already running");
++        return;
++    }
++
++    snap_state.savevm_end_active = true;
 +
 +    Coroutine *wait_for_close = qemu_coroutine_create(wait_for_close_co, NULL);
 +
@@ -838,10 +851,10 @@ index e9fb8d827a..cbea739580 100644
  int monitor_set_cpu(Monitor *mon, int cpu_index)
  {
 diff --git a/qapi/migration.json b/qapi/migration.json
-index b1eaf7b054..0794a3a7a3 100644
+index b1eaf7b054..d7504a0d4d 100644
 --- a/qapi/migration.json
 +++ b/qapi/migration.json
-@@ -337,6 +337,40 @@
+@@ -337,6 +337,44 @@
             '*dirty-limit-throttle-time-per-round': 'uint64',
             '*dirty-limit-ring-full-time': 'uint64'} }
  
@@ -862,11 +875,15 @@ index b1eaf7b054..0794a3a7a3 100644
 +#
 +# @bytes: total amount of data transfered
 +#
++# @savevm-end-active: Whether a @savevm-end handler is currently
++#     active.
++#
 +# Since: 1.3
 +##
 +{ 'struct': 'SaveVMInfo',
 +  'data': {'*status': 'str', '*error': 'str',
-+           '*total-time': 'int', '*bytes': 'int'} }
++           '*total-time': 'int', '*bytes': 'int',
++           'savevm-end-active': 'bool'} }
 +
 +##
 +# @query-savevm:
