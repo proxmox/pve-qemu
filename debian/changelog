@@ -1,3 +1,13 @@
+pve-qemu-kvm (11.1.3-3) trixie; urgency=medium
+
+  * async snapshot: report in 'query-savevm' whether the 'savevm-end' command
+    is still running. qemu-server 9.2.20 uses this to tell when the command
+    finished after saving the VM state failed, instead of waiting for its
+    timeout. Also avoid a crash when a second 'savevm-end' command arrives
+    while the first one still waits for the state file to be closed.
+
+ -- Proxmox Support Team <support@proxmox.com>  Wed, 18 Nov 2026 21:13:20 +0100
+
 pve-qemu-kvm (11.1.3-2) trixie; urgency=medium
 
   * vma: speed up restores by merging contiguous writes into one request and
