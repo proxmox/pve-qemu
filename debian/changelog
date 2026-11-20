@@ -1,3 +1,13 @@
+pve-qemu-kvm (11.1.3-4) trixie; urgency=medium
+
+  * fix #8343, #8361: avoid QMP timeouts and VM stalls in PBS backups of RBD
+    disks. The recently introduced parallel processing of chunks for PBS
+    backup Server did not play nice with librbd waiting for in-flight requests
+    when checking the allocation status (reported in Bugzilla issue #7909).
+    Use a separate worker thread for these potentially long-running queries.
+
+ -- Proxmox Support Team <support@proxmox.com>  Fri, 20 Nov 2026 14:58:09 +0100
+
 pve-qemu-kvm (11.1.3-3) trixie; urgency=medium
 
   * async snapshot: report in 'query-savevm' whether the 'savevm-end' command
