@@ -1,0 +1,135 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Thomas Lamprecht <t.lamprecht@proxmox.com>
+Date: Fri, 20 Nov 2026 11:46:52 +0100
+Subject: [PATCH] block/rbd: query block status in a worker thread
+
+To answer a block status query for an image with fast-diff, the driver
+calls rbd_diff_iterate2(). That call blocks, and before it reports
+anything, librbd waits until the requests in flight on the image have
+completed. So the query blocks the thread of the image's AioContext.
+For a disk without an iothread, that is the main loop, which holds the
+BQL meanwhile.
+
+A backup queries the block status of each chunk before copying it,
+while up to max-workers reads of other chunks are in flight. Each of
+these queries then blocks the main loop until those reads are done.
+With slow OSDs, QMP commands can time out, and the vCPUs stall while
+they wait for the BQL. In Proxmox VE, this got much more likely once
+backups to a Proxmox Backup Server started to process chunks in
+parallel, which keeps more reads in flight.
+
+Call rbd_diff_iterate2() in a worker thread of the AioContext's thread
+pool, so that the coroutine yields while librbd waits. A query still
+waits as long, but the AioContext can handle other requests and events
+in the meantime. Reading a backup's data does not get faster, as each
+query still waits for the reads in flight before the next read can
+start. If the guest writes during a backup, the backup can even take
+longer, as the guest no longer stalls and its requests compete with the
+backup's.
+
+Test setup: a three-node Ceph cluster with slow OSDs, and a VM whose
+8 GiB disk without iothread holds 3 GiB of data. It is backed up with
+16 workers to a Proxmox Backup Server in three ways: stopped with data
+that the server already has, stopped with new data, and running while
+the guest writes. The last row is a stopped VM with a 256 GiB disk that
+has 8192 alternating allocated and unallocated runs. Before is
+pve-qemu-kvm 11.1.3-3, after is the same with this patch:
+
+                     runs  longest QMP reply    backup time
+                           before     after     before    after
+  stopped, known      3    436-472ms  1-3ms     4.9-6.0s  5.9-6.9s
+  stopped, new data   2    6.2-8.7s   2ms       26-32s    23-31s
+  running, writing    3    6.0-10.1s  13-89ms   16s       32-57s
+  256 GiB, fragmented 2    246-379ms  3-4ms     33-35s    24-25s
+
+The fragmented image was backed up faster, probably because the main
+loop no longer waits for its 65536 queries.
+
+Without this patch, two of the three backups of the running VM failed
+with a timeout of 'query-pbs-bitmap-info', so its backup time before is
+from one run. Its guest was set to write 4 KiB to a random offset every
+20 ms on average, one write at a time, next to other I/O. The 99th
+percentile latency of these writes went from 1.2-2.3 s to 0.14-0.44 s,
+and the guest completed 15-24 of them per second instead of 3-6.
+
+With an iothread, QMP was not affected before, but the guest's writes
+to that disk were, as the iothread blocked instead. With one run each,
+the 99th percentile latency of the 4 KiB writes went from 443 to 100 ms,
+while the backup took 20 s instead of 12 s.
+
+Signed-off-by: Thomas Lamprecht <t.lamprecht@proxmox.com>
+---
+ block/rbd.c | 32 ++++++++++++++++++++++++++++++--
+ 1 file changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/block/rbd.c b/block/rbd.c
+index 2a70b5a983..d3b6107b18 100644
+--- a/block/rbd.c
++++ b/block/rbd.c
+@@ -21,6 +21,7 @@
+ #include "block/block-io.h"
+ #include "block/block_int.h"
+ #include "block/qdict.h"
++#include "block/thread-pool.h"
+ #include "crypto/secret.h"
+ #include "qemu/cutils.h"
+ #include "system/replay.h"
+@@ -120,6 +121,13 @@ typedef struct RBDDiffIterateReq {
+     bool exists;
+ } RBDDiffIterateReq;
+ 
++typedef struct RBDDiffIterateCall {
++    rbd_image_t image;
++    uint64_t offs;
++    uint64_t len;
++    RBDDiffIterateReq *req;
++} RBDDiffIterateCall;
++
+ static int qemu_rbd_connect(rados_t *cluster, rados_ioctx_t *io_ctx,
+                             BlockdevOptionsRbd *opts, bool cache,
+                             const char *keypairs, const char *secretid,
+@@ -1530,6 +1538,14 @@ static int qemu_rbd_diff_iterate_cb(uint64_t offs, size_t len,
+     return 0;
+ }
+ 
++static int qemu_rbd_diff_iterate_worker(void *opaque)
++{
++    RBDDiffIterateCall *call = opaque;
++
++    return rbd_diff_iterate2(call->image, NULL, call->offs, call->len, true,
++                             true, qemu_rbd_diff_iterate_cb, call->req);
++}
++
+ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
+                                                  unsigned int mode,
+                                                  int64_t offset, int64_t bytes,
+@@ -1539,6 +1555,7 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
+     BDRVRBDState *s = bs->opaque;
+     int status, r;
+     RBDDiffIterateReq req = { .offs = offset };
++    RBDDiffIterateCall call;
+     uint64_t features, flags;
+     uint64_t head = 0;
+ 
+@@ -1604,8 +1621,19 @@ static int coroutine_fn qemu_rbd_co_block_status(BlockDriverState *bs,
+     bytes += head;
+ #endif
+ 
+-    r = rbd_diff_iterate2(s->image, NULL, req.offs, bytes, true, true,
+-                          qemu_rbd_diff_iterate_cb, &req);
++    /*
++     * rbd_diff_iterate2() blocks until the requests in flight on the image
++     * have completed, which can take a long time while a backup reads from it.
++     * Call it in a worker thread, so that it does not block the AioContext,
++     * which is the main loop for a disk without an iothread.
++     */
++    call = (RBDDiffIterateCall) {
++        .image = s->image,
++        .offs = req.offs,
++        .len = bytes,
++        .req = &req,
++    };
++    r = thread_pool_submit_co(qemu_rbd_diff_iterate_worker, &call);
+     if (r < 0 && r != QEMU_RBD_EXIT_DIFF_ITERATE2) {
+         return status;
+     }

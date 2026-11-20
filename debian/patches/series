@@ -4,6 +4,7 @@ extra/0003-block-vmdk-tolerate-known-seSparse-reserved1-bit.patch
 extra/0004-hw-scsi-lsi53c895a-gracefully-handle-re-entrant-DMA.patch
 extra/0005-qapi-virtio-Restore-backend-features-in-x-query-virt.patch
 extra/0006-qapi-monitor-Handle-missing-vhost-user-protocol-feat.patch
+extra/0007-block-rbd-query-block-status-in-a-worker-thread.patch
 bitmap-mirror/0001-drive-mirror-add-support-for-sync-bitmap-mode-never.patch
 bitmap-mirror/0002-drive-mirror-add-support-for-conditional-and-always-.patch
 bitmap-mirror/0003-mirror-add-check-for-bitmap-mode-without-bitmap.patch
